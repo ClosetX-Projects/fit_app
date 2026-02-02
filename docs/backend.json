@@ -1,0 +1,700 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user (either student or professor) in the FitAssist application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "userType": {
+          "type": "string",
+          "description": "The type of user: 'student' or 'professor'."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "age": {
+          "type": "number",
+          "description": "The user's age in years."
+        },
+        "gender": {
+          "type": "string",
+          "description": "The user's gender."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "The user's WhatsApp number."
+        }
+      },
+      "required": [
+        "id",
+        "userType",
+        "name",
+        "age",
+        "gender",
+        "email"
+      ]
+    },
+    "PhysicalAssessment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PhysicalAssessment",
+      "type": "object",
+      "description": "Represents a physical assessment record for a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the physical assessment."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N PhysicalAssessment)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the physical assessment.",
+          "format": "date-time"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The user's weight in kilograms."
+        },
+        "height": {
+          "type": "number",
+          "description": "The user's height in centimeters."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "weight",
+        "height"
+      ]
+    },
+    "CircumferenceMeasurement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CircumferenceMeasurement",
+      "type": "object",
+      "description": "Represents a circumference measurement taken during a physical assessment.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the circumference measurement."
+        },
+        "physicalAssessmentId": {
+          "type": "string",
+          "description": "Reference to PhysicalAssessment. (Relationship: PhysicalAssessment 1:N CircumferenceMeasurement)"
+        },
+        "peitoral": {
+          "type": "number",
+          "description": "Peitoral circumference measurement."
+        },
+        "cintura": {
+          "type": "number",
+          "description": "Cintura (waist) circumference measurement."
+        },
+        "abdomen": {
+          "type": "number",
+          "description": "Abdomen circumference measurement."
+        },
+        "quadril": {
+          "type": "number",
+          "description": "Quadril (hip) circumference measurement."
+        },
+        "coxa": {
+          "type": "number",
+          "description": "Coxa (thigh) circumference measurement."
+        },
+        "perna": {
+          "type": "number",
+          "description": "Perna (calf) circumference measurement."
+        },
+        "braco": {
+          "type": "number",
+          "description": "Braço (arm) circumference measurement."
+        },
+        "antebraco": {
+          "type": "number",
+          "description": "Antebraço (forearm) circumference measurement."
+        }
+      },
+      "required": [
+        "id",
+        "physicalAssessmentId"
+      ]
+    },
+    "AdiposityMeasurement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdiposityMeasurement",
+      "type": "object",
+      "description": "Represents an adiposity measurement (skinfold) taken during a physical assessment.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the adiposity measurement."
+        },
+        "physicalAssessmentId": {
+          "type": "string",
+          "description": "Reference to PhysicalAssessment. (Relationship: PhysicalAssessment 1:N AdiposityMeasurement)"
+        },
+        "threePollock": {
+          "type": "number",
+          "description": "3 Pollock skinfold measurement."
+        },
+        "fourPollock": {
+          "type": "number",
+          "description": "4 Pollock skinfold measurement."
+        },
+        "sevenPollock": {
+          "type": "number",
+          "description": "7 Pollock skinfold measurement."
+        }
+      },
+      "required": [
+        "id",
+        "physicalAssessmentId"
+      ]
+    },
+    "BioimpedanceAnalysis": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BioimpedanceAnalysis",
+      "type": "object",
+      "description": "Represents bioimpedance analysis data for a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the bioimpedance analysis."
+        },
+        "physicalAssessmentId": {
+          "type": "string",
+          "description": "Reference to PhysicalAssessment. (Relationship: PhysicalAssessment 1:N BioimpedanceAnalysis)"
+        },
+        "upperLeftSegmentFat": {
+          "type": "number",
+          "description": "Segmental fat analysis - Upper Left."
+        },
+        "upperRightSegmentFat": {
+          "type": "number",
+          "description": "Segmental fat analysis - Upper Right."
+        },
+        "lowerLeftSegmentFat": {
+          "type": "number",
+          "description": "Segmental fat analysis - Lower Left."
+        },
+        "lowerRightSegmentFat": {
+          "type": "number",
+          "description": "Segmental fat analysis - Lower Right."
+        },
+        "trunkSegmentFat": {
+          "type": "number",
+          "description": "Segmental fat analysis - Trunk."
+        },
+        "upperLeftSegmentMass": {
+          "type": "number",
+          "description": "Segmental mass analysis - Upper Left."
+        },
+        "upperRightSegmentMass": {
+          "type": "number",
+          "description": "Segmental mass analysis - Upper Right."
+        },
+        "lowerLeftSegmentMass": {
+          "type": "number",
+          "description": "Segmental mass analysis - Lower Left."
+        },
+        "lowerRightSegmentMass": {
+          "type": "number",
+          "description": "Segmental mass analysis - Lower Right."
+        },
+        "trunkSegmentMass": {
+          "type": "number",
+          "description": "Segmental mass analysis - Trunk."
+        },
+        "imc": {
+          "type": "number",
+          "description": "IMC (Body Mass Index)."
+        },
+        "fatPercentage": {
+          "type": "number",
+          "description": "Fat percentage."
+        },
+        "bodyWeight": {
+          "type": "number",
+          "description": "Body weight."
+        },
+        "muscleMass": {
+          "type": "number",
+          "description": "Muscle mass."
+        },
+        "fatMass": {
+          "type": "number",
+          "description": "Fat mass."
+        },
+        "totalBodyWater": {
+          "type": "number",
+          "description": "Total body water."
+        },
+        "proteins": {
+          "type": "number",
+          "description": "Proteins."
+        },
+        "minerals": {
+          "type": "number",
+          "description": "Minerals."
+        },
+        "metabolicAge": {
+          "type": "number",
+          "description": "Metabolic age."
+        }
+      },
+      "required": [
+        "id",
+        "physicalAssessmentId"
+      ]
+    },
+    "StrengthAssessment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StrengthAssessment",
+      "type": "object",
+      "description": "Represents a strength assessment for a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the strength assessment."
+        },
+        "physicalAssessmentId": {
+          "type": "string",
+          "description": "Reference to PhysicalAssessment. (Relationship: PhysicalAssessment 1:N StrengthAssessment)"
+        },
+        "bryzickRepetitionsMax": {
+          "type": "number",
+          "description": "Result of the Bryzick Repetitions Max test."
+        },
+        "oneRmTest": {
+          "type": "number",
+          "description": "Result of the 1RM test."
+        }
+      },
+      "required": [
+        "id",
+        "physicalAssessmentId"
+      ]
+    },
+    "VO2MaxAssessment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VO2MaxAssessment",
+      "type": "object",
+      "description": "Represents a VO2Max assessment for a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VO2Max assessment."
+        },
+        "physicalAssessmentId": {
+          "type": "string",
+          "description": "Reference to PhysicalAssessment. (Relationship: PhysicalAssessment 1:N VO2MaxAssessment)"
+        },
+        "vo2Max": {
+          "type": "number",
+          "description": "VO2Max value."
+        }
+      },
+      "required": [
+        "id",
+        "physicalAssessmentId"
+      ]
+    },
+    "TrainingProgram": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TrainingProgram",
+      "type": "object",
+      "description": "Represents a training program designed for a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the training program."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N TrainingProgram)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the training program."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the training program."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name"
+      ]
+    },
+    "WorkoutSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WorkoutSession",
+      "type": "object",
+      "description": "Represents a workout session within a training program.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the workout session."
+        },
+        "trainingProgramId": {
+          "type": "string",
+          "description": "Reference to TrainingProgram. (Relationship: TrainingProgram 1:N WorkoutSession)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the workout session.",
+          "format": "date-time"
+        },
+        "preTrainingAssessment": {
+          "type": "string",
+          "description": "Pre-training assessment notes."
+        },
+        "pleasureScale": {
+          "type": "number",
+          "description": "Pleasure scale rating for the workout session."
+        },
+        "pseSession": {
+          "type": "number",
+          "description": "PSE (Perceived exertion) for the workout session."
+        },
+        "intentionToRepeat": {
+          "type": "number",
+          "description": "Intention to repeat the workout session."
+        },
+        "duration": {
+          "type": "number",
+          "description": "Workout duration in minutes."
+        },
+        "recoveryPerception": {
+          "type": "string",
+          "description": "Perception of recovery after the workout session."
+        }
+      },
+      "required": [
+        "id",
+        "trainingProgramId",
+        "date"
+      ]
+    },
+    "Exercise": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Exercise",
+      "type": "object",
+      "description": "Represents a specific exercise within a workout session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the exercise."
+        },
+        "workoutSessionId": {
+          "type": "string",
+          "description": "Reference to WorkoutSession. (Relationship: WorkoutSession 1:N Exercise)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the exercise."
+        },
+        "sets": {
+          "type": "number",
+          "description": "Number of sets for the exercise."
+        },
+        "reps": {
+          "type": "number",
+          "description": "Number of repetitions for the exercise."
+        },
+        "weight": {
+          "type": "number",
+          "description": "Weight used for the exercise in kilograms."
+        },
+        "rpe": {
+          "type": "number",
+          "description": "Rate of Perceived Exertion (RPE) for the exercise."
+        },
+        "pseExercise": {
+          "type": "number",
+          "description": "PSE (Perceived exertion) for the Exercise."
+        }
+      },
+      "required": [
+        "id",
+        "workoutSessionId",
+        "name"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data.  Accessed by the user themselves. The {userId} is the Firebase Auth UID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}",
+        "definition": {
+          "entityName": "PhysicalAssessment",
+          "schema": {
+            "$ref": "#/backend/entities/PhysicalAssessment"
+          },
+          "description": "Stores physical assessment records for a specific user.  Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "assessmentId",
+              "description": "The unique ID of the physical assessment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}/circumferenceMeasurements/{measurementId}",
+        "definition": {
+          "entityName": "CircumferenceMeasurement",
+          "schema": {
+            "$ref": "#/backend/entities/CircumferenceMeasurement"
+          },
+          "description": "Stores circumference measurements for a specific physical assessment. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "assessmentId",
+              "description": "The unique ID of the physical assessment."
+            },
+            {
+              "name": "measurementId",
+              "description": "The unique ID of the circumference measurement."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}/adiposityMeasurements/{adiposityId}",
+        "definition": {
+          "entityName": "AdiposityMeasurement",
+          "schema": {
+            "$ref": "#/backend/entities/AdiposityMeasurement"
+          },
+          "description": "Stores adiposity measurements for a specific physical assessment. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "assessmentId",
+              "description": "The unique ID of the physical assessment."
+            },
+            {
+              "name": "adiposityId",
+              "description": "The unique ID of the adiposity measurement."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}/bioimpedanceAnalyses/{analysisId}",
+        "definition": {
+          "entityName": "BioimpedanceAnalysis",
+          "schema": {
+            "$ref": "#/backend/entities/BioimpedanceAnalysis"
+          },
+          "description": "Stores bioimpedance analysis data for a specific physical assessment. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "assessmentId",
+              "description": "The unique ID of the physical assessment."
+            },
+            {
+              "name": "analysisId",
+              "description": "The unique ID of the bioimpedance analysis."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}/strengthAssessments/{strengthId}",
+        "definition": {
+          "entityName": "StrengthAssessment",
+          "schema": {
+            "$ref": "#/backend/entities/StrengthAssessment"
+          },
+          "description": "Stores strength assessment data for a specific physical assessment. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "assessmentId",
+              "description": "The unique ID of the physical assessment."
+            },
+            {
+              "name": "strengthId",
+              "description": "The unique ID of the strength assessment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}/vo2MaxAssessments/{vo2MaxId}",
+        "definition": {
+          "entityName": "VO2MaxAssessment",
+          "schema": {
+            "$ref": "#/backend/entities/VO2MaxAssessment"
+          },
+          "description": "Stores VO2Max assessment data for a specific physical assessment. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "assessmentId",
+              "description": "The unique ID of the physical assessment."
+            },
+            {
+              "name": "vo2MaxId",
+              "description": "The unique ID of the VO2Max assessment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}",
+        "definition": {
+          "entityName": "TrainingProgram",
+          "schema": {
+            "$ref": "#/backend/entities/TrainingProgram"
+          },
+          "description": "Stores training programs for a specific user. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "programId",
+              "description": "The unique ID of the training program."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}/workoutSessions/{sessionId}",
+        "definition": {
+          "entityName": "WorkoutSession",
+          "schema": {
+            "$ref": "#/backend/entities/WorkoutSession"
+          },
+          "description": "Stores workout sessions for a specific training program. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "programId",
+              "description": "The unique ID of the training program."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique ID of the workout session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}/workoutSessions/{sessionId}/exercises/{exerciseId}",
+        "definition": {
+          "entityName": "Exercise",
+          "schema": {
+            "$ref": "#/backend/entities/Exercise"
+          },
+          "description": "Stores exercises for a specific workout session. Accessed by the user themselves and professors with permission.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "programId",
+              "description": "The unique ID of the training program."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique ID of the workout session."
+            },
+            {
+              "name": "exerciseId",
+              "description": "The unique ID of the exercise."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/professors/{professorId}/students/{studentId}",
+        "definition": {
+          "entityName": "ProfessorStudent",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Indicates that a professor has access to a student's data. Existence of the document grants read access to the student's data under /users/{studentId}. Professors can only see the data of students they are associated with. Data in this collection are NOT used to authorize access to the student document. This achieves authorization independence.",
+          "params": [
+            {
+              "name": "professorId",
+              "description": "The Firebase Auth UID of the professor."
+            },
+            {
+              "name": "studentId",
+              "description": "The Firebase Auth UID of the student that the professor has access to."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore structure is designed to support the FitAssist application, providing secure and scalable data storage for user profiles, fitness assessments, and training programs. It incorporates key principles of Authorization Independence, Structural Segregation, and Access Modeling to ensure robust security rules and simplified data management.\n\n**Authorization Independence:** Authorization independence is achieved by avoiding `get()` calls in security rules. User data and related assessments are stored under their respective user IDs, eliminating the need to fetch parent document data for authorization.  Professor access to student data is managed via the `/professors/{professorId}/students/{studentId}` collection, which grants read access to the student's data located under `/users/{studentId}`.  Critically, no security rules will rely on reading data from `/professors/{professorId}/students/{studentId}` to enforce access to student data; its existence is sufficient for read access. The professor 'membership' is checked via document existence, avoiding content-based rules. This ensures that read operations remain atomic and that security rules can be evaluated efficiently.\n\n**Structural Segregation:** The structure separates user data (students and professors) into distinct collections.  Student-specific data, like physical assessments and training programs, are further segregated under the `/users/{userId}` path. Professor access to student data is managed through a separate `/professors/{professorId}/students/{studentId}` collection. This segregation simplifies security rules by ensuring that each collection has a clear and consistent security posture.\n\n**Access Modeling:**\n*   **User Data:**  User profiles are stored in the `/users/{userId}` collection, using path-based ownership for private data. Each user's ID serves as the document ID, providing simple and secure access control.\n*   **Fitness Assessments:** Physical assessments and related data (circumference, adiposity, bioimpedance, strength, VO2max) are stored as subcollections under `/users/{userId}/physicalAssessments/{assessmentId}`. This hierarchical structure maintains ownership and allows for easy querying of assessments for a specific user.\n*   **Training Programs:**  Training programs and workout sessions are stored as subcollections under `/users/{userId}/trainingPrograms/{programId}`. This allows secure, user-scoped access and management of training content.\n*   **Professor Access:** Professors can access student data via the `/professors/{professorId}/students/{studentId}` collection. The presence of a document in this collection grants read access to student data. The security rules do not need to read the contents of this document.  This leverages \"existence over content\".\n\n**QAPs (Rules are not Filters):** This structure addresses QAPs by ensuring that `list` operations can be performed securely. For example, listing physical assessments for a user is done directly on the `/users/{userId}/physicalAssessments` collection, which only contains assessments belonging to that user.  Professor read access to student documents is controlled by requiring the existence of a document in the `/professors/{professorId}/students/{studentId}` collection, which allows efficient listing of students for a particular professor."
+  }
+}
