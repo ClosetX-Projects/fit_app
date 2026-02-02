@@ -29,6 +29,7 @@ service cloud.firestore {
     }
 
     function isProfessorOfStudent(studentId) {
+      // Check if the professor has this student in their linked students collection
       return isProfessor() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
@@ -57,7 +58,8 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get: if canReadStudentData(userId) || isProfessor();
+      // Professors need to be able to 'get' any user to check if they exist during linking
+      allow get: if isSignedIn();
       allow list: if false; 
       allow create: if isOwner(userId) && hasValidIdOnCreate(userId);
       allow update: if isOwner(userId) && isExistingDoc() && isIdImmutable();
@@ -134,8 +136,15 @@ service cloud.firestore {
       }
     }
 
-    // Rule for Collection Group Queries (Real-time Analytics)
+    // --------------------------------------------------------------------------
+    // Collection Group Rules: Supporting global queries for analytics
+    // --------------------------------------------------------------------------
+    
     match /{path=**}/workoutSessions/{sessionId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isProfessorOfStudent(resource.data.userId));
+    }
+
+    match /{path=**}/exercises/{exerciseId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isProfessorOfStudent(resource.data.userId));
     }
 
