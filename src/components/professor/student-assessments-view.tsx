@@ -5,11 +5,10 @@ import { useState } from 'react';
 import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Calendar, Ruler, Activity, Percent, Dumbbell, Zap, ChevronRight } from 'lucide-react';
+import { Loader2, Calendar, Activity, Dumbbell, Zap, ChevronRight, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -150,7 +149,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                       return (
                         <div key={key} className="border-b pb-2">
                           <p className="text-[10px] uppercase text-muted-foreground font-bold">{key}</p>
-                          <p className="text-lg font-medium">{val} cm</p>
+                          <p className="text-lg font-medium">{val as number} cm</p>
                         </div>
                       );
                     })}
