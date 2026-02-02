@@ -5,6 +5,18 @@ export type BodyComposition = PersonalizedGoalRecommendationsInput['bodyComposit
 export type BioimpedanceData = PersonalizedGoalRecommendationsInput['bioimpedanceData'];
 export type StrengthTests = PersonalizedGoalRecommendationsInput['strengthTestResults'];
 
+export interface UserData {
+    id: string;
+    name: string;
+    email: string;
+    userType: 'student' | 'professor';
+    age?: number;
+    gender?: string;
+    weight?: number;
+    height?: number;
+    whatsapp?: string;
+}
+
 export const mockUserData: PersonalizedGoalRecommendationsInput = {
     userData: {
         name: 'Alex Silva',
