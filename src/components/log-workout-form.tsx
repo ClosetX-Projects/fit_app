@@ -18,12 +18,12 @@ export function LogWorkoutForm() {
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         toast({
-            title: "Workout Logged!",
-            description: "Great job on your workout today.",
+            title: "Treino Registrado!",
+            description: "Ótimo trabalho no seu treino de hoje.",
             action: (
               <div className="flex items-center gap-2 text-primary">
                 <Check className="h-5 w-5" />
-                <span>Success</span>
+                <span>Sucesso</span>
               </div>
             ),
         })
@@ -31,55 +31,55 @@ export function LogWorkoutForm() {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Log a Workout</CardTitle>
-        <CardDescription>Record the details of your training session.</CardDescription>
+        <CardTitle>Registrar Treino</CardTitle>
+        <CardDescription>Registre os detalhes da sua sessão de treino.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="space-y-2">
-                <Label htmlFor="exercise">Exercise</Label>
+                <Label htmlFor="exercise">Exercício</Label>
                 <Select name="exercise">
                   <SelectTrigger id="exercise">
-                    <SelectValue placeholder="Select an exercise" />
+                    <SelectValue placeholder="Selecione um exercício" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="squat">Squat</SelectItem>
-                    <SelectItem value="bench-press">Bench Press</SelectItem>
-                    <SelectItem value="deadlift">Deadlift</SelectItem>
-                    <SelectItem value="overhead-press">Overhead Press</SelectItem>
-                    <SelectItem value="barbell-row">Barbell Row</SelectItem>
+                    <SelectItem value="squat">Agachamento</SelectItem>
+                    <SelectItem value="bench-press">Supino</SelectItem>
+                    <SelectItem value="deadlift">Levantamento Terra</SelectItem>
+                    <SelectItem value="overhead-press">Desenvolvimento</SelectItem>
+                    <SelectItem value="barbell-row">Remada Curvada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input id="duration" type="number" placeholder="e.g., 60" />
+                <Label htmlFor="duration">Duração (minutos)</Label>
+                <Input id="duration" type="number" placeholder="ex: 60" />
               </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sets">Sets</Label>
-                <Input id="sets" type="number" placeholder="e.g., 3" />
+                <Label htmlFor="sets">Séries</Label>
+                <Input id="sets" type="number" placeholder="ex: 3" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reps">Reps</Label>
-                <Input id="reps" type="number" placeholder="e.g., 8" />
+                <Label htmlFor="reps">Repetições</Label>
+                <Input id="reps" type="number" placeholder="ex: 8" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="weight">Weight (kg)</Label>
-                <Input id="weight" type="number" placeholder="e.g., 100" />
+                <Label htmlFor="weight">Peso (kg)</Label>
+                <Input id="weight" type="number" placeholder="ex: 100" />
               </div>
           </div>
 
           <div className="space-y-2 pt-2">
             <div className="flex justify-between items-center">
-              <Label htmlFor="rpe">Rate of Perceived Exertion (RPE)</Label>
+              <Label htmlFor="rpe">Nível de Esforço Percebido (RPE)</Label>
               <span className="w-12 text-center text-lg font-bold text-primary">{rpe}</span>
             </div>
             <div className="flex justify-between text-sm text-muted-foreground px-1">
-                <span>Easy</span>
-                <span>Max Effort</span>
+                <span>Fácil</span>
+                <span>Esforço Máximo</span>
             </div>
             <Slider id="rpe" defaultValue={[rpe]} onValueChange={(value) => setRpe(value[0])} min={1} max={10} step={1} />
           </div>
@@ -88,11 +88,11 @@ export function LogWorkoutForm() {
             <Switch id="repeat-intention" />
             <Label htmlFor="repeat-intention" className="flex items-center gap-2 cursor-pointer">
                 <Repeat className="h-4 w-4" />
-                Intention to repeat next session
+                Pretende repetir na próxima sessão
             </Label>
           </div>
           
-          <Button type="submit" className="w-full md:w-auto">Log Workout</Button>
+          <Button type="submit" className="w-full md:w-auto">Registrar Treino</Button>
         </form>
       </CardContent>
     </Card>

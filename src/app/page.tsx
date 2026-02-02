@@ -19,7 +19,7 @@ export default function Home() {
         <div className="ml-auto flex items-center gap-2 md:gap-4">
           <Button variant="ghost" size="icon" className="rounded-full">
             <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
+            <span className="sr-only">Notificações</span>
           </Button>
           <Avatar>
             <AvatarImage src={userAvatar?.imageUrl} data-ai-hint={userAvatar?.imageHint} />
@@ -34,19 +34,19 @@ export default function Home() {
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto mb-6">
             <TabsTrigger value="dashboard">
               <LayoutGrid className="mr-2 h-4 w-4" />
-              Dashboard
+              Painel
             </TabsTrigger>
             <TabsTrigger value="log-workout">
               <ClipboardPen className="mr-2 h-4 w-4" />
-              Log Workout
+              Registrar Treino
             </TabsTrigger>
             <TabsTrigger value="assessment">
               <UserCog className="mr-2 h-4 w-4" />
-              Assessment
+              Avaliação
             </TabsTrigger>
             <TabsTrigger value="goals">
               <BrainCircuit className="mr-2 h-4 w-4" />
-              AI Goals
+              Metas (IA)
             </TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard">

@@ -7,13 +7,13 @@ export type StrengthTests = PersonalizedGoalRecommendationsInput['strengthTestRe
 
 export const mockUserData: PersonalizedGoalRecommendationsInput = {
     userData: {
-        name: 'Alex Doe',
+        name: 'Alex Silva',
         age: 30,
-        gender: 'Male',
+        gender: 'Masculino',
         weight: 85,
         height: 180,
-        email: 'alex.doe@example.com',
-        whatsapp: '+1-202-555-0174'
+        email: 'alex.silva@example.com',
+        whatsapp: '+55-11-99999-9999'
     },
     bodyComposition: {
         weight: 85,
@@ -31,7 +31,7 @@ export const mockUserData: PersonalizedGoalRecommendationsInput = {
     bioimpedanceData: {
         age: 30,
         height: 180,
-        gender: 'Male',
+        gender: 'Masculino',
         totalBodyWater: 45,
         protein: 15,
         mineralContent: 5,

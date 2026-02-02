@@ -8,6 +8,6 @@ export async function getAIGoalRecommendations(data: PersonalizedGoalRecommendat
     return { success: true, goals: result.goalSuggestions };
   } catch (error) {
     console.error(error);
-    return { success: false, error: 'Failed to generate recommendations. Please check your API key and try again.' };
+    return { success: false, error: 'Falha ao gerar recomendações. Por favor, verifique sua chave de API e tente novamente.' };
   }
 }

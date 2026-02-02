@@ -20,7 +20,7 @@ export function GoalRecommender() {
         if (result.success && result.goals) {
             setGoals(result.goals)
         } else {
-            setError(result.error || "An unknown error occurred.")
+            setError(result.error || "Ocorreu um erro desconhecido.")
         }
         setLoading(false)
     }
@@ -29,20 +29,20 @@ export function GoalRecommender() {
         <div className="w-full max-w-2xl mx-auto space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Personalized Goal Recommendations</CardTitle>
-                    <CardDescription>Let our AI suggest personalized and achievable fitness goals based on your data.</CardDescription>
+                    <CardTitle>Recomendações de Metas Personalizadas</CardTitle>
+                    <CardDescription>Deixe nossa IA sugerir metas de fitness personalizadas e alcançáveis com base nos seus dados.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button onClick={handleGenerateGoals} disabled={loading} className="w-full">
                         {loading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Generating...
+                                Gerando...
                             </>
                         ) : (
                             <>
                                 <Sparkles className="mr-2 h-4 w-4" />
-                                Generate My Goals
+                                Gerar Minhas Metas
                             </>
                         )}
                     </Button>
@@ -51,7 +51,7 @@ export function GoalRecommender() {
 
             {error && (
                 <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
+                    <AlertTitle>Erro</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
@@ -59,8 +59,8 @@ export function GoalRecommender() {
             {goals.length > 0 && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Your AI-Powered Goals</CardTitle>
-                        <CardDescription>Here are 3 goals tailored just for you. Let's get started!</CardDescription>
+                        <CardTitle>Suas Metas com IA</CardTitle>
+                        <CardDescription>Aqui estão 3 metas feitas para você. Vamos começar!</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ul className="space-y-4">

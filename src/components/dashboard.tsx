@@ -8,29 +8,29 @@ import { Dumbbell, Scale, Target } from "lucide-react"
 
 const weightData = [
   { month: "Jan", weight: 88 },
-  { month: "Feb", weight: 87 },
+  { month: "Fev", weight: 87 },
   { month: "Mar", weight: 86 },
-  { month: "Apr", weight: 85.5 },
-  { month: "May", weight: 85 },
+  { month: "Abr", weight: 85.5 },
+  { month: "Mai", weight: 85 },
   { month: "Jun", weight: 84 },
 ]
 
 const strengthData = [
   { month: "Jan", benchPress: 90 },
-  { month: "Feb", benchPress: 92 },
+  { month: "Fev", benchPress: 92 },
   { month: "Mar", benchPress: 95 },
-  { month: "Apr", benchPress: 98 },
-  { month: "May", benchPress: 100 },
+  { month: "Abr", benchPress: 98 },
+  { month: "Mai", benchPress: 100 },
   { month: "Jun", benchPress: 102 },
 ]
 
 const chartConfig = {
   weight: {
-    label: "Weight (kg)",
+    label: "Peso (kg)",
     color: "hsl(var(--chart-1))",
   },
   benchPress: {
-    label: "Bench Press (kg)",
+    label: "Supino (kg)",
     color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig
@@ -40,38 +40,38 @@ export function Dashboard() {
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Current Weight</CardTitle>
+          <CardTitle className="text-sm font-medium">Peso Atual</CardTitle>
           <Scale className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">84 kg</div>
-          <p className="text-xs text-muted-foreground">-1kg from last month</p>
+          <p className="text-xs text-muted-foreground">-1kg desde o mês passado</p>
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Bench Press 1RM</CardTitle>
+          <CardTitle className="text-sm font-medium">Supino 1RM</CardTitle>
           <Dumbbell className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">102 kg</div>
-          <p className="text-xs text-muted-foreground">+2kg from last month</p>
+          <p className="text-xs text-muted-foreground">+2kg desde o mês passado</p>
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Workout Consistency</CardTitle>
+          <CardTitle className="text-sm font-medium">Consistência nos Treinos</CardTitle>
           <Target className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">75%</div>
-          <p className="text-xs text-muted-foreground">3 of 4 planned workouts this week</p>
+          <p className="text-xs text-muted-foreground">3 de 4 treinos planejados esta semana</p>
         </CardContent>
       </Card>
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Weight Progress</CardTitle>
-          <CardDescription>Your weight trend over the last 6 months.</CardDescription>
+          <CardTitle>Progresso de Peso</CardTitle>
+          <CardDescription>Sua tendência de peso nos últimos 6 meses.</CardDescription>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[250px] w-full">
@@ -87,8 +87,8 @@ export function Dashboard() {
       </Card>
        <Card className="lg:col-span-1">
         <CardHeader>
-          <CardTitle>Strength Gains</CardTitle>
-          <CardDescription>Bench Press 1RM trend.</CardDescription>
+          <CardTitle>Ganhos de Força</CardTitle>
+          <CardDescription>Tendência de 1RM no Supino.</CardDescription>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[250px] w-full">

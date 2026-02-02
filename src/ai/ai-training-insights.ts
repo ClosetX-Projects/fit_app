@@ -36,11 +36,11 @@ const trainingInsightsPrompt = ai.definePrompt({
   name: 'trainingInsightsPrompt',
   input: {schema: TrainingInsightsInputSchema},
   output: {schema: TrainingInsightsOutputSchema},
-  prompt: `You are a personal trainer providing insights to users based on their logged workout data. Analyze the following data and provide actionable insights to help the user make better training choices and optimize their fitness progress. Consider factors such as exercise type, duration, volume (sets, reps, weight), and Rate of Perceived Exertion (RPE).
+  prompt: `Você é um personal trainer que fornece insights aos usuários com base em seus dados de treino registrados. Analise os dados a seguir e forneça insights práticos para ajudar o usuário a fazer melhores escolhas de treinamento e otimizar seu progresso de condicionamento físico. Considere fatores como tipo de exercício, duração, volume (séries, repetições, peso) e Nível de Esforço Percebido (RPE).
 
-Exercise: {{{exercise}}}
-Duration: {{{duration}}} minutes
-Volume: {{{volume.sets}}} sets, {{{volume.reps}}} reps, {{{volume.weight}}} kg
+Exercício: {{{exercise}}}
+Duração: {{{duration}}} minutos
+Volume: {{{volume.sets}}} séries, {{{volume.reps}}} repetições, {{{volume.weight}}} kg
 RPE: {{{rpe}}}
 
 Insights:`,

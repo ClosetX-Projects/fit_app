@@ -12,36 +12,36 @@ export function AssessmentForm() {
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         toast({
-            title: "Assessment Saved",
-            description: "Your data has been successfully updated.",
+            title: "Avaliação Salva",
+            description: "Seus dados foram atualizados com sucesso.",
         })
     }
 
     return (
         <Card className="w-full max-w-4xl mx-auto">
             <CardHeader>
-                <CardTitle>Fitness Assessment</CardTitle>
-                <CardDescription>Update your personal data and measurements. This data is used for progress tracking and AI recommendations.</CardDescription>
+                <CardTitle>Avaliação Física</CardTitle>
+                <CardDescription>Atualize seus dados pessoais e medições. Estes dados são usados para acompanhar o progresso e para as recomendações da IA.</CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-8">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-4 border-b pb-2">User Profile</h3>
+                      <h3 className="text-lg font-semibold text-foreground mb-4 border-b pb-2">Perfil do Usuário</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-2">
-                              <Label htmlFor="name">Name</Label>
+                              <Label htmlFor="name">Nome</Label>
                               <Input id="name" defaultValue={mockUserData.userData.name} />
                           </div>
                           <div className="space-y-2">
-                              <Label htmlFor="age">Age</Label>
+                              <Label htmlFor="age">Idade</Label>
                               <Input id="age" type="number" defaultValue={mockUserData.userData.age} />
                           </div>
                           <div className="space-y-2">
-                              <Label htmlFor="weight">Weight (kg)</Label>
+                              <Label htmlFor="weight">Peso (kg)</Label>
                               <Input id="weight" type="number" step="0.1" defaultValue={mockUserData.userData.weight} />
                           </div>
                            <div className="space-y-2">
-                              <Label htmlFor="height">Height (cm)</Label>
+                              <Label htmlFor="height">Altura (cm)</Label>
                               <Input id="height" type="number" defaultValue={mockUserData.userData.height} />
                           </div>
                            <div className="space-y-2">
@@ -56,28 +56,28 @@ export function AssessmentForm() {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-4 border-b pb-2">Body Composition</h3>
+                      <h3 className="text-lg font-semibold text-foreground mb-4 border-b pb-2">Composição Corporal</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                           <div className="space-y-2">
-                              <Label htmlFor="circ-chest">Chest (cm)</Label>
+                              <Label htmlFor="circ-chest">Peito (cm)</Label>
                               <Input id="circ-chest" type="number" defaultValue={mockUserData.bodyComposition.circumferences.chest} />
                           </div>
                           <div className="space-y-2">
-                              <Label htmlFor="circ-waist">Waist (cm)</Label>
+                              <Label htmlFor="circ-waist">Cintura (cm)</Label>
                               <Input id="circ-waist" type="number" defaultValue={mockUserData.bodyComposition.circumferences.waist} />
                           </div>
                           <div className="space-y-2">
-                              <Label htmlFor="circ-hips">Hips (cm)</Label>
+                              <Label htmlFor="circ-hips">Quadril (cm)</Label>
                               <Input id="circ-hips" type="number" defaultValue={mockUserData.bodyComposition.circumferences.hips} />
                           </div>
                           <div className="space-y-2">
-                              <Label htmlFor="skinfold-triceps">Triceps (mm)</Label>
+                              <Label htmlFor="skinfold-triceps">Tríceps (mm)</Label>
                               <Input id="skinfold-triceps" type="number" defaultValue={mockUserData.bodyComposition.skinfolds.triceps} />
                           </div>
                       </div>
                     </div>
 
-                    <Button type="submit" className="w-full md:w-auto">Save Assessment</Button>
+                    <Button type="submit" className="w-full md:w-auto">Salvar Avaliação</Button>
                 </form>
             </CardContent>
         </Card>

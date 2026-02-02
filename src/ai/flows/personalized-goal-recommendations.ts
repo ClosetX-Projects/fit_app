@@ -62,18 +62,18 @@ const personalizedGoalRecommendationsPrompt = ai.definePrompt({
   name: 'personalizedGoalRecommendationsPrompt',
   input: {schema: PersonalizedGoalRecommendationsInputSchema},
   output: {schema: PersonalizedGoalRecommendationsOutputSchema},
-  prompt: `You are a personal trainer providing personalized fitness goal suggestions to users.
+  prompt: `Você é um personal trainer que fornece sugestões de metas de condicionamento físico personalizadas para os usuários.
 
-  Based on the following information, suggest 3 achievable fitness goals for the user.
-  Make sure the goal is realistic and motivating.
+  Com base nas informações a seguir, sugira 3 metas de condicionamento físico alcançáveis para o usuário.
+  Certifique-se de que a meta seja realista e motivadora.
 
-  User Data: {{JSON.stringify(userData)}}
-  Body Composition: {{JSON.stringify(bodyComposition)}}
-  Bioimpedance Data: {{JSON.stringify(bioimpedanceData)}}
-  Strength Test Results: {{JSON.stringify(strengthTestResults)}}
-  Workout Consistency: {{workoutConsistency}}
+  Dados do Usuário: {{JSON.stringify(userData)}}
+  Composição Corporal: {{JSON.stringify(bodyComposition)}}
+  Dados de Bioimpedância: {{JSON.stringify(bioimpedanceData)}}
+  Resultados do Teste de Força: {{JSON.stringify(strengthTestResults)}}
+  Consistência do Treino: {{workoutConsistency}}
 
-  Respond with a list of goals. Be specific about the goals, and make the user stay motivated.
+  Responda com uma lista de metas. Seja específico sobre as metas e mantenha o usuário motivado.
   `,
 });
 
