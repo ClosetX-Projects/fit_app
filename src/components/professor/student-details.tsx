@@ -6,9 +6,10 @@ import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, ClipboardList, Dumbbell, History, LineChart, Activity } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Dumbbell, History, LineChart } from 'lucide-react';
 import { TrainingManager } from './training-manager';
 import { StudentAnalytics } from './student-analytics';
+import { StudentAssessmentsView } from './student-assessments-view';
 
 interface StudentDetailsProps {
   studentId: string;
@@ -57,15 +58,12 @@ export function StudentDetails({ studentId, onBack }: StudentDetailsProps) {
         </TabsContent>
 
         <TabsContent value="assessments" className="pt-4">
-          <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
-            Visualização de Avaliações em desenvolvimento.
-            O Professor terá acesso completo aos dados de Pollock, Bioimpedância e Força salvos pelo aluno.
-          </div>
+          <StudentAssessmentsView studentId={studentId} />
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">
           <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
-            Histórico de sessões do aluno aparecerá aqui para análise de PSE e Volume.
+            O histórico completo de cada exercício realizado pelo aluno aparecerá aqui em breve.
           </div>
         </TabsContent>
       </Tabs>
