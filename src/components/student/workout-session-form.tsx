@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ClipboardPen, Loader2, Save, Smile, Gauge, Timer, Repeat, History } from 'lucide-react';
+import { ClipboardPen, Loader2, Save, Smile, Gauge, Timer, Repeat, History as HistoryIcon } from 'lucide-react';
 
 export function WorkoutSessionForm() {
   const { firestore } = useFirebase();
@@ -47,8 +47,10 @@ export function WorkoutSessionForm() {
     const sessionRef = doc(collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions'));
     const sessionId = sessionRef.id;
 
+    // Salvamos os dados da sessão, incluindo o userId para facilitar queries futuras (Collection Group)
     setDocumentNonBlocking(sessionRef, {
       id: sessionId,
+      userId: user.uid, // Importante para análise global do professor
       trainingProgramId: selectedProgramId,
       date: new Date().toISOString(),
       preTrainingAssessment: preTraining,
@@ -149,7 +151,7 @@ export function WorkoutSessionForm() {
 
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <History className="h-4 w-4" /> Percepção de Recuperação
+                <HistoryIcon className="h-4 w-4" /> Percepção de Recuperação
               </Label>
               <Input placeholder="Como foi sua recuperação desde o último treino?" value={recovery} onChange={(e) => setRecovery(e.target.value)} />
             </div>

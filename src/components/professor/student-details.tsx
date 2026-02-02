@@ -6,8 +6,9 @@ import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, ClipboardList, Dumbbell, History, LineChart } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Dumbbell, History, LineChart, Activity } from 'lucide-react';
 import { TrainingManager } from './training-manager';
+import { StudentAnalytics } from './student-analytics';
 
 interface StudentDetailsProps {
   studentId: string;
@@ -32,20 +33,27 @@ export function StudentDetails({ studentId, onBack }: StudentDetailsProps) {
       </div>
 
       <Tabs defaultValue="training" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted">
           <TabsTrigger value="training" className="flex items-center gap-2 py-2">
             <Dumbbell className="h-4 w-4" /> Prescrição
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2 py-2">
+            <LineChart className="h-4 w-4" /> Análise
           </TabsTrigger>
           <TabsTrigger value="assessments" className="flex items-center gap-2 py-2">
             <ClipboardList className="h-4 w-4" /> Avaliações
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2 py-2">
-            <History className="h-4 w-4" /> Histórico de Treinos
+            <History className="h-4 w-4" /> Histórico
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="training" className="pt-4">
           <TrainingManager studentId={studentId} />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="pt-4">
+          <StudentAnalytics studentId={studentId} />
         </TabsContent>
 
         <TabsContent value="assessments" className="pt-4">
