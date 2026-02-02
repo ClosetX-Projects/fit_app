@@ -1,10 +1,11 @@
-
 'use client';
 
 import { useState } from 'react';
 import { useFirebase, useUser } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,24 +27,40 @@ export function AddStudentDialog() {
 
     try {
       // Verificar se o aluno existe
-      const studentDoc = await getDoc(doc(firestore, 'users', studentId));
+      const studentDocRef = doc(firestore, 'users', studentId);
+      let studentDoc;
+      
+      try {
+        studentDoc = await getDoc(studentDocRef);
+      } catch (e: any) {
+        // Se falhar por permissão, emitimos o erro contextual para depuração
+        const permissionError = new FirestorePermissionError({
+          path: studentDocRef.path,
+          operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setLoading(false);
+        return;
+      }
       
       if (!studentDoc.exists()) {
         toast({
           variant: "destructive",
           title: "Erro",
-          description: "ID de aluno não encontrado.",
+          description: "ID de aluno não encontrado ou inválido.",
         });
+        setLoading(false);
         return;
       }
 
       const studentData = studentDoc.data();
-      if (studentData.userType !== 'student') {
+      if (!studentData || studentData.userType !== 'student') {
         toast({
           variant: "destructive",
           title: "Erro",
-          description: "Este ID pertence a outro professor.",
+          description: "Este ID não pertence a um aluno.",
         });
+        setLoading(false);
         return;
       }
 
@@ -62,10 +79,10 @@ export function AddStudentDialog() {
       });
       setOpen(false);
       setStudentId('');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Erro",
+        title: "Erro inesperado",
         description: "Ocorreu um problema ao vincular o aluno.",
       });
     } finally {
@@ -99,7 +116,7 @@ export function AddStudentDialog() {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button onClick={handleAdd} disabled={loading || !studentId}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Vincular Aluno

@@ -8,60 +8,26 @@ service cloud.firestore {
      * It combines a user-ownership model for student-generated data with a role-based access model for professors.
      * Students have full control over their own data, while professors are granted specific read and write
      * permissions on the data of students they are explicitly linked to.
-     *
-     * Data Structure: All student-specific data (profiles, assessments, training programs) is hierarchically
-     * nested under the `/users/{userId}` path. This creates a secure, user-centric data silo. Professor access
-     * is managed through a separate Access Control List (ACL) collection at `/professors/{professorId}/students/{studentId}`,
-     * which serves as a lookup table to grant permissions without complex queries in the rules.
-     *
-     * Key Security Decisions:
-     * - User Isolation: Users (students) can only access their own data tree. Listing all users is prohibited.
-     * - Professor Access: A user identified as a 'professor' can read a student's data and manage their training
-     *   programs only if a corresponding document exists in the professor's ACL (`/professors/{professorId}/students/{studentId}`).
-     * - Differentiated Write Permissions: Students create and manage their own physical assessments, while professors
-     *   are the only ones who can create and modify training programs for their assigned students.
-     * - Default Deny: All access is denied by default, with permissions explicitly granted through these rules.
-     *
-     * Denormalization for Authorization: The rules leverage the `/professors/{...}/students/{studentId}` collection
-     * to avoid slow and costly `get()` calls across different user documents. Instead of checking a field on the
-     * student's document, a professor's permissions are verified using a fast `exists()` check on this denormalized
-     * ACL path. This is a core principle for performant and scalable security.
-     *
-     * Structural Segregation: Student data (`/users`) is kept entirely separate from the professor access-control
-     * data (`/professors`). This clear separation simplifies the rules for each collection and enhances security
-     * by preventing unintended data leakage or access.
      */
 
     // --------------------------------------------------------------------------
     // Helper Functions
     // --------------------------------------------------------------------------
 
-    /**
-     * @description Checks if a user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the requesting user's UID matches the provided userId.
-     * This is the foundation of the user-ownership model.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    /**
-     * @description Verifies that the document being operated on already exists.
-     * Crucial for secure update and delete operations.
-     */
     function isExistingDoc() {
         return resource != null;
     }
 
     /**
      * @description Checks if the authenticated user has the 'professor' role.
-     * This performs a single read of the user's own profile document.
      */
     function isProfessor() {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'professor';
@@ -69,7 +35,6 @@ service cloud.firestore {
 
     /**
      * @description Checks if the requesting user is a professor linked to the specified student.
-     * This is the core of the professor access model, using an efficient `exists()` check.
      */
     function isProfessorOfStudent(studentId) {
       return isProfessor() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
@@ -82,30 +47,18 @@ service cloud.firestore {
       return isOwner(studentId) || isProfessorOfStudent(studentId);
     }
     
-    /**
-     * @description Validates that the 'id' field in a new User document matches its document ID (the UID).
-     */
     function hasValidIdOnCreate(userId) {
       return request.resource.data.id == userId;
     }
 
-    /**
-     * @description Ensures the 'id' field of a User document cannot be changed after creation.
-     */
     function isIdImmutable() {
       return request.resource.data.id == resource.data.id;
     }
     
-    /**
-     * @description Validates that a subcollection document's 'userId' field matches the parent user's ID on create.
-     */
     function hasValidUserIdOnCreate(userId) {
       return request.resource.data.userId == userId;
     }
 
-    /**
-     * @description Ensures the 'userId' field of a subcollection document is immutable.
-     */
     function isUserIdImmutable() {
       return request.resource.data.userId == resource.data.userId;
     }
@@ -114,50 +67,21 @@ service cloud.firestore {
     // Collection Rules: /users
     // --------------------------------------------------------------------------
 
-    /**
-     * @description Manages user profile data. A user can create and manage their own profile.
-     * A professor can read the profile of a student they are assigned to.
-     * @path /users/{userId}
-     * @allow (create) An authenticated user creating their own profile document, e.g., `/users/auth_user_123`.
-     * @allow (get) A professor getting the profile of a linked student, e.g., `/users/student_abc`.
-     * @deny (list) Any user trying to list all documents in the `/users` collection.
-     * @deny (update) A user trying to update another user's profile.
-     * @principle Restricts access to a user's own data tree and allows controlled access for professors.
-     */
     match /users/{userId} {
-      allow get: if canReadStudentData(userId);
-      allow list: if false; // Disallow listing all users for security.
+      // Allow professors to 'get' any user profile to verify existence before linking.
+      // 'list' is still disabled for privacy.
+      allow get: if canReadStudentData(userId) || isProfessor();
+      allow list: if false; 
       allow create: if isOwner(userId) && hasValidIdOnCreate(userId);
       allow update: if isOwner(userId) && isExistingDoc() && isIdImmutable();
       allow delete: if isOwner(userId) && isExistingDoc();
 
-      // --- Physical Assessment Subcollections ---
-      
-      /**
-       * @description Stores a user's physical assessment records. The student can manage their own records,
-       * while their professor can only read them.
-       * @path /users/{userId}/physicalAssessments/{assessmentId}
-       * @allow (create) A student adding a new physical assessment for themselves.
-       * @allow (get) A professor viewing a student's assessment record.
-       * @deny (update) A professor trying to modify a student's assessment.
-       * @deny (create) A student trying to create an assessment for another student.
-       * @principle Enforces student ownership for writes and allows read-only access for authorized professors.
-       */
       match /physicalAssessments/{assessmentId} {
         allow get, list: if canReadStudentData(userId);
         allow create: if isOwner(userId) && hasValidUserIdOnCreate(userId);
         allow update: if isOwner(userId) && isExistingDoc() && isUserIdImmutable();
         allow delete: if isOwner(userId) && isExistingDoc();
         
-        /**
-         * @description Stores detailed measurement data linked to a physical assessment.
-         * The access rules are inherited from the parent: student owns the data, professor can read.
-         * @path /users/{userId}/physicalAssessments/{assessmentId}/.../{docId}
-         * @allow (create) A student adding new measurements to their own assessment.
-         * @allow (get) A professor viewing a student's measurement details.
-         * @deny (update) A professor trying to modify any measurement data.
-         * @principle Enforces student ownership for writes and allows read-only access for authorized professors.
-         */
         match /circumferenceMeasurements/{measurementId} {
           allow get, list: if canReadStudentData(userId);
           allow create: if isOwner(userId);
@@ -194,33 +118,12 @@ service cloud.firestore {
         }
       }
       
-      // --- Training Program Subcollections ---
-      
-      /**
-       * @description Stores training programs for a user. A professor can create and manage these programs,
-       * while the student can only read them.
-       * @path /users/{userId}/trainingPrograms/{programId}
-       * @allow (create) A professor creating a new training program for their student.
-       * @allow (get) A student viewing their assigned training program.
-       * @deny (update) A student trying to modify their own training program.
-       * @deny (create) A professor trying to create a program for a student they are not linked to.
-       * @principle Enforces professor ownership for writes and allows read-only access for the student.
-       */
       match /trainingPrograms/{programId} {
         allow get, list: if canReadStudentData(userId);
         allow create: if isProfessorOfStudent(userId) && hasValidUserIdOnCreate(userId);
         allow update: if isProfessorOfStudent(userId) && isExistingDoc() && isUserIdImmutable();
         allow delete: if isProfessorOfStudent(userId) && isExistingDoc();
 
-        /**
-         * @description Stores workout sessions and exercises within a training program.
-         * Access is controlled by the professor, and the student has read-only access.
-         * @path /users/{userId}/trainingPrograms/{programId}/.../{docId}
-         * @allow (create) A professor adding a workout session to a student's program.
-         * @allow (get) A student viewing the details of their next workout.
-         * @deny (delete) A student trying to delete an exercise from their workout.
-         * @principle Enforces professor ownership for writes and allows read-only access for the student.
-         */
         match /workoutSessions/{sessionId} {
           allow get, list: if canReadStudentData(userId);
           allow create: if isProfessorOfStudent(userId);
@@ -241,16 +144,6 @@ service cloud.firestore {
     // Collection Rules: /professors
     // --------------------------------------------------------------------------
 
-    /**
-     * @description Manages the relationship between professors and students. This collection acts as an
-     * Access Control List (ACL). The existence of a document here grants a professor access to a student's data.
-     * @path /professors/{professorId}/students/{studentId}
-     * @allow (create) A professor (`auth.uid == professorId`) adding a student to their list of clients.
-     * @allow (list) A professor listing all of their own students.
-     * @deny (get) Another professor trying to see who a colleague is training.
-     * @deny (update) A student trying to add themselves to a professor's list.
-     * @principle Enforces document ownership for writes, allowing professors to manage their own student lists.
-     */
     match /professors/{professorId}/students/{studentId} {
       allow get, list: if isOwner(professorId);
       allow create: if isOwner(professorId);
