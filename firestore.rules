@@ -24,15 +24,15 @@ service cloud.firestore {
         return resource != null;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function isProfessor() {
-      // Usando uma verificação mais robusta que não quebra se o documento do usuário ainda estiver sendo criado
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'professor';
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().userType == 'professor';
     }
 
     function isProfessorOfStudent(studentId) {
-      // Verifica se o professor tem este aluno em sua coleção vinculada
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
@@ -61,17 +61,15 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /{path=**}/workoutSessions/{sessionId} {
-      // Permite listar sessões se for o dono (estudante) ou o professor vinculado
       allow read: if isSignedIn() && (
-        (exists(resource.data.userId) && resource.data.userId == request.auth.uid) || 
+        (resource.data.userId == request.auth.uid) || 
         isProfessorOfStudent(resource.data.userId)
       );
     }
 
     match /{path=**}/exercises/{exerciseId} {
-      // Permite listar exercícios se for o dono ou o professor vinculado
       allow read: if isSignedIn() && (
-        (exists(resource.data.userId) && resource.data.userId == request.auth.uid) || 
+        (resource.data.userId == request.auth.uid) || 
         isProfessorOfStudent(resource.data.userId)
       );
     }
@@ -81,7 +79,6 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
 
     match /users/{userId} {
-      // Qualquer usuário logado pode ler perfis individuais (necessário para o professor vincular)
       allow get: if isSignedIn();
       allow list: if false; 
       allow create: if isOwner(userId) && hasValidIdOnCreate(userId);
