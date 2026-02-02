@@ -124,17 +124,24 @@ service cloud.firestore {
         allow update: if isProfessorOfStudent(userId) && isExistingDoc() && isUserIdImmutable();
         allow delete: if isProfessorOfStudent(userId) && isExistingDoc();
 
-        match /workoutSessions/{sessionId} {
+        match /prescribedExercises/{exerciseId} {
           allow get, list: if canReadStudentData(userId);
           allow create: if isProfessorOfStudent(userId);
           allow update: if isProfessorOfStudent(userId) && isExistingDoc();
           allow delete: if isProfessorOfStudent(userId) && isExistingDoc();
+        }
+
+        match /workoutSessions/{sessionId} {
+          allow get, list: if canReadStudentData(userId);
+          allow create: if isOwner(userId) || isProfessorOfStudent(userId);
+          allow update: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
+          allow delete: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
 
           match /exercises/{exerciseId} {
             allow get, list: if canReadStudentData(userId);
-            allow create: if isProfessorOfStudent(userId);
-            allow update: if isProfessorOfStudent(userId) && isExistingDoc();
-            allow delete: if isProfessorOfStudent(userId) && isExistingDoc();
+            allow create: if isOwner(userId) || isProfessorOfStudent(userId);
+            allow update: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
+            allow delete: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
           }
         }
       }
