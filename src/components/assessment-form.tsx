@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from "react"
@@ -13,8 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser } from "@/firebase"
 import { doc, collection, serverTimestamp } from "firebase/firestore"
-import { setDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Ruler, Activity, Percent, Dumbbell } from "lucide-react"
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { Loader2, Save, Ruler, Activity, Percent, Dumbbell, Zap } from "lucide-react"
 
 const assessmentSchema = z.object({
   // Dados Básicos
@@ -54,6 +53,11 @@ const assessmentSchema = z.object({
   proteins: z.coerce.number().optional(),
   minerals: z.coerce.number().optional(),
   metabolicAge: z.coerce.number().optional(),
+  // Avaliação de Força
+  bryzickRepetitionsMax: z.coerce.number().optional(),
+  oneRmTest: z.coerce.number().optional(),
+  // VO2max
+  vo2Max: z.coerce.number().optional(),
 })
 
 type AssessmentValues = z.infer<typeof assessmentSchema>
@@ -141,9 +145,30 @@ export function AssessmentForm() {
         metabolicAge: values.metabolicAge || 0,
       }, { merge: true })
 
+      // 5. Salvar Avaliação de Força
+      if (values.bryzickRepetitionsMax !== undefined || values.oneRmTest !== undefined) {
+        const strengthRef = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "strengthAssessments"))
+        setDocumentNonBlocking(strengthRef, {
+          id: strengthRef.id,
+          physicalAssessmentId: assessmentId,
+          bryzickRepetitionsMax: values.bryzickRepetitionsMax || 0,
+          oneRmTest: values.oneRmTest || 0,
+        }, { merge: true })
+      }
+
+      // 6. Salvar VO2max
+      if (values.vo2Max !== undefined) {
+        const vo2Ref = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "vo2MaxAssessments"))
+        setDocumentNonBlocking(vo2Ref, {
+          id: vo2Ref.id,
+          physicalAssessmentId: assessmentId,
+          vo2Max: values.vo2Max || 0,
+        }, { merge: true })
+      }
+
       toast({
         title: "Avaliação salva com sucesso!",
-        description: "Seus dados foram registrados e estão prontos para análise.",
+        description: "Seus dados de desempenho e físicos foram registrados.",
       })
       form.reset()
     } catch (error: any) {
@@ -162,27 +187,30 @@ export function AssessmentForm() {
       <CardHeader className="bg-primary/5">
         <CardTitle className="flex items-center gap-2">
           <Activity className="h-6 w-6 text-primary" />
-          Nova Avaliação Física
+          Nova Avaliação Física e de Desempenho
         </CardTitle>
         <CardDescription>
-          Preencha os dados abaixo para acompanhar sua evolução.
+          Preencha os dados abaixo para acompanhar sua evolução física e performance.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted">
-              <TabsTrigger value="basic" className="flex items-center gap-2 py-2">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted">
+              <TabsTrigger value="basic" className="flex items-center gap-2 py-2 text-xs md:text-sm">
                 <Ruler className="h-4 w-4" /> Básicos
               </TabsTrigger>
-              <TabsTrigger value="circumference" className="flex items-center gap-2 py-2">
+              <TabsTrigger value="circumference" className="flex items-center gap-2 py-2 text-xs md:text-sm">
                 <Dumbbell className="h-4 w-4" /> Medidas
               </TabsTrigger>
-              <TabsTrigger value="skinfold" className="flex items-center gap-2 py-2">
+              <TabsTrigger value="skinfold" className="flex items-center gap-2 py-2 text-xs md:text-sm">
                 <Percent className="h-4 w-4" /> Pollock
               </TabsTrigger>
-              <TabsTrigger value="bio" className="flex items-center gap-2 py-2">
+              <TabsTrigger value="bio" className="flex items-center gap-2 py-2 text-xs md:text-sm">
                 <Activity className="h-4 w-4" /> Bioimp.
+              </TabsTrigger>
+              <TabsTrigger value="performance" className="flex items-center gap-2 py-2 text-xs md:text-sm">
+                <Zap className="h-4 w-4" /> Desemp.
               </TabsTrigger>
             </TabsList>
 
@@ -343,6 +371,37 @@ export function AssessmentForm() {
                   <div className="space-y-2">
                     <Label>Idade Metabólica</Label>
                     <Input type="number" {...form.register("metabolicAge")} />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="performance" className="space-y-6 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4 border p-4 rounded-lg bg-primary/5">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <Dumbbell className="h-4 w-4 text-primary" /> Avaliação de Força
+                  </h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="bryzick">Repetições Máximas (Bryzick)</Label>
+                    <Input id="bryzick" type="number" {...form.register("bryzickRepetitionsMax")} placeholder="Ex: 10" />
+                    <p className="text-[10px] text-muted-foreground">Número de repetições com carga submáxima.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="oneRm">Teste de 1RM (kg)</Label>
+                    <Input id="oneRm" type="number" {...form.register("oneRmTest")} placeholder="Ex: 120" />
+                    <p className="text-[10px] text-muted-foreground">Carga máxima para uma repetição única.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 border p-4 rounded-lg bg-accent/5">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-accent" /> Capacidade Aeróbica
+                  </h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="vo2Max">VO2max (ml/kg/min)</Label>
+                    <Input id="vo2Max" type="number" step="0.1" {...form.register("vo2Max")} placeholder="Ex: 45.5" />
+                    <p className="text-[10px] text-muted-foreground">Consumo máximo de oxigênio.</p>
                   </div>
                 </div>
               </div>
