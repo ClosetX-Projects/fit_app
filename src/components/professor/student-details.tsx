@@ -1,7 +1,6 @@
 
 'use client';
 
-import { useState } from 'react';
 import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { ArrowLeft, ClipboardList, Dumbbell, History, LineChart } from 'lucide-r
 import { TrainingManager } from './training-manager';
 import { StudentAnalytics } from './student-analytics';
 import { StudentAssessmentsView } from './student-assessments-view';
+import { StudentHistoryView } from './student-history-view';
 
 interface StudentDetailsProps {
   studentId: string;
@@ -62,9 +62,7 @@ export function StudentDetails({ studentId, onBack }: StudentDetailsProps) {
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">
-          <div className="text-center py-12 text-muted-foreground border rounded-lg border-dashed">
-            O histórico completo de cada exercício realizado pelo aluno aparecerá aqui em breve.
-          </div>
+          <StudentHistoryView studentId={studentId} />
         </TabsContent>
       </Tabs>
     </div>

@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { ClipboardPen, Loader2, Save, Smile, Gauge, Timer, Repeat, History as HistoryIcon, Dumbbell, CheckCircle2 } from 'lucide-react';
+import { ClipboardPen, Loader2, Smile, Gauge, Timer, Repeat, History as HistoryIcon, Dumbbell, CheckCircle2 } from 'lucide-react';
 
 interface ExerciseLog {
   sets: number;
@@ -89,7 +89,7 @@ export function WorkoutSessionForm() {
       const sessionRef = doc(collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions'));
       const sessionId = sessionRef.id;
 
-      // 1. Salvar os dados da sessão (Carga Interna Geral)
+      // 1. Salvar os dados da sessão
       setDocumentNonBlocking(sessionRef, {
         id: sessionId,
         userId: user.uid,
@@ -104,13 +104,14 @@ export function WorkoutSessionForm() {
         createdAt: serverTimestamp(),
       }, { merge: true });
 
-      // 2. Salvar o desempenho de cada exercício na subcoleção da sessão
+      // 2. Salvar o desempenho de cada exercício
       Object.entries(exerciseLogs).forEach(([exId, log]) => {
         const prescribedEx = prescribedExercises?.find(p => p.id === exId);
         const exercisePerformanceRef = doc(collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions', sessionId, 'exercises'));
         
         setDocumentNonBlocking(exercisePerformanceRef, {
           id: exercisePerformanceRef.id,
+          userId: user.uid, // CRITICAL: Save userId here for collection group queries
           workoutSessionId: sessionId,
           name: prescribedEx?.name || 'Exercício',
           prescribedExerciseId: exId,
@@ -187,7 +188,6 @@ export function WorkoutSessionForm() {
 
           <Separator className="my-8" />
 
-          {/* Lista de Exercícios Prescritos */}
           <div className="space-y-6">
             <h3 className="text-xl font-bold flex items-center gap-2 text-primary">
               <Dumbbell className="h-6 w-6" /> Exercícios da Sessão
@@ -270,7 +270,6 @@ export function WorkoutSessionForm() {
 
           <Separator className="my-10" />
 
-          {/* Carga Interna Geral da Sessão */}
           <div className="space-y-8 bg-muted/20 p-6 rounded-xl border border-primary/10">
             <h3 className="text-lg font-bold text-center">Como foi o treino no geral?</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">

@@ -4,18 +4,18 @@
 import { useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
-import { Dumbbell, Scale, Target, Loader2, TrendingUp } from "lucide-react"
+import { Dumbbell, Scale, Target, Loader2, TrendingUp, CalendarDays } from "lucide-react"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy, limit, collectionGroup, where } from "firebase/firestore"
-import { format } from "date-fns"
+import { format, startOfMonth, endOfMonth } from "date-fns"
 
 export function Dashboard() {
   const { user } = useUser()
   const { firestore } = useFirebase()
 
-  // 1. Buscar Histórico de Peso (Avaliações)
+  // 1. Histórico de Peso
   const assessmentsRef = useMemoFirebase(() => 
     user ? query(
       collection(firestore, 'users', user.uid, 'physicalAssessments'),
@@ -26,19 +26,18 @@ export function Dashboard() {
   
   const { data: assessments, isLoading: isAssessmentsLoading } = useCollection(assessmentsRef)
 
-  // 2. Buscar Histórico de Força (Exercícios de Sessões)
-  const strengthLogsRef = useMemoFirebase(() => 
+  // 2. Histórico de Sessões para Estatísticas
+  const sessionsRef = useMemoFirebase(() => 
     user ? query(
-      collectionGroup(firestore, 'exercises'),
-      where('workoutSessionId', '!=', ''), // Filtro dummy para permitir orderBy
-      orderBy('createdAt', 'asc'),
+      collectionGroup(firestore, 'workoutSessions'),
+      where('userId', '==', user.uid),
+      orderBy('date', 'desc'),
       limit(20)
     ) : null
   , [firestore, user])
   
-  // Nota: Collection Group queries para o próprio usuário podem ser complexas se não filtradas pelo userId
-  // Por simplicidade no MVP, vamos focar no progresso de peso e consistência primeiro
-  
+  const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsRef)
+
   const weightData = useMemo(() => {
     if (!assessments) return []
     return assessments.map(a => ({
@@ -47,6 +46,22 @@ export function Dashboard() {
     }))
   }, [assessments])
 
+  const stats = useMemo(() => {
+    if (!sessions) return { total: 0, frequency: 0, lastSession: 'Nenhum' }
+    
+    const now = new Date()
+    const thisMonth = sessions.filter(s => {
+      const sDate = new Date(s.date)
+      return sDate >= startOfMonth(now) && sDate <= endOfMonth(now)
+    })
+
+    return {
+      total: sessions.length,
+      frequency: thisMonth.length,
+      lastSession: sessions[0] ? format(new Date(sessions[0].date), 'dd/MM') : 'Nenhum'
+    }
+  }, [sessions])
+
   const chartConfig = {
     weight: {
       label: "Peso (kg)",
@@ -54,7 +69,7 @@ export function Dashboard() {
     }
   } satisfies ChartConfig
 
-  if (isAssessmentsLoading) {
+  if (isAssessmentsLoading || isSessionsLoading) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -67,46 +82,57 @@ export function Dashboard() {
   const weightDiff = (currentWeight - lastWeight).toFixed(1)
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Peso Atual</CardTitle>
-          <Scale className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs font-medium uppercase tracking-wider">Peso Atual</CardTitle>
+          <Scale className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{currentWeight} kg</div>
-          <p className={`text-xs ${Number(weightDiff) <= 0 ? 'text-green-500' : 'text-destructive'}`}>
-            {Number(weightDiff) > 0 ? `+${weightDiff}` : weightDiff}kg desde a última avaliação
+          <div className="text-2xl font-bold">{currentWeight > 0 ? `${currentWeight} kg` : '--'}</div>
+          <p className={`text-[10px] font-bold ${Number(weightDiff) <= 0 ? 'text-green-500' : 'text-destructive'}`}>
+            {Number(weightDiff) > 0 ? `+${weightDiff}` : weightDiff}kg desde o último registro
           </p>
         </CardContent>
       </Card>
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avaliações Feitas</CardTitle>
-          <Target className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs font-medium uppercase tracking-wider">Treinos no Mês</CardTitle>
+          <CalendarDays className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{assessments?.length || 0}</div>
-          <p className="text-xs text-muted-foreground">Registros no seu histórico</p>
+          <div className="text-2xl font-bold">{stats.frequency}</div>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold">Sessões em {format(new Date(), 'MMMM')}</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Status de Saúde</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-xs font-medium uppercase tracking-wider">Total de Sessões</CardTitle>
+          <Target className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">Ativo</div>
-          <p className="text-xs text-muted-foreground">Continue com o bom trabalho!</p>
+          <div className="text-2xl font-bold">{stats.total}</div>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold">Desde o início</p>
         </CardContent>
       </Card>
 
-      <Card className="lg:col-span-3">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-xs font-medium uppercase tracking-wider">Último Treino</CardTitle>
+          <TrendingUp className="h-4 w-4 text-primary" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.lastSession}</div>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold">Data do registro</p>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-4">
         <CardHeader>
           <CardTitle>Evolução de Peso Corporal</CardTitle>
-          <CardDescription>Baseado nas suas avaliações físicas registradas.</CardDescription>
+          <CardDescription>Gráfico baseado em suas avaliações físicas reais.</CardDescription>
         </CardHeader>
         <CardContent>
           {weightData.length > 1 ? (
@@ -126,9 +152,10 @@ export function Dashboard() {
               </LineChart>
             </ChartContainer>
           ) : (
-            <div className="h-[300px] flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+            <div className="h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground border border-dashed rounded-lg bg-muted/20">
               <Scale className="h-12 w-12 mb-4 opacity-20" />
-              <p>Registre pelo menos duas avaliações para ver o gráfico de progresso.</p>
+              <p className="font-medium">Nenhum dado de progresso disponível.</p>
+              <p className="text-xs max-w-xs">Registre pelo menos duas avaliações físicas para visualizar seu gráfico de peso.</p>
             </div>
           )}
         </CardContent>
