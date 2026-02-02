@@ -6,8 +6,6 @@ service cloud.firestore {
     /**
      * Core Philosophy: This ruleset enforces a strict, hybrid security model tailored for a fitness application.
      * It combines a user-ownership model for student-generated data with a role-based access model for professors.
-     * Students have full control over their own data, while professors are granted specific read and write
-     * permissions on the data of students they are explicitly linked to.
      */
 
     // --------------------------------------------------------------------------
@@ -26,23 +24,14 @@ service cloud.firestore {
         return resource != null;
     }
 
-    /**
-     * @description Checks if the authenticated user has the 'professor' role.
-     */
     function isProfessor() {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'professor';
     }
 
-    /**
-     * @description Checks if the requesting user is a professor linked to the specified student.
-     */
     function isProfessorOfStudent(studentId) {
       return isProfessor() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    /**
-     * @description Grants read access to the student owner or their designated professor.
-     */
     function canReadStudentData(studentId) {
       return isOwner(studentId) || isProfessorOfStudent(studentId);
     }
@@ -68,8 +57,6 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
 
     match /users/{userId} {
-      // Allow professors to 'get' any user profile to verify existence before linking.
-      // 'list' is still disabled for privacy.
       allow get: if canReadStudentData(userId) || isProfessor();
       allow list: if false; 
       allow create: if isOwner(userId) && hasValidIdOnCreate(userId);
@@ -145,6 +132,11 @@ service cloud.firestore {
           }
         }
       }
+    }
+
+    // Rule for Collection Group Queries (Real-time Analytics)
+    match /{path=**}/workoutSessions/{sessionId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isProfessorOfStudent(resource.data.userId));
     }
 
     // --------------------------------------------------------------------------

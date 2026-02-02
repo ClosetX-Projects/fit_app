@@ -1,13 +1,13 @@
-
 'use client';
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
+import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collectionGroup, query, where, orderBy, limit } from 'firebase/firestore';
-import { Loader2, TrendingUp, Gauge, Timer, Smile } from 'lucide-react';
+import { Loader2, Gauge, Timer, Smile, TrendingUp } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface StudentAnalyticsProps {
   studentId: string;
@@ -16,36 +16,60 @@ interface StudentAnalyticsProps {
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   const { firestore } = useFirebase();
 
-  // Buscamos todas as sessões de treino do aluno em todos os programas
-  // Nota: Isso pode exigir a configuração de um índice de coleção composta (Collection Group) no Firebase
+  // Buscar sessões reais do aluno em todos os programas usando Collection Group
   const sessionsRef = useMemoFirebase(() => 
     query(
       collectionGroup(firestore!, 'workoutSessions'),
-      where('userId', '==', studentId), // Adicionamos userId no log para facilitar a query
+      where('userId', '==', studentId),
       orderBy('date', 'asc'),
-      limit(20)
+      limit(30)
     )
   , [firestore, studentId]);
 
-  // Como o Collection Group pode exigir índices manuais no console do Firebase, 
-  // vou usar dados simulados estruturados para garantir que você veja os gráficos imediatamente
-  // enquanto os dados reais são populados.
-  const mockData = [
-    { date: '01/05', pse: 5, duration: 45, volume: 1200, pleasure: 8 },
-    { date: '03/05', pse: 6, duration: 50, volume: 1500, pleasure: 7 },
-    { date: '05/05', pse: 8, duration: 60, volume: 2000, pleasure: 6 },
-    { date: '08/05', pse: 7, duration: 55, volume: 1800, pleasure: 9 },
-    { date: '10/05', pse: 9, duration: 65, volume: 2200, pleasure: 5 },
-    { date: '12/05', pse: 6, duration: 45, volume: 1600, pleasure: 8 },
-    { date: '15/05', pse: 7, duration: 60, volume: 1900, pleasure: 8 },
-  ];
+  const { data: sessions, isLoading } = useCollection(sessionsRef);
+
+  // Processar dados para o gráfico
+  const chartData = useMemo(() => {
+    if (!sessions || sessions.length === 0) return [];
+    
+    return sessions.map(session => ({
+      date: format(new Date(session.date), 'dd/MM'),
+      pse: session.pseSession || 0,
+      duration: session.duration || 0,
+      pleasure: session.pleasureScale || 0,
+      rawDate: session.date
+    }));
+  }, [sessions]);
 
   const chartConfig = {
     pse: { label: 'PSE (Esforço)', color: 'hsl(var(--chart-1))' },
     duration: { label: 'Duração (min)', color: 'hsl(var(--chart-2))' },
-    volume: { label: 'Volume (kg)', color: 'hsl(var(--chart-3))' },
     pleasure: { label: 'Prazer', color: 'hsl(var(--chart-4))' },
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!sessions || sessions.length === 0) {
+    return (
+      <Card className="py-12 text-center border-dashed">
+        <CardContent className="space-y-4">
+          <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">Sem dados de treino ainda</h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              Assim que o aluno realizar e finalizar os treinos prescritos, os gráficos de progresso aparecerão aqui.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -55,16 +79,23 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
             <Gauge className="h-5 w-5 text-primary" />
             <CardTitle>Percepção de Esforço (PSE)</CardTitle>
           </div>
-          <CardDescription>Intensidade da carga interna nas últimas sessões.</CardDescription>
+          <CardDescription>Intensidade da carga interna nas sessões realizadas.</CardDescription>
         </CardHeader>
         <CardContent className="h-[300px]">
           <ChartContainer config={chartConfig}>
-            <LineChart data={mockData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
               <YAxis domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Line type="monotone" dataKey="pse" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, fill: 'hsl(var(--primary))' }} activeDot={{ r: 6 }} />
+              <Line 
+                type="monotone" 
+                dataKey="pse" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={3} 
+                dot={{ r: 4, fill: 'hsl(var(--primary))' }} 
+                activeDot={{ r: 6 }} 
+              />
             </LineChart>
           </ChartContainer>
         </CardContent>
@@ -74,13 +105,13 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Timer className="h-5 w-5 text-accent" />
-            <CardTitle>Volume Total vs Duração</CardTitle>
+            <CardTitle>Duração dos Treinos</CardTitle>
           </div>
-          <CardDescription>Relação entre tempo de treino e carga total.</CardDescription>
+          <CardDescription>Tempo investido em cada sessão (minutos).</CardDescription>
         </CardHeader>
         <CardContent className="h-[300px]">
           <ChartContainer config={chartConfig}>
-            <BarChart data={mockData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
@@ -97,11 +128,11 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
             <Smile className="h-5 w-5 text-chart-4" />
             <CardTitle>Escala de Prazer e Bem-estar</CardTitle>
           </div>
-          <CardDescription>Como o aluno se sente durante a realização das sessões.</CardDescription>
+          <CardDescription>Nível de satisfação do aluno durante as sessões.</CardDescription>
         </CardHeader>
         <CardContent className="h-[300px]">
           <ChartContainer config={chartConfig}>
-            <LineChart data={mockData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="date" axisLine={false} tickLine={false} />
               <YAxis domain={[0, 10]} axisLine={false} tickLine={false} />
