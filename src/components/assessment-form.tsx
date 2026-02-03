@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser } from "@/firebase"
 import { doc, collection, serverTimestamp } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Ruler, Activity, Percent, Dumbbell, Zap, HelpCircle, Info } from "lucide-react"
+import { Loader2, Save, Ruler, Activity, Percent, Dumbbell, Zap, HelpCircle, Info, Calculator } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const assessmentSchema = z.object({
@@ -66,8 +66,34 @@ export function AssessmentForm() {
     defaultValues: {
       weight: 0,
       height: 0,
+      imc: 0,
+      fatPercentage: 0,
+      muscleMass: 0,
+      fatMass: 0,
     },
   })
+
+  // Assistir campos para cálculos automáticos
+  const watchedWeight = form.watch("weight")
+  const watchedHeight = form.watch("height")
+  const watchedFatPerc = form.watch("fatPercentage")
+
+  useEffect(() => {
+    // Cálculo Automático de IMC
+    if (watchedWeight > 0 && watchedHeight > 0) {
+      const heightInMeters = watchedHeight / 100
+      const imc = watchedWeight / (heightInMeters * heightInMeters)
+      form.setValue("imc", Number(imc.toFixed(2)))
+    }
+
+    // Cálculo de Massa Gorda e Massa Muscular Estimada
+    if (watchedWeight > 0 && watchedFatPerc && watchedFatPerc > 0) {
+      const fatMassValue = watchedWeight * (watchedFatPerc / 100)
+      const muscleMassValue = watchedWeight - fatMassValue
+      form.setValue("fatMass", Number(fatMassValue.toFixed(2)))
+      form.setValue("muscleMass", Number(muscleMassValue.toFixed(2)))
+    }
+  }, [watchedWeight, watchedHeight, watchedFatPerc, form])
 
   const onSubmit = async (values: AssessmentValues) => {
     if (!user || !firestore) return
@@ -193,7 +219,7 @@ export function AssessmentForm() {
           Nova Avaliação Física e de Desempenho
         </CardTitle>
         <CardDescription>
-          Preencha os dados abaixo com o auxílio do seu professor ou balança de bioimpedância.
+          Preencha os dados abaixo. Alguns campos são calculados automaticamente para facilitar.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -218,7 +244,7 @@ export function AssessmentForm() {
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <LabelWithInfo id="weight" label="Peso (kg)" info="Sua massa corporal total medida na balança." />
                   <Input id="weight" type="number" step="0.01" {...form.register("weight")} placeholder="Ex: 80.5" />
@@ -226,6 +252,13 @@ export function AssessmentForm() {
                 <div className="space-y-2">
                   <LabelWithInfo id="height" label="Estatura (cm)" info="Sua altura total em centímetros." />
                   <Input id="height" type="number" {...form.register("height")} placeholder="Ex: 180" />
+                </div>
+                <div className="space-y-2 bg-primary/5 p-3 rounded-lg border border-primary/20">
+                  <LabelWithInfo id="imc" label="IMC (Automático)" info="Índice de Massa Corporal calculado a partir do peso e altura." />
+                  <div className="flex items-center gap-2">
+                    <Calculator className="h-4 w-4 text-primary" />
+                    <Input id="imc" type="number" step="0.01" {...form.register("imc")} readOnly className="bg-background font-bold text-primary" />
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -303,10 +336,25 @@ export function AssessmentForm() {
               <div className="bg-primary/5 p-4 rounded-lg mb-4 flex gap-3 items-start">
                 <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground">
-                  Dados obtidos geralmente através de balanças de impedância bioelétrica (como InBody ou Tanita).
+                  Dados obtidos geralmente através de balanças de impedância bioelétrica. Insira o percentual para calcular as massas.
                 </p>
               </div>
               
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="space-y-2 border p-4 rounded-lg bg-primary/5">
+                    <LabelWithInfo id="fatPerc" label="% Gordura" info="Percentual total de gordura no corpo." />
+                    <Input type="number" step="0.1" {...form.register("fatPercentage")} placeholder="Ex: 15.5" />
+                  </div>
+                  <div className="space-y-2 border p-4 rounded-lg bg-muted/50">
+                    <LabelWithInfo id="fatmass" label="Massa Gorda (kg)" info="Calculado automaticamente: Peso x (% Gordura / 100)." />
+                    <Input type="number" step="0.1" {...form.register("fatMass")} readOnly className="bg-background text-destructive font-semibold" />
+                  </div>
+                  <div className="space-y-2 border p-4 rounded-lg bg-muted/50">
+                    <LabelWithInfo id="muscle" label="Massa Magra (kg)" info="Calculado automaticamente: Peso - Massa Gorda." />
+                    <Input type="number" step="0.1" {...form.register("muscleMass")} readOnly className="bg-background text-green-600 font-semibold" />
+                  </div>
+              </div>
+
               <div>
                 <h4 className="text-sm font-semibold mb-3 border-b pb-1 flex items-center gap-2">
                   Gordura Segmentar
@@ -374,22 +422,6 @@ export function AssessmentForm() {
               <div>
                 <h4 className="text-sm font-semibold mb-3 border-b pb-1">Indicadores Gerais</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <LabelWithInfo id="imc" label="IMC" info="Índice de Massa Corporal (Peso / Altura²)." />
-                    <Input type="number" step="0.1" {...form.register("imc")} />
-                  </div>
-                  <div className="space-y-2">
-                    <LabelWithInfo id="fatPerc" label="% Gordura" info="Percentual total de gordura no corpo." />
-                    <Input type="number" step="0.1" {...form.register("fatPercentage")} />
-                  </div>
-                  <div className="space-y-2">
-                    <LabelWithInfo id="muscle" label="Massa Muscular (kg)" info="Peso total apenas dos seus músculos." />
-                    <Input type="number" step="0.1" {...form.register("muscleMass")} />
-                  </div>
-                  <div className="space-y-2">
-                    <LabelWithInfo id="fatmass" label="Massa Gorda (kg)" info="Peso total apenas da gordura corporal." />
-                    <Input type="number" step="0.1" {...form.register("fatMass")} />
-                  </div>
                   <div className="space-y-2">
                     <LabelWithInfo id="water" label="Água Total (L)" info="Quantidade de líquidos no organismo." />
                     <Input type="number" step="0.1" {...form.register("totalBodyWater")} />
