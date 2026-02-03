@@ -15,28 +15,26 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    // Regras para perfis de usuários e suas subcoleções
+    // Perfis de usuários e subcoleções diretas
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
 
-      // Permite acesso recursivo a todas as subcoleções de um usuário
       match /{allSubcollections=**} {
-        allow read: if isOwner(userId) || isProfessorOfStudent(userId);
-        allow write: if isOwner(userId) || isProfessorOfStudent(userId);
+        allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
       }
     }
 
-    // Relacionamento Professor-Aluno (ACL)
+    // ACL Professor-Aluno
     match /professors/{professorId}/students/{studentId} {
       allow read, write: if isOwner(professorId);
     }
 
-    // Regras para Collection Group Queries
-    // Estas regras são necessárias para consultas que buscam em múltiplas subcoleções com o mesmo nome
+    // Regras para Collection Group Queries (Essencial para Dashboard e Análise)
     
     match /{path=**}/workoutSessions/{sessionId} {
-      // Permite leitura se o usuário for o dono da sessão ou o professor do dono
+      // Permite leitura se o usuário for o dono ou professor vinculado
+      // Filtramos na query por userId para garantir que resource.data.userId seja validado
       allow read: if isSignedIn() && (
         (request.auth.uid == resource.data.userId) || 
         exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
@@ -44,7 +42,6 @@ service cloud.firestore {
     }
 
     match /{path=**}/exercises/{exerciseId} {
-      // Permite leitura se o usuário for o dono do exercício ou o professor do dono
       allow read: if isSignedIn() && (
         (request.auth.uid == resource.data.userId) || 
         exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
