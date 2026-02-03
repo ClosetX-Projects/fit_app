@@ -15,49 +15,39 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    // Regras para perfis de usuários
+    // Regras para perfis de usuários e suas subcoleções
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
 
-      match /physicalAssessments/{assessmentId} {
-        allow read: if isOwner(userId) || isProfessorOfStudent(userId);
-        allow write: if isOwner(userId);
-        
-        match /{subColl=**} {
-          allow read: if isOwner(userId) || isProfessorOfStudent(userId);
-          allow write: if isOwner(userId);
-        }
-      }
-      
-      match /trainingPrograms/{programId} {
+      // Permite acesso recursivo a todas as subcoleções de um usuário
+      match /{allSubcollections=**} {
         allow read: if isOwner(userId) || isProfessorOfStudent(userId);
         allow write: if isOwner(userId) || isProfessorOfStudent(userId);
-
-        match /{subColl=**} {
-          allow read: if isOwner(userId) || isProfessorOfStudent(userId);
-          allow write: if isOwner(userId) || isProfessorOfStudent(userId);
-        }
       }
     }
 
-    // Relacionamento Professor-Aluno
+    // Relacionamento Professor-Aluno (ACL)
     match /professors/{professorId}/students/{studentId} {
       allow read, write: if isOwner(professorId);
     }
 
-    // Consultas de Collection Group (Sessões e Exercícios)
+    // Regras para Collection Group Queries
+    // Estas regras são necessárias para consultas que buscam em múltiplas subcoleções com o mesmo nome
+    
     match /{path=**}/workoutSessions/{sessionId} {
+      // Permite leitura se o usuário for o dono da sessão ou o professor do dono
       allow read: if isSignedIn() && (
-        (resource.data.userId == request.auth.uid) || 
-        isProfessorOfStudent(resource.data.userId)
+        (request.auth.uid == resource.data.userId) || 
+        exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
       );
     }
 
     match /{path=**}/exercises/{exerciseId} {
+      // Permite leitura se o usuário for o dono do exercício ou o professor do dono
       allow read: if isSignedIn() && (
-        (resource.data.userId == request.auth.uid) || 
-        isProfessorOfStudent(resource.data.userId)
+        (request.auth.uid == resource.data.userId) || 
+        exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
       );
     }
   }
