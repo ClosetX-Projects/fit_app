@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
@@ -8,11 +7,12 @@ import { StudentView } from '@/components/student/student-view';
 import { Logo } from '@/components/icons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Bell, Loader2, Copy, Check } from 'lucide-react';
+import { User, LogOut, Bell, Loader2, Copy, Check, Settings } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export function HomeDashboard() {
   const { user, isUserLoading } = useUser();
@@ -26,6 +26,8 @@ export function HomeDashboard() {
   , [firestore, user]);
   
   const { data: profile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+
+  const isProfessor = profile?.userType === 'professor';
 
   const handleSignOut = () => {
     signOut(auth);
@@ -45,22 +47,27 @@ export function HomeDashboard() {
 
   if (isUserLoading || isProfileLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-8">
-        <Logo />
+    <div className="flex min-h-screen w-full flex-col bg-background selection:bg-primary/30">
+      {/* Header Adaptativo */}
+      <header className={cn(
+        "sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-md md:px-8",
+        !isProfessor && "md:h-20" // Header maior para alunos no desktop
+      )}>
+        <Logo className={cn(!isProfessor && "md:scale-110 origin-left")} />
+        
         <div className="ml-auto flex items-center gap-2 md:gap-4">
           <div className="hidden md:flex flex-col items-end mr-2">
-            <p className="text-sm font-medium leading-none mb-1">{profile?.name || user?.displayName}</p>
+            <p className="text-sm font-semibold leading-none mb-1">{profile?.name || user?.displayName}</p>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                {profile?.userType === 'professor' ? 'Professor' : 'Aluno'}
+              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                {isProfessor ? 'Professor' : 'Aluno'}
               </span>
               <Button 
                 variant="ghost" 
@@ -69,31 +76,46 @@ export function HomeDashboard() {
                 onClick={handleCopyId}
               >
                 {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                ID: {user?.uid.substring(0, 6)}...
+                ID: {user?.uid.substring(0, 6)}
               </Button>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="rounded-full">
+
+          <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
             <Bell className="h-5 w-5" />
-            <span className="sr-only">Notificações</span>
           </Button>
-          <Avatar>
+          
+          <Avatar className="h-9 w-9 border-2 border-primary/20">
             <AvatarImage src={userAvatar?.imageUrl} data-ai-hint={userAvatar?.imageHint} />
-            <AvatarFallback>
-              <User />
+            <AvatarFallback className="bg-primary/10 text-primary">
+              <User className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleSignOut}
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          >
             <LogOut className="h-5 w-5" />
-            <span className="sr-only">Sair</span>
           </Button>
         </div>
       </header>
-      <main className="flex-1 p-4 md:p-8">
-        {profile?.userType === 'professor' ? (
-          <ProfessorView />
+
+      {/* Conteúdo Principal */}
+      <main className={cn(
+        "flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full",
+        !isProfessor && "pb-24 md:pb-12" // Espaço para a barra inferior no mobile
+      )}>
+        {isProfessor ? (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <ProfessorView />
+          </div>
         ) : (
-          <StudentView />
+          <div className="animate-in fade-in zoom-in-95 duration-500">
+            <StudentView />
+          </div>
         )}
       </main>
     </div>
