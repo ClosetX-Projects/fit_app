@@ -1,16 +1,17 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'FitAssist',
+  title: 'FitAssist AI',
   description: 'Seu companheiro de fitness com IA.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'FitAssist',
+    title: 'FitAssist AI',
   },
   formatDetection: {
     telephone: false,

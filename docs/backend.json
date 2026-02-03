@@ -2,104 +2,48 @@
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user (either student or professor) in the FitAssist application.",
+      "description": "Perfil do usuário (Aluno ou Professor).",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
-        "userType": {
-          "type": "string",
-          "description": "The type of user: 'student' or 'professor'."
-        },
-        "name": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "age": {
-          "type": "number",
-          "description": "The user's age in years."
-        },
-        "gender": {
-          "type": "string",
-          "description": "The user's gender."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "whatsapp": {
-          "type": "string",
-          "description": "The user's WhatsApp number."
-        }
-      },
-      "required": [
-        "id",
-        "userType",
-        "name",
-        "email"
-      ]
+        "id": { "type": "string" },
+        "userType": { "type": "string", "enum": ["student", "professor"] },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "age": { "type": "number" },
+        "gender": { "type": "string" },
+        "whatsapp": { "type": "string" }
+      }
     },
     "PhysicalAssessment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PhysicalAssessment",
       "type": "object",
-      "description": "Represents a physical assessment record for a student.",
+      "description": "Dados básicos da avaliação física.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the physical assessment."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User."
-        },
-        "date": {
-          "type": "string",
-          "description": "The date of the physical assessment.",
-          "format": "date-time"
-        },
-        "weight": {
-          "type": "number",
-          "description": "The user's weight in kilograms."
-        },
-        "height": {
-          "type": "number",
-          "description": "The user's height in centimeters."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "date"
-      ]
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "weight": { "type": "number" },
+        "height": { "type": "number" }
+      }
     },
     "WorkoutSession": {
       "title": "WorkoutSession",
       "type": "object",
-      "description": "Record of a training session completed by a student.",
+      "description": "Registro de uma sessão de treino completa.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
-        "trainingProgramId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "pseSession": { "type": "number" },
         "pleasureScale": { "type": "number" },
-        "duration": { "type": "number" },
-        "intentionToRepeat": { "type": "number" },
-        "recoveryPerception": { "type": "string" },
-        "preTrainingAssessment": { "type": "string" }
+        "duration": { "type": "number" }
       }
     },
-    "Exercise": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Exercise",
+    "ExerciseHistory": {
+      "title": "ExerciseHistory",
       "type": "object",
-      "description": "Represents a specific exercise performed or prescribed.",
+      "description": "Registro individual de cada exercício feito no treino.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -107,61 +51,34 @@
         "sets": { "type": "number" },
         "reps": { "type": "string" },
         "weight": { "type": "number" },
-        "pseExercise": { "type": "number" },
-        "workoutSessionId": { "type": "string" }
-      },
-      "required": [
-        "id",
-        "name"
-      ]
+        "pseExercise": { "type": "number" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
       {
         "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": { "$ref": "#/backend/entities/User" },
-          "description": "Stores user profile data."
-        }
+        "definition": { "entityName": "User", "description": "Perfil do usuário." }
       },
       {
         "path": "/users/{userId}/physicalAssessments/{assessmentId}",
-        "definition": {
-          "entityName": "PhysicalAssessment",
-          "schema": { "$ref": "#/backend/entities/PhysicalAssessment" },
-          "description": "Physical assessments of a student."
-        }
+        "definition": { "entityName": "PhysicalAssessment", "description": "Histórico de avaliações." }
       },
       {
         "path": "/users/{userId}/workoutHistory_flat/{sessionId}",
-        "definition": {
-          "entityName": "WorkoutSession",
-          "schema": { "$ref": "#/backend/entities/WorkoutSession" },
-          "description": "Flattened history of workout sessions for easier querying without indices."
-        }
+        "definition": { "entityName": "WorkoutSession", "description": "Sessões de treino (formato plano para dashboards)." }
       },
       {
         "path": "/users/{userId}/exerciseHistory_flat/{exerciseId}",
-        "definition": {
-          "entityName": "Exercise",
-          "schema": { "$ref": "#/backend/entities/Exercise" },
-          "description": "Flattened history of exercises for easier querying without indices."
-        }
+        "definition": { "entityName": "ExerciseHistory", "description": "Exercícios individuais (formato plano para análises)." }
       },
       {
         "path": "/professors/{professorId}/students/{studentId}",
-        "definition": {
-          "entityName": "User",
-          "description": "ACL mapping for professor-student relationship."
-        }
+        "definition": { "description": "ACL: Alunos vinculados a este professor." }
       }
     ]
   }
