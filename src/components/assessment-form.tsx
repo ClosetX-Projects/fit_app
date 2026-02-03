@@ -13,13 +13,12 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser } from "@/firebase"
 import { doc, collection, serverTimestamp } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Ruler, Activity, Percent, Dumbbell, Zap } from "lucide-react"
+import { Loader2, Save, Ruler, Activity, Percent, Dumbbell, Zap, HelpCircle, Info } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const assessmentSchema = z.object({
-  // Dados Básicos
   weight: z.coerce.number().min(1, "Peso é obrigatório"),
   height: z.coerce.number().min(1, "Estatura é obrigatória"),
-  // Circunferências
   peitoral: z.coerce.number().optional(),
   cintura: z.coerce.number().optional(),
   abdomen: z.coerce.number().optional(),
@@ -28,23 +27,19 @@ const assessmentSchema = z.object({
   perna: z.coerce.number().optional(),
   braco: z.coerce.number().optional(),
   antebraco: z.coerce.number().optional(),
-  // Adiposidade (Pollock)
   threePollock: z.coerce.number().optional(),
   fourPollock: z.coerce.number().optional(),
   sevenPollock: z.coerce.number().optional(),
-  // Bioimpedância - Segmentar Gordura
   upperLeftSegmentFat: z.coerce.number().optional(),
   upperRightSegmentFat: z.coerce.number().optional(),
   lowerLeftSegmentFat: z.coerce.number().optional(),
   lowerRightSegmentFat: z.coerce.number().optional(),
   trunkSegmentFat: z.coerce.number().optional(),
-  // Bioimpedância - Segmentar Massa
   upperLeftSegmentMass: z.coerce.number().optional(),
   upperRightSegmentMass: z.coerce.number().optional(),
   lowerLeftSegmentMass: z.coerce.number().optional(),
   lowerRightSegmentMass: z.coerce.number().optional(),
   trunkSegmentMass: z.coerce.number().optional(),
-  // Bioimpedância - Gerais
   imc: z.coerce.number().optional(),
   fatPercentage: z.coerce.number().optional(),
   muscleMass: z.coerce.number().optional(),
@@ -53,10 +48,8 @@ const assessmentSchema = z.object({
   proteins: z.coerce.number().optional(),
   minerals: z.coerce.number().optional(),
   metabolicAge: z.coerce.number().optional(),
-  // Avaliação de Força
   bryzickRepetitionsMax: z.coerce.number().optional(),
   oneRmTest: z.coerce.number().optional(),
-  // VO2max
   vo2Max: z.coerce.number().optional(),
 })
 
@@ -84,7 +77,6 @@ export function AssessmentForm() {
       const assessmentRef = doc(collection(firestore, "users", user.uid, "physicalAssessments"))
       const assessmentId = assessmentRef.id
 
-      // 1. Salvar Avaliação Base
       setDocumentNonBlocking(assessmentRef, {
         id: assessmentId,
         userId: user.uid,
@@ -94,7 +86,6 @@ export function AssessmentForm() {
         createdAt: serverTimestamp(),
       }, { merge: true })
 
-      // 2. Salvar Circunferências
       const circRef = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "circumferenceMeasurements"))
       setDocumentNonBlocking(circRef, {
         id: circRef.id,
@@ -109,7 +100,6 @@ export function AssessmentForm() {
         antebraco: values.antebraco || 0,
       }, { merge: true })
 
-      // 3. Salvar Adiposidade
       const adipRef = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "adiposityMeasurements"))
       setDocumentNonBlocking(adipRef, {
         id: adipRef.id,
@@ -119,7 +109,6 @@ export function AssessmentForm() {
         sevenPollock: values.sevenPollock || 0,
       }, { merge: true })
 
-      // 4. Salvar Bioimpedância
       const bioRef = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "bioimpedanceAnalyses"))
       setDocumentNonBlocking(bioRef, {
         id: bioRef.id,
@@ -145,7 +134,6 @@ export function AssessmentForm() {
         metabolicAge: values.metabolicAge || 0,
       }, { merge: true })
 
-      // 5. Salvar Avaliação de Força
       if (values.bryzickRepetitionsMax !== undefined || values.oneRmTest !== undefined) {
         const strengthRef = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "strengthAssessments"))
         setDocumentNonBlocking(strengthRef, {
@@ -156,7 +144,6 @@ export function AssessmentForm() {
         }, { merge: true })
       }
 
-      // 6. Salvar VO2max
       if (values.vo2Max !== undefined) {
         const vo2Ref = doc(collection(firestore, "users", user.uid, "physicalAssessments", assessmentId, "vo2MaxAssessments"))
         setDocumentNonBlocking(vo2Ref, {
@@ -182,15 +169,31 @@ export function AssessmentForm() {
     }
   }
 
+  const LabelWithInfo = ({ label, info, id }: { label: string; info: string; id: string }) => (
+    <div className="flex items-center gap-1 mb-2">
+      <Label htmlFor={id}>{label}</Label>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[200px]">
+            <p className="text-xs">{info}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  )
+
   return (
-    <Card className="w-full max-w-5xl mx-auto border-primary/20 shadow-xl">
+    <Card className="w-full max-w-5xl mx-auto border-primary/20 shadow-xl overflow-hidden">
       <CardHeader className="bg-primary/5">
         <CardTitle className="flex items-center gap-2">
           <Activity className="h-6 w-6 text-primary" />
           Nova Avaliação Física e de Desempenho
         </CardTitle>
         <CardDescription>
-          Preencha os dados abaixo para acompanhar sua evolução física e performance.
+          Preencha os dados abaixo com o auxílio do seu professor ou balança de bioimpedância.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -217,17 +220,23 @@ export function AssessmentForm() {
             <TabsContent value="basic" className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="weight">Peso (kg)</Label>
+                  <LabelWithInfo id="weight" label="Peso (kg)" info="Sua massa corporal total medida na balança." />
                   <Input id="weight" type="number" step="0.01" {...form.register("weight")} placeholder="Ex: 80.5" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="height">Estatura (cm)</Label>
+                  <LabelWithInfo id="height" label="Estatura (cm)" info="Sua altura total em centímetros." />
                   <Input id="height" type="number" {...form.register("height")} placeholder="Ex: 180" />
                 </div>
               </div>
             </TabsContent>
 
             <TabsContent value="circumference" className="space-y-4 pt-4">
+              <div className="bg-primary/5 p-4 rounded-lg mb-4 flex gap-3 items-start">
+                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  As circunferências (perímetros) ajudam a entender a distribuição da massa muscular e gordura. Use uma fita métrica flexível.
+                </p>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="peitoral">Peitoral (cm)</Label>
@@ -265,43 +274,68 @@ export function AssessmentForm() {
             </TabsContent>
 
             <TabsContent value="skinfold" className="space-y-4 pt-4">
+              <div className="bg-primary/5 p-4 rounded-lg mb-4 flex gap-3 items-start">
+                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-primary uppercase">Protocolo Pollock</p>
+                  <p className="text-xs text-muted-foreground">
+                    Mede-se a espessura da gordura subcutânea em mm usando um adipômetro. É um dos métodos mais precisos para atletas.
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2 border p-4 rounded-lg bg-accent/10">
-                  <Label htmlFor="threePollock">3 Pollock (mm)</Label>
+                <div className="space-y-2 border p-4 rounded-lg bg-accent/5">
+                  <LabelWithInfo id="threePollock" label="3 Pollock (mm)" info="Soma das dobras: Peitoral, Abdômen e Coxa (homens) ou Tríceps, Supra-ilíaca e Coxa (mulheres)." />
                   <Input id="threePollock" type="number" step="0.1" {...form.register("threePollock")} />
-                  <p className="text-[10px] text-muted-foreground mt-1">Peitoral, Abdômen, Coxa</p>
                 </div>
-                <div className="space-y-2 border p-4 rounded-lg bg-accent/10">
-                  <Label htmlFor="fourPollock">4 Pollock (mm)</Label>
+                <div className="space-y-2 border p-4 rounded-lg bg-accent/5">
+                  <LabelWithInfo id="fourPollock" label="4 Pollock (mm)" info="Utiliza as dobras Tríceps, Supra-ilíaca, Abdômen e Coxa para uma estimativa mais abrangente." />
                   <Input id="fourPollock" type="number" step="0.1" {...form.register("fourPollock")} />
-                  <p className="text-[10px] text-muted-foreground mt-1">Tríceps, Supra-ilíaca, Abdômen, Coxa</p>
                 </div>
-                <div className="space-y-2 border p-4 rounded-lg bg-accent/10">
-                  <Label htmlFor="sevenPollock">7 Pollock (mm)</Label>
+                <div className="space-y-2 border p-4 rounded-lg bg-accent/5">
+                  <LabelWithInfo id="sevenPollock" label="7 Pollock (mm)" info="O protocolo mais completo. Inclui Subescapular, Axilar Média, Peitoral, Tríceps, Supra-ilíaca, Abdômen e Coxa." />
                   <Input id="sevenPollock" type="number" step="0.1" {...form.register("sevenPollock")} />
-                  <p className="text-[10px] text-muted-foreground mt-1">Subescapular, Axilar, Peitoral, etc.</p>
                 </div>
               </div>
             </TabsContent>
 
             <TabsContent value="bio" className="space-y-6 pt-4">
+              <div className="bg-primary/5 p-4 rounded-lg mb-4 flex gap-3 items-start">
+                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  Dados obtidos geralmente através de balanças de impedância bioelétrica (como InBody ou Tanita).
+                </p>
+              </div>
+              
               <div>
-                <h4 className="text-sm font-semibold mb-3 border-b pb-1">Análise de Gordura Segmentar (kg/%)</h4>
+                <h4 className="text-sm font-semibold mb-3 border-b pb-1 flex items-center gap-2">
+                  Gordura Segmentar
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Distribuição de gordura em cada parte específica do corpo.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Sup. Esquerdo</Label>
+                    <Label className="text-[11px]">Braço Esq.</Label>
                     <Input type="number" step="0.1" {...form.register("upperLeftSegmentFat")} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Sup. Direito</Label>
+                    <Label className="text-[11px]">Braço Dir.</Label>
                     <Input type="number" step="0.1" {...form.register("upperRightSegmentFat")} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Inf. Esquerdo</Label>
+                    <Label className="text-[11px]">Perna Esq.</Label>
                     <Input type="number" step="0.1" {...form.register("lowerLeftSegmentFat")} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Inf. Direito</Label>
+                    <Label className="text-[11px]">Perna Dir.</Label>
                     <Input type="number" step="0.1" {...form.register("lowerRightSegmentFat")} />
                   </div>
                   <div className="space-y-2">
@@ -312,22 +346,22 @@ export function AssessmentForm() {
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold mb-3 border-b pb-1">Análise de Massa Segmentar (kg)</h4>
+                <h4 className="text-sm font-semibold mb-3 border-b pb-1">Massa Magra Segmentar (kg)</h4>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Sup. Esquerdo</Label>
+                    <Label className="text-[11px]">Braço Esq.</Label>
                     <Input type="number" step="0.1" {...form.register("upperLeftSegmentMass")} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Sup. Direito</Label>
+                    <Label className="text-[11px]">Braço Dir.</Label>
                     <Input type="number" step="0.1" {...form.register("upperRightSegmentMass")} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Inf. Esquerdo</Label>
+                    <Label className="text-[11px]">Perna Esq.</Label>
                     <Input type="number" step="0.1" {...form.register("lowerLeftSegmentMass")} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px]">Inf. Direito</Label>
+                    <Label className="text-[11px]">Perna Dir.</Label>
                     <Input type="number" step="0.1" {...form.register("lowerRightSegmentMass")} />
                   </div>
                   <div className="space-y-2">
@@ -341,35 +375,35 @@ export function AssessmentForm() {
                 <h4 className="text-sm font-semibold mb-3 border-b pb-1">Indicadores Gerais</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
-                    <Label>IMC</Label>
+                    <LabelWithInfo id="imc" label="IMC" info="Índice de Massa Corporal (Peso / Altura²)." />
                     <Input type="number" step="0.1" {...form.register("imc")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>% Gordura</Label>
+                    <LabelWithInfo id="fatPerc" label="% Gordura" info="Percentual total de gordura no corpo." />
                     <Input type="number" step="0.1" {...form.register("fatPercentage")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Massa Muscular (kg)</Label>
+                    <LabelWithInfo id="muscle" label="Massa Muscular (kg)" info="Peso total apenas dos seus músculos." />
                     <Input type="number" step="0.1" {...form.register("muscleMass")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Massa Gorda (kg)</Label>
+                    <LabelWithInfo id="fatmass" label="Massa Gorda (kg)" info="Peso total apenas da gordura corporal." />
                     <Input type="number" step="0.1" {...form.register("fatMass")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Água Total (L)</Label>
+                    <LabelWithInfo id="water" label="Água Total (L)" info="Quantidade de líquidos no organismo." />
                     <Input type="number" step="0.1" {...form.register("totalBodyWater")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Proteínas (kg)</Label>
+                    <LabelWithInfo id="protein" label="Proteínas (kg)" info="Massa proteica presente nos tecidos." />
                     <Input type="number" step="0.1" {...form.register("proteins")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Minerais (kg)</Label>
+                    <LabelWithInfo id="minerals" label="Minerais (kg)" info="Massa mineral óssea e circulante." />
                     <Input type="number" step="0.1" {...form.register("minerals")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Idade Metabólica</Label>
+                    <LabelWithInfo id="metaAge" label="Idade Metabólica" info="Idade que seu metabolismo reflete em comparação com a média populacional." />
                     <Input type="number" {...form.register("metabolicAge")} />
                   </div>
                 </div>
@@ -383,14 +417,12 @@ export function AssessmentForm() {
                     <Dumbbell className="h-4 w-4 text-primary" /> Avaliação de Força
                   </h4>
                   <div className="space-y-2">
-                    <Label htmlFor="bryzick">Repetições Máximas (Bryzick)</Label>
+                    <LabelWithInfo id="bryzick" label="Repetições Máximas (Bryzick)" info="Cálculo indireto de força máxima baseado em quantas vezes você consegue levantar um peso submáximo." />
                     <Input id="bryzick" type="number" {...form.register("bryzickRepetitionsMax")} placeholder="Ex: 10" />
-                    <p className="text-[10px] text-muted-foreground">Número de repetições com carga submáxima.</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="oneRm">Teste de 1RM (kg)</Label>
+                    <LabelWithInfo id="oneRm" label="Teste de 1RM (kg)" info="One Repetition Maximum: A maior carga que você consegue levantar para uma única repetição completa." />
                     <Input id="oneRm" type="number" {...form.register("oneRmTest")} placeholder="Ex: 120" />
-                    <p className="text-[10px] text-muted-foreground">Carga máxima para uma repetição única.</p>
                   </div>
                 </div>
 
@@ -399,23 +431,22 @@ export function AssessmentForm() {
                     <Activity className="h-4 w-4 text-accent" /> Capacidade Aeróbica
                   </h4>
                   <div className="space-y-2">
-                    <Label htmlFor="vo2Max">VO2max (ml/kg/min)</Label>
+                    <LabelWithInfo id="vo2Max" label="VO2max (ml/kg/min)" info="Consumo máximo de oxigênio: indica sua aptidão cardiovascular e fôlego." />
                     <Input id="vo2Max" type="number" step="0.1" {...form.register("vo2Max")} placeholder="Ex: 45.5" />
-                    <p className="text-[10px] text-muted-foreground">Consumo máximo de oxigênio.</p>
                   </div>
                 </div>
               </div>
             </TabsContent>
           </Tabs>
 
-          <Button type="submit" className="w-full flex items-center gap-2" disabled={loading}>
+          <Button type="submit" className="w-full flex items-center gap-2 h-12 text-lg shadow-lg" disabled={loading}>
             {loading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Salvando...
+                <Loader2 className="h-5 w-5 animate-spin" /> Salvando Avaliação...
               </>
             ) : (
               <>
-                <Save className="h-4 w-4" /> Finalizar Avaliação
+                <Save className="h-5 w-5" /> Finalizar e Registrar Avaliação
               </>
             )}
           </Button>
