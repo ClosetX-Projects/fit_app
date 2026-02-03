@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,13 +17,29 @@ export function AICoach({ recentSessions, lastAssessment }: AICoachProps) {
 
   useEffect(() => {
     async function loadInsight() {
-      if (recentSessions.length === 0) return;
+      if (!recentSessions || recentSessions.length === 0) return;
       setLoading(true);
-      const res = await getStudentDailyInsight({ recentSessions, lastAssessment });
-      if (res.success && res.data) {
-        setInsight(res.data);
+      
+      try {
+        // Sanitizar dados para Server Action: 
+        // Objetos do Firestore (como Timestamps) possuem métodos que o Next.js não suporta passar para o servidor.
+        // Convertemos para JSON e voltamos para objeto para garantir que sejam apenas dados puros.
+        const cleanSessions = JSON.parse(JSON.stringify(recentSessions));
+        const cleanAssessment = lastAssessment ? JSON.parse(JSON.stringify(lastAssessment)) : null;
+
+        const res = await getStudentDailyInsight({ 
+          recentSessions: cleanSessions, 
+          lastAssessment: cleanAssessment 
+        });
+
+        if (res.success && res.data) {
+          setInsight(res.data);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar insight da IA:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     loadInsight();
   }, [recentSessions, lastAssessment]);
