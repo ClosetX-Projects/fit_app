@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, orderBy, limit } from 'firebase/firestore';
+import { collectionGroup, query, where } from 'firebase/firestore';
 import { Loader2, Gauge, Timer, Smile, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -16,17 +17,21 @@ interface StudentAnalyticsProps {
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   const { firestore } = useFirebase();
 
-  // Buscar sessões reais do aluno em todos os programas usando Collection Group
+  // Buscar sessões reais do aluno. Removido orderBy do banco para evitar erro de índice.
   const sessionsRef = useMemoFirebase(() => 
     query(
       collectionGroup(firestore!, 'workoutSessions'),
-      where('userId', '==', studentId),
-      orderBy('date', 'asc'),
-      limit(30)
+      where('userId', '==', studentId)
     )
   , [firestore, studentId]);
 
-  const { data: sessions, isLoading } = useCollection(sessionsRef);
+  const { data: rawSessions, isLoading } = useCollection(sessionsRef);
+
+  // Ordenar sessões em memória
+  const sessions = useMemo(() => {
+    if (!rawSessions) return null;
+    return [...rawSessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [rawSessions]);
 
   // Processar dados para o gráfico
   const chartData = useMemo(() => {

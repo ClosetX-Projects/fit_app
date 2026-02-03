@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, orderBy, limit } from 'firebase/firestore';
+import { collectionGroup, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -22,16 +22,25 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
   const [insightLoading, setInsightLoading] = useState<string | null>(null);
   const [currentInsight, setCurrentInsight] = useState<{ id: string, text: string } | null>(null);
 
-  const exercisesRef = useMemoFirebase(() => 
+  // Buscar exercícios reais. Removido orderBy do banco para evitar erro de índice.
+  const rawExercisesRef = useMemoFirebase(() => 
     query(
       collectionGroup(firestore!, 'exercises'),
-      where('userId', '==', studentId),
-      orderBy('createdAt', 'desc'),
-      limit(50)
+      where('userId', '==', studentId)
     )
   , [firestore, studentId]);
 
-  const { data: exercises, isLoading } = useCollection(exercisesRef);
+  const { data: rawExercises, isLoading } = useCollection(rawExercisesRef);
+
+  // Ordenar exercícios em memória (mais recentes primeiro)
+  const exercises = useMemo(() => {
+    if (!rawExercises) return null;
+    return [...rawExercises].sort((a, b) => {
+      const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
+      const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+      return timeB - timeA;
+    });
+  }, [rawExercises]);
 
   const handleGetAIInsight = async (ex: any) => {
     setInsightLoading(ex.id);
@@ -39,10 +48,10 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
     try {
       const input: TrainingInsightsInput = {
         exercise: ex.name,
-        duration: 0, // Duração individual do exercício não disponível, poderia ser da sessão
+        duration: 0,
         volume: {
           sets: Number(ex.sets),
-          reps: Number(ex.reps.split(/[^0-9]/)[0]) || 0, // Tenta extrair número
+          reps: Number(ex.reps.toString().split(/[^0-9]/)[0]) || 0,
           weight: Number(ex.weight)
         },
         rpe: Number(ex.pseExercise)

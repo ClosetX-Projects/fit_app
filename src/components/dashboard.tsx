@@ -15,28 +15,32 @@ export function Dashboard() {
   const { user } = useUser()
   const { firestore } = useFirebase()
 
-  // 1. Histórico de Peso
+  // 1. Histórico de Peso (Consulta direta por coleção não exige índices complexos)
   const assessmentsRef = useMemoFirebase(() => 
     user ? query(
       collection(firestore, 'users', user.uid, 'physicalAssessments'),
       orderBy('date', 'asc'),
-      limit(10)
+      limit(20)
     ) : null
   , [firestore, user])
   
   const { data: assessments, isLoading: isAssessmentsLoading } = useCollection(assessmentsRef)
 
-  // 2. Histórico de Sessões para Estatísticas
+  // 2. Histórico de Sessões (Removido orderBy do banco para evitar erro de índice no protótipo)
   const sessionsRef = useMemoFirebase(() => 
     user ? query(
       collectionGroup(firestore, 'workoutSessions'),
-      where('userId', '==', user.uid),
-      orderBy('date', 'desc'),
-      limit(20)
+      where('userId', '==', user.uid)
     ) : null
   , [firestore, user])
   
-  const { data: sessions, isLoading: isSessionsLoading } = useCollection(sessionsRef)
+  const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsRef)
+
+  // Ordenar sessões em memória para garantir funcionamento sem índices
+  const sessions = useMemo(() => {
+    if (!rawSessions) return null;
+    return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [rawSessions]);
 
   const weightData = useMemo(() => {
     if (!assessments) return []
@@ -135,7 +139,7 @@ export function Dashboard() {
           <CardDescription>Gráfico baseado em suas avaliações físicas reais.</CardDescription>
         </CardHeader>
         <CardContent>
-          {weightData.length > 1 ? (
+          {weightData.length > 0 ? (
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
               <LineChart data={weightData} margin={{ left: 12, right: 12, top: 20, bottom: 20 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -155,7 +159,7 @@ export function Dashboard() {
             <div className="h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground border border-dashed rounded-lg bg-muted/20">
               <Scale className="h-12 w-12 mb-4 opacity-20" />
               <p className="font-medium">Nenhum dado de progresso disponível.</p>
-              <p className="text-xs max-w-xs">Registre pelo menos duas avaliações físicas para visualizar seu gráfico de peso.</p>
+              <p className="text-xs max-w-xs">Registre avaliações físicas para visualizar seu gráfico de peso.</p>
             </div>
           )}
         </CardContent>
