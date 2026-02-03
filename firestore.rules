@@ -3,10 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --------------------------------------------------------------------------
-    // Helper Functions
-    // --------------------------------------------------------------------------
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -16,37 +12,13 @@ service cloud.firestore {
     }
 
     function isProfessorOfStudent(studentId) {
-      // Verifica se existe o vínculo na coleção de relacionamento
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    // --------------------------------------------------------------------------
-    // Collection Group Rules: Essencial para Gráficos e Histórico
-    // --------------------------------------------------------------------------
-    
-    match /{path=**}/workoutSessions/{sessionId} {
-      allow read: if isSignedIn() && (
-        (resource.data.userId == request.auth.uid) || 
-        isProfessorOfStudent(resource.data.userId)
-      );
-    }
-
-    match /{path=**}/exercises/{exerciseId} {
-      allow read: if isSignedIn() && (
-        (resource.data.userId == request.auth.uid) || 
-        isProfessorOfStudent(resource.data.userId)
-      );
-    }
-
-    // --------------------------------------------------------------------------
-    // Collection Rules
-    // --------------------------------------------------------------------------
-
+    // Regras para perfis de usuários
     match /users/{userId} {
-      // Permite que qualquer usuário logado veja o perfil básico para fins de busca/vínculo
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create, update, delete: if isOwner(userId);
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
 
       match /physicalAssessments/{assessmentId} {
         allow read: if isOwner(userId) || isProfessorOfStudent(userId);
@@ -60,8 +32,7 @@ service cloud.firestore {
       
       match /trainingPrograms/{programId} {
         allow read: if isOwner(userId) || isProfessorOfStudent(userId);
-        // Professores vinculados podem gerenciar programas
-        allow create, update, delete: if isProfessorOfStudent(userId);
+        allow write: if isOwner(userId) || isProfessorOfStudent(userId);
 
         match /{subColl=**} {
           allow read: if isOwner(userId) || isProfessorOfStudent(userId);
@@ -70,8 +41,24 @@ service cloud.firestore {
       }
     }
 
+    // Relacionamento Professor-Aluno
     match /professors/{professorId}/students/{studentId} {
       allow read, write: if isOwner(professorId);
+    }
+
+    // Consultas de Collection Group (Sessões e Exercícios)
+    match /{path=**}/workoutSessions/{sessionId} {
+      allow read: if isSignedIn() && (
+        (resource.data.userId == request.auth.uid) || 
+        isProfessorOfStudent(resource.data.userId)
+      );
+    }
+
+    match /{path=**}/exercises/{exerciseId} {
+      allow read: if isSignedIn() && (
+        (resource.data.userId == request.auth.uid) || 
+        isProfessorOfStudent(resource.data.userId)
+      );
     }
   }
 }
