@@ -85,10 +85,14 @@
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
+        "trainingProgramId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "pseSession": { "type": "number" },
         "pleasureScale": { "type": "number" },
-        "duration": { "type": "number" }
+        "duration": { "type": "number" },
+        "intentionToRepeat": { "type": "number" },
+        "recoveryPerception": { "type": "string" },
+        "preTrainingAssessment": { "type": "string" }
       }
     },
     "Exercise": {
@@ -103,7 +107,8 @@
         "sets": { "type": "number" },
         "reps": { "type": "string" },
         "weight": { "type": "number" },
-        "pseExercise": { "type": "number" }
+        "pseExercise": { "type": "number" },
+        "workoutSessionId": { "type": "string" }
       },
       "required": [
         "id",
@@ -136,19 +141,19 @@
         }
       },
       {
-        "path": "/users/{userId}/trainingPrograms/{programId}/workoutSessions/{sessionId}",
+        "path": "/users/{userId}/workoutHistory_flat/{sessionId}",
         "definition": {
           "entityName": "WorkoutSession",
           "schema": { "$ref": "#/backend/entities/WorkoutSession" },
-          "description": "History of workout sessions."
+          "description": "Flattened history of workout sessions for easier querying without indices."
         }
       },
       {
-        "path": "/users/{userId}/trainingPrograms/{programId}/workoutSessions/{sessionId}/exercises/{exerciseId}",
+        "path": "/users/{userId}/exerciseHistory_flat/{exerciseId}",
         "definition": {
           "entityName": "Exercise",
           "schema": { "$ref": "#/backend/entities/Exercise" },
-          "description": "Individual exercises performed in a session."
+          "description": "Flattened history of exercises for easier querying without indices."
         }
       },
       {

@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -22,12 +22,9 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
   const [insightLoading, setInsightLoading] = useState<string | null>(null);
   const [currentInsight, setCurrentInsight] = useState<{ id: string, text: string } | null>(null);
 
-  // Buscar exercícios reais. Removido orderBy do banco para evitar erro de índice.
+  // Buscar exercícios da COLEÇÃO PLANA para evitar erros de índice de collectionGroup
   const rawExercisesRef = useMemoFirebase(() => 
-    query(
-      collectionGroup(firestore!, 'exercises'),
-      where('userId', '==', studentId)
-    )
+    collection(firestore!, 'users', studentId, 'exerciseHistory_flat')
   , [firestore, studentId]);
 
   const { data: rawExercises, isLoading } = useCollection(rawExercisesRef);

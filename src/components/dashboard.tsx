@@ -8,7 +8,7 @@ import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
 import { Dumbbell, Scale, Target, Loader2, TrendingUp, CalendarDays } from "lucide-react"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, limit, collectionGroup, where } from "firebase/firestore"
+import { collection, query, orderBy, limit } from "firebase/firestore"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 
 export function Dashboard() {
@@ -26,17 +26,14 @@ export function Dashboard() {
   
   const { data: assessments, isLoading: isAssessmentsLoading } = useCollection(assessmentsRef)
 
-  // 2. Histórico de Sessões (Removido orderBy do banco para evitar erro de índice no protótipo)
+  // 2. Histórico de Sessões usando a COLEÇÃO PLANA para evitar erros de índice de collectionGroup
   const sessionsRef = useMemoFirebase(() => 
-    user ? query(
-      collectionGroup(firestore, 'workoutSessions'),
-      where('userId', '==', user.uid)
-    ) : null
+    user ? collection(firestore, 'users', user.uid, 'workoutHistory_flat') : null
   , [firestore, user])
   
   const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsRef)
 
-  // Ordenar sessões em memória para garantir funcionamento sem índices
+  // Ordenar sessões em memória
   const sessions = useMemo(() => {
     if (!rawSessions) return null;
     return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

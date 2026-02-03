@@ -86,11 +86,9 @@ export function WorkoutSessionForm() {
     setLoading(true);
 
     try {
-      const sessionRef = doc(collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions'));
-      const sessionId = sessionRef.id;
-
-      // 1. Salvar os dados da sessão
-      setDocumentNonBlocking(sessionRef, {
+      const sessionId = doc(collection(firestore, 'dummy')).id; // Gerar um ID único
+      
+      const sessionData = {
         id: sessionId,
         userId: user.uid,
         trainingProgramId: selectedProgramId,
@@ -102,16 +100,24 @@ export function WorkoutSessionForm() {
         duration: Number(duration),
         recoveryPerception: recovery,
         createdAt: serverTimestamp(),
-      }, { merge: true });
+      };
 
-      // 2. Salvar o desempenho de cada exercício
+      // 1. Salvar na estrutura aninhada (para organização)
+      const nestedSessionRef = doc(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions', sessionId);
+      setDocumentNonBlocking(nestedSessionRef, sessionData, { merge: true });
+
+      // 2. Salvar na estrutura PLANA (para consultas rápidas sem índice)
+      const flatSessionRef = doc(firestore, 'users', user.uid, 'workoutHistory_flat', sessionId);
+      setDocumentNonBlocking(flatSessionRef, sessionData, { merge: true });
+
+      // 3. Salvar o desempenho de cada exercício
       Object.entries(exerciseLogs).forEach(([exId, log]) => {
         const prescribedEx = prescribedExercises?.find(p => p.id === exId);
-        const exercisePerformanceRef = doc(collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions', sessionId, 'exercises'));
+        const exerciseId = doc(collection(firestore, 'dummy')).id;
         
-        setDocumentNonBlocking(exercisePerformanceRef, {
-          id: exercisePerformanceRef.id,
-          userId: user.uid, // CRITICAL: Save userId here for collection group queries
+        const exerciseData = {
+          id: exerciseId,
+          userId: user.uid,
           workoutSessionId: sessionId,
           name: prescribedEx?.name || 'Exercício',
           prescribedExerciseId: exId,
@@ -120,7 +126,15 @@ export function WorkoutSessionForm() {
           weight: Number(log.weight),
           pseExercise: log.pse,
           createdAt: serverTimestamp(),
-        }, { merge: true });
+        };
+
+        // Salvar aninhado
+        const nestedExRef = doc(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'workoutSessions', sessionId, 'exercises', exerciseId);
+        setDocumentNonBlocking(nestedExRef, exerciseData, { merge: true });
+
+        // Salvar PLANO (fundamental para o dashboard do professor/aluno)
+        const flatExRef = doc(firestore, 'users', user.uid, 'exerciseHistory_flat', exerciseId);
+        setDocumentNonBlocking(flatExRef, exerciseData, { merge: true });
       });
 
       toast({
@@ -128,7 +142,6 @@ export function WorkoutSessionForm() {
         description: "Todos os dados de desempenho foram registrados com sucesso.",
       });
       
-      // Resetar campos
       setPreTraining('');
       setDuration('');
       setRecovery('');

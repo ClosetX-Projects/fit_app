@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { Loader2, Gauge, Timer, Smile, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -17,12 +17,9 @@ interface StudentAnalyticsProps {
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   const { firestore } = useFirebase();
 
-  // Buscar sessões reais do aluno. Removido orderBy do banco para evitar erro de índice.
+  // Buscar sessões da COLEÇÃO PLANA para evitar erros de índice de collectionGroup
   const sessionsRef = useMemoFirebase(() => 
-    query(
-      collectionGroup(firestore!, 'workoutSessions'),
-      where('userId', '==', studentId)
-    )
+    collection(firestore!, 'users', studentId, 'workoutHistory_flat')
   , [firestore, studentId]);
 
   const { data: rawSessions, isLoading } = useCollection(sessionsRef);
