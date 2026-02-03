@@ -1,12 +1,8 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * Core Philosophy: This ruleset enforces a strict, hybrid security model tailored for a fitness application.
-     * It combines a user-ownership model for student-generated data with a role-based access model for professors.
-     */
 
     // --------------------------------------------------------------------------
     // Helper Functions
@@ -19,45 +15,14 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function isExistingDoc() {
-        return resource != null;
-    }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isProfessor() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().userType == 'professor';
-    }
 
     function isProfessorOfStudent(studentId) {
+      // Verifica se existe o vínculo na coleção de relacionamento
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    function canReadStudentData(studentId) {
-      return isOwner(studentId) || isProfessorOfStudent(studentId);
-    }
-    
-    function hasValidIdOnCreate(userId) {
-      return request.resource.data.id == userId;
-    }
-
-    function isIdImmutable() {
-      return request.resource.data.id == resource.data.id;
-    }
-    
-    function hasValidUserIdOnCreate(userId) {
-      return request.resource.data.userId == userId;
-    }
-
-    function isUserIdImmutable() {
-      return request.resource.data.userId == resource.data.userId;
-    }
-
     // --------------------------------------------------------------------------
-    // Global Collection Group Rules: Necessário para o Dashboard e Analytics
+    // Collection Group Rules: Essencial para Gráficos e Histórico
     // --------------------------------------------------------------------------
     
     match /{path=**}/workoutSessions/{sessionId} {
@@ -75,96 +40,36 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // Collection Rules: /users
+    // Collection Rules
     // --------------------------------------------------------------------------
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if false; 
-      allow create: if isOwner(userId) && hasValidIdOnCreate(userId);
-      allow update: if isOwner(userId) && isExistingDoc() && isIdImmutable();
-      allow delete: if isOwner(userId) && isExistingDoc();
+      allow create, update, delete: if isOwner(userId);
 
       match /physicalAssessments/{assessmentId} {
-        allow get, list: if canReadStudentData(userId);
-        allow create: if isOwner(userId) && hasValidUserIdOnCreate(userId);
-        allow update: if isOwner(userId) && isExistingDoc() && isUserIdImmutable();
-        allow delete: if isOwner(userId) && isExistingDoc();
+        allow read: if isOwner(userId) || isProfessorOfStudent(userId);
+        allow write: if isOwner(userId);
         
-        match /circumferenceMeasurements/{measurementId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isOwner(userId);
-          allow update: if isOwner(userId) && isExistingDoc();
-          allow delete: if isOwner(userId) && isExistingDoc();
-        }
-        
-        match /adiposityMeasurements/{adiposityId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isOwner(userId);
-          allow update: if isOwner(userId) && isExistingDoc();
-          allow delete: if isOwner(userId) && isExistingDoc();
-        }
-
-        match /bioimpedanceAnalyses/{analysisId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isOwner(userId);
-          allow update: if isOwner(userId) && isExistingDoc();
-          allow delete: if isOwner(userId) && isExistingDoc();
-        }
-
-        match /strengthAssessments/{strengthId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isOwner(userId);
-          allow update: if isOwner(userId) && isExistingDoc();
-          allow delete: if isOwner(userId) && isExistingDoc();
-        }
-
-        match /vo2MaxAssessments/{vo2MaxId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isOwner(userId);
-          allow update: if isOwner(userId) && isExistingDoc();
-          allow delete: if isOwner(userId) && isExistingDoc();
+        match /{subColl=**} {
+          allow read: if isOwner(userId) || isProfessorOfStudent(userId);
+          allow write: if isOwner(userId);
         }
       }
       
       match /trainingPrograms/{programId} {
-        allow get, list: if canReadStudentData(userId);
-        allow create: if isProfessorOfStudent(userId) && hasValidUserIdOnCreate(userId);
-        allow update: if isProfessorOfStudent(userId) && isExistingDoc() && isUserIdImmutable();
-        allow delete: if isProfessorOfStudent(userId) && isExistingDoc();
+        allow read: if isOwner(userId) || isProfessorOfStudent(userId);
+        allow create, update, delete: if isProfessorOfStudent(userId);
 
-        match /prescribedExercises/{exerciseId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isProfessorOfStudent(userId);
-          allow update: if isProfessorOfStudent(userId) && isExistingDoc();
-          allow delete: if isProfessorOfStudent(userId) && isExistingDoc();
-        }
-
-        match /workoutSessions/{sessionId} {
-          allow get, list: if canReadStudentData(userId);
-          allow create: if isOwner(userId) || isProfessorOfStudent(userId);
-          allow update: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
-          allow delete: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
-
-          match /exercises/{exerciseId} {
-            allow get, list: if canReadStudentData(userId);
-            allow create: if isOwner(userId) || isProfessorOfStudent(userId);
-            allow update: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
-            allow delete: if (isOwner(userId) || isProfessorOfStudent(userId)) && isExistingDoc();
-          }
+        match /{subColl=**} {
+          allow read: if isOwner(userId) || isProfessorOfStudent(userId);
+          allow write: if isOwner(userId) || isProfessorOfStudent(userId);
         }
       }
     }
 
-    // --------------------------------------------------------------------------
-    // Collection Rules: /professors
-    // --------------------------------------------------------------------------
-
     match /professors/{professorId}/students/{studentId} {
-      allow get, list: if isOwner(professorId);
-      allow create: if isOwner(professorId);
-      allow update: if isOwner(professorId) && isExistingDoc();
-      allow delete: if isOwner(professorId) && isExistingDoc();
+      allow read, write: if isOwner(professorId);
     }
   }
 }

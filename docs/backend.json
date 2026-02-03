@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -40,8 +41,6 @@
         "id",
         "userType",
         "name",
-        "age",
-        "gender",
         "email"
       ]
     },
@@ -57,7 +56,7 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N PhysicalAssessment)"
+          "description": "Reference to User."
         },
         "date": {
           "type": "string",
@@ -76,93 +75,35 @@
       "required": [
         "id",
         "userId",
-        "date",
-        "weight",
-        "height"
+        "date"
       ]
     },
-    "CircumferenceMeasurement": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CircumferenceMeasurement",
+    "WorkoutSession": {
+      "title": "WorkoutSession",
       "type": "object",
-      "description": "Represents a circumference measurement taken during a physical assessment.",
+      "description": "Record of a training session completed by a student.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the circumference measurement."
-        },
-        "physicalAssessmentId": {
-          "type": "string",
-          "description": "Reference to PhysicalAssessment. (Relationship: PhysicalAssessment 1:N CircumferenceMeasurement)"
-        },
-        "peitoral": {
-          "type": "number",
-          "description": "Peitoral circumference measurement."
-        },
-        "cintura": {
-          "type": "number",
-          "description": "Cintura (waist) circumference measurement."
-        },
-        "abdomen": {
-          "type": "number",
-          "description": "Abdomen circumference measurement."
-        },
-        "quadril": {
-          "type": "number",
-          "description": "Quadril (hip) circumference measurement."
-        },
-        "coxa": {
-          "type": "number",
-          "description": "Coxa (thigh) circumference measurement."
-        },
-        "perna": {
-          "type": "number",
-          "description": "Perna (calf) circumference measurement."
-        },
-        "braco": {
-          "type": "number",
-          "description": "Braço (arm) circumference measurement."
-        },
-        "antebraco": {
-          "type": "number",
-          "description": "Antebraço (forearm) circumference measurement."
-        }
-      },
-      "required": [
-        "id",
-        "physicalAssessmentId"
-      ]
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "pseSession": { "type": "number" },
+        "pleasureScale": { "type": "number" },
+        "duration": { "type": "number" }
+      }
     },
     "Exercise": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Exercise",
       "type": "object",
-      "description": "Represents a specific exercise within a workout session or prescribed in a program.",
+      "description": "Represents a specific exercise performed or prescribed.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the exercise."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the exercise."
-        },
-        "sets": {
-          "type": "number",
-          "description": "Number of sets for the exercise."
-        },
-        "reps": {
-          "type": "string",
-          "description": "Number of repetitions or time."
-        },
-        "weight": {
-          "type": "number",
-          "description": "Weight used for the exercise in kilograms."
-        },
-        "pseExercise": {
-          "type": "number",
-          "description": "PSE (Perceived exertion) for the Exercise."
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "sets": { "type": "number" },
+        "reps": { "type": "string" },
+        "weight": { "type": "number" },
+        "pseExercise": { "type": "number" }
       },
       "required": [
         "id",
@@ -182,31 +123,39 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile data.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the user."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Stores user profile data."
         }
       },
       {
-        "path": "/users/{userId}/trainingPrograms/{programId}/prescribedExercises/{exerciseId}",
+        "path": "/users/{userId}/physicalAssessments/{assessmentId}",
+        "definition": {
+          "entityName": "PhysicalAssessment",
+          "schema": { "$ref": "#/backend/entities/PhysicalAssessment" },
+          "description": "Physical assessments of a student."
+        }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}/workoutSessions/{sessionId}",
+        "definition": {
+          "entityName": "WorkoutSession",
+          "schema": { "$ref": "#/backend/entities/WorkoutSession" },
+          "description": "History of workout sessions."
+        }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}/workoutSessions/{sessionId}/exercises/{exerciseId}",
         "definition": {
           "entityName": "Exercise",
-          "schema": {
-            "$ref": "#/backend/entities/Exercise"
-          },
-          "description": "Exercises prescribed by the professor for a specific program.",
-          "params": [
-            { "name": "userId" },
-            { "name": "programId" },
-            { "name": "exerciseId" }
-          ]
+          "schema": { "$ref": "#/backend/entities/Exercise" },
+          "description": "Individual exercises performed in a session."
+        }
+      },
+      {
+        "path": "/professors/{professorId}/students/{studentId}",
+        "definition": {
+          "entityName": "User",
+          "description": "ACL mapping for professor-student relationship."
         }
       }
     ]
