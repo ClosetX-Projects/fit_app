@@ -7,9 +7,9 @@ export async function getAIGoalRecommendations(data: PersonalizedGoalRecommendat
   try {
     const result = await personalizedGoalRecommendations(data);
     return { success: true, goals: result.goalSuggestions };
-  } catch (error) {
-    console.error(error);
-    return { success: false, error: 'Falha ao gerar recomendações. Por favor, verifique sua chave de API e tente novamente.' };
+  } catch (error: any) {
+    console.error('Erro detalhado da IA (Metas):', error);
+    return { success: false, error: 'Ocorreu um erro ao processar as metas pela IA. Tente novamente em alguns instantes.' };
   }
 }
 
@@ -17,8 +17,8 @@ export async function getStudentDailyInsight(data: StudentDailyInsightInput) {
   try {
     const result = await generateStudentDailyInsight(data);
     return { success: true, data: result };
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error('Erro detalhado da IA (Insight):', error);
     return { success: false, error: 'Falha ao obter dica do Coach.' };
   }
 }

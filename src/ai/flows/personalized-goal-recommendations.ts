@@ -67,11 +67,22 @@ const personalizedGoalRecommendationsPrompt = ai.definePrompt({
   Com base nas informações a seguir, sugira 3 metas de condicionamento físico alcançáveis para o usuário.
   Certifique-se de que a meta seja realista e motivadora.
 
-  Dados do Usuário: {{JSON.stringify(userData)}}
-  Composição Corporal: {{JSON.stringify(bodyComposition)}}
-  Dados de Bioimpedância: {{JSON.stringify(bioimpedanceData)}}
-  Resultados do Teste de Força: {{JSON.stringify(strengthTestResults)}}
-  Consistência do Treino: {{workoutConsistency}}
+  Dados do Usuário:
+  - Nome: {{{userData.name}}}
+  - Idade: {{{userData.age}}}
+  - Gênero: {{{userData.gender}}}
+  - Peso: {{{userData.weight}}}kg
+  - Altura: {{{userData.height}}}cm
+
+  Composição Corporal:
+  - Peso: {{{bodyComposition.weight}}}kg
+  - Altura: {{{bodyComposition.height}}}cm
+
+  Bioimpedância:
+  - Massa de Gordura Corporal: {{{bioimpedanceData.bodyFatMass}}}
+  - Proteína: {{{bioimpedanceData.protein}}}
+
+  Consistência do Treino: {{{workoutConsistency}}}%
 
   Responda com uma lista de metas. Seja específico sobre as metas e mantenha o usuário motivado.
   `,

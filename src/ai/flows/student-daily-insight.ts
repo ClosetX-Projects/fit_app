@@ -34,8 +34,11 @@ const studentDailyInsightPrompt = ai.definePrompt({
   Analise os treinos recentes do aluno e sua última avaliação física (se fornecida).
   Gere um insight motivador (máximo 2 frases) e uma dica prática muito específica para o dia de hoje.
   
-  Treinos Recentes: {{JSON.stringify(recentSessions)}}
-  Última Avaliação: {{JSON.stringify(lastAssessment)}}
+  Avaliação Recente:
+  - Peso: {{lastAssessment.weight}}kg
+  - Altura: {{lastAssessment.height}}cm
+
+  O aluno realizou {{recentSessions.length}} treinos recentemente.
   
   Responda sempre em Português do Brasil com um tom encorajador.`,
 });
