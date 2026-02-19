@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -35,6 +34,19 @@ export function SignUpForm() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
   const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      userType: 'student',
+      age: 18,
+      gender: '',
+      whatsapp: '',
+    },
+  });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
