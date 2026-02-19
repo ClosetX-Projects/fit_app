@@ -10,6 +10,7 @@
         "userType": { "type": "string", "enum": ["student", "professor"] },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "photoUrl": { "type": "string", "description": "URL da foto de perfil do usuário." },
         "age": { "type": "number" },
         "gender": { "type": "string" },
         "whatsapp": { "type": "string" }

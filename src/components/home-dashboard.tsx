@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
@@ -7,19 +8,20 @@ import { StudentView } from '@/components/student/student-view';
 import { Logo } from '@/components/icons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Bell, Loader2, Copy, Check, Settings } from 'lucide-react';
+import { User, LogOut, Bell, Loader2, Copy, Check } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { EditProfileDialog } from '@/components/edit-profile-dialog';
 
 export function HomeDashboard() {
   const { user, isUserLoading } = useUser();
   const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar');
+  const userAvatarPlaceholder = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
   const userProfileRef = useMemoFirebase(() => 
     user ? doc(firestore, 'users', user.uid) : null
@@ -52,6 +54,8 @@ export function HomeDashboard() {
       </div>
     );
   }
+
+  const currentPhotoUrl = profile?.photoUrl || user?.photoURL || userAvatarPlaceholder?.imageUrl;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background selection:bg-primary/30">
@@ -86,20 +90,23 @@ export function HomeDashboard() {
           </Button>
           
           <Avatar className="h-9 w-9 border-2 border-primary/20">
-            <AvatarImage src={userAvatar?.imageUrl} data-ai-hint={userAvatar?.imageHint} />
+            <AvatarImage src={currentPhotoUrl} />
             <AvatarFallback className="bg-primary/10 text-primary">
               <User className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleSignOut}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <EditProfileDialog profile={profile} />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleSignOut}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </header>
 

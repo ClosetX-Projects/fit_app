@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -16,6 +17,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
@@ -32,19 +34,7 @@ export function SignUpForm() {
   const { toast } = useToast();
   const { auth, firestore } = useFirebase();
   const router = useRouter();
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      userType: 'student',
-      age: 18,
-      gender: '',
-      whatsapp: '',
-    },
-  });
+  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
@@ -52,7 +42,10 @@ export function SignUpForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      await updateProfile(user, { displayName: values.name });
+      await updateProfile(user, { 
+        displayName: values.name,
+        photoURL: defaultAvatar
+      });
 
       const userDocRef = doc(firestore, 'users', user.uid);
       await setDoc(userDocRef, {
@@ -60,6 +53,7 @@ export function SignUpForm() {
         name: values.name,
         email: values.email,
         userType: values.userType,
+        photoUrl: defaultAvatar,
         age: values.age || null,
         gender: values.gender || null,
         whatsapp: values.whatsapp || null,
