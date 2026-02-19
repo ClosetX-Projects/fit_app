@@ -2,21 +2,19 @@
 
 /**
  * @fileOverview Flow para gerar insights diários para o aluno.
- * 
- * - generateStudentDailyInsight - Função que invoca o fluxo da IA.
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import { z } from 'genkit';
 
 const StudentDailyInsightInputSchema = z.object({
-  recentSessions: z.array(z.any()).describe('Lista de sessões de treino recentes do aluno.'),
-  lastAssessment: z.any().optional().describe('Dados da última avaliação física do aluno.'),
+  recentSessions: z.array(z.any()),
+  lastAssessment: z.any().optional(),
 });
 
 const StudentDailyInsightOutputSchema = z.object({
-  insight: z.string().describe('Um insight motivador e curto baseado no progresso.'),
-  tip: z.string().describe('Uma dica prática para o próximo treino.'),
+  insight: z.string(),
+  tip: z.string(),
 });
 
 export type StudentDailyInsightInput = z.infer<typeof StudentDailyInsightInputSchema>;
@@ -30,17 +28,15 @@ const studentDailyInsightPrompt = ai.definePrompt({
   name: 'studentDailyInsightPrompt',
   input: { schema: StudentDailyInsightInputSchema },
   output: { schema: StudentDailyInsightOutputSchema },
-  prompt: `Você é um coach de fitness de elite, altamente motivador e focado em dados.
-  Analise os treinos recentes do aluno e sua última avaliação física (se fornecida).
-  Gere um insight motivador (máximo 2 frases) e uma dica prática muito específica para o dia de hoje.
+  prompt: `Você é um coach de elite. Analise o progresso e gere um insight motivador e uma dica prática.
   
-  Avaliação Recente:
-  - Peso: {{lastAssessment.weight}}kg
-  - Altura: {{lastAssessment.height}}cm
+  {{#if lastAssessment}}
+  Última Avaliação: {{{lastAssessment.weight}}}kg, {{{lastAssessment.height}}}cm.
+  {{/if}}
 
-  O aluno realizou {{recentSessions.length}} treinos recentemente.
+  Sessões Recentes: {{{recentSessions.length}}}.
   
-  Responda sempre em Português do Brasil com um tom encorajador.`,
+  Responda em Português do Brasil.`,
 });
 
 const studentDailyInsightFlow = ai.defineFlow(

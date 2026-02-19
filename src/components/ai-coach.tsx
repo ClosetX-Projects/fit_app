@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,18 +17,12 @@ export function AICoach({ recentSessions, lastAssessment }: AICoachProps) {
   useEffect(() => {
     async function loadInsight() {
       if (!recentSessions || recentSessions.length === 0) return;
-      setLoading(true);
       
+      setLoading(true);
       try {
-        // Sanitizar dados para Server Action: 
-        // Objetos do Firestore (como Timestamps) possuem métodos que o Next.js não suporta passar para o servidor.
-        // Convertemos para JSON e voltamos para objeto para garantir que sejam apenas dados puros.
-        const cleanSessions = JSON.parse(JSON.stringify(recentSessions));
-        const cleanAssessment = lastAssessment ? JSON.parse(JSON.stringify(lastAssessment)) : null;
-
         const res = await getStudentDailyInsight({ 
-          recentSessions: cleanSessions, 
-          lastAssessment: cleanAssessment 
+          recentSessions: recentSessions, 
+          lastAssessment: lastAssessment 
         });
 
         if (res.success && res.data) {
@@ -49,7 +42,7 @@ export function AICoach({ recentSessions, lastAssessment }: AICoachProps) {
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="p-6 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-primary mr-3" />
-          <span className="text-sm font-medium">O Coach IA está analisando seu progresso...</span>
+          <span className="text-sm font-medium">Analisando seu progresso...</span>
         </CardContent>
       </Card>
     );
@@ -62,7 +55,7 @@ export function AICoach({ recentSessions, lastAssessment }: AICoachProps) {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-bold flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-yellow-500" />
-          Dica do seu Coach IA
+          Dica do Coach IA
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
