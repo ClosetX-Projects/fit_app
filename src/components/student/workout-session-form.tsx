@@ -11,10 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
-import { ClipboardPen, Loader2, Smile, Gauge, Timer, Repeat, History as HistoryIcon, Dumbbell, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Timer, Smile, CheckCircle2, Loader2, ArrowLeft, History } from 'lucide-react';
 import { RECOVERY_MESSAGES } from '@/lib/constants';
 
 interface ExerciseLog {
@@ -36,15 +34,13 @@ export function WorkoutSessionForm() {
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [recovery, setRecovery] = useState(7);
   const [pleasure, setPleasure] = useState(0); // Feeling Scale -5 a +5
-  const [pse, setPse] = useState(7);
-  const [duration, setDuration] = useState(0);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>({});
 
   const programsRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'trainingPrograms') : null, [firestore, user]);
   const { data: programs } = useCollection(programsRef);
 
   const prescribedExercisesRef = useMemoFirebase(() => (user && selectedProgramId) ? collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'prescribedExercises') : null, [firestore, user, selectedProgramId]);
-  const { data: prescribedExercises, isLoading: isLoadingExercises } = useCollection(prescribedExercisesRef);
+  const { data: prescribedExercises } = useCollection(prescribedExercisesRef);
 
   useEffect(() => {
     if (prescribedExercises) {
@@ -68,7 +64,6 @@ export function WorkoutSessionForm() {
 
     const endTime = Date.now();
     const durationMin = Math.round((endTime - startTime) / 60000);
-    const internalLoad = pse * durationMin;
 
     try {
       const sessionId = doc(collection(firestore, 'dummy')).id;
@@ -79,15 +74,16 @@ export function WorkoutSessionForm() {
         date: new Date().toISOString(),
         recoveryScale: recovery,
         pleasureScale: pleasure,
-        pseSession: pse,
+        pseSession: 0, // Será coletado via alerta no dashboard após 15-30 min
         duration: durationMin,
-        internalLoad,
+        internalLoad: 0,
         createdAt: serverTimestamp(),
       };
 
       const flatSessionRef = doc(firestore, 'users', user.uid, 'workoutHistory_flat', sessionId);
       setDocumentNonBlocking(flatSessionRef, sessionData, { merge: true });
 
+      // Registrar histórico de cada exercício
       Object.entries(exerciseLogs).forEach(([exId, log]) => {
         const prescribedEx = prescribedExercises?.find(p => p.id === exId);
         const exerciseId = doc(collection(firestore, 'dummy')).id;
@@ -106,9 +102,15 @@ export function WorkoutSessionForm() {
         setDocumentNonBlocking(flatExRef, exerciseData, { merge: true });
       });
 
-      toast({ title: "Treino Finalizado!", description: `Duração: ${durationMin}min | Carga Interna: ${internalLoad}` });
+      toast({ 
+        title: "Treino Finalizado!", 
+        description: "Lembre-se de voltar em 15 min para registrar sua percepção de esforço (PSE).",
+        duration: 8000
+      });
+      
       setIsStarted(false);
       setSelectedProgramId('');
+      setStartTime(null);
     } finally {
       setLoading(false);
     }
@@ -117,30 +119,38 @@ export function WorkoutSessionForm() {
   if (!isStarted) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <Card className="rounded-3xl border-primary/20 bg-primary/5">
+        <Card className="rounded-3xl border-primary/20 bg-primary/5 shadow-xl">
           <CardHeader>
-            <CardTitle>Preparar Treino</CardTitle>
-            <CardDescription>Avalie sua recuperação antes de começar.</CardDescription>
+            <CardTitle className="text-2xl font-black text-primary flex items-center gap-2">
+              <Dumbbell className="h-6 w-6" /> Preparar Treino
+            </CardTitle>
+            <CardDescription>Escolha seu plano e avalie sua recuperação.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label>Programa de Treino</Label>
+          <CardContent className="space-y-8">
+            <div className="space-y-3">
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Programa de Treino</Label>
               <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
-                <SelectTrigger className="h-14 rounded-2xl border-primary/30"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger className="h-14 rounded-2xl border-primary/30 text-lg font-medium shadow-sm"><SelectValue placeholder="Selecione o plano de hoje..." /></SelectTrigger>
                 <SelectContent>
                   {programs?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-6 bg-background/60 p-6 rounded-3xl border border-primary/10">
               <div className="flex justify-between items-center">
-                <Label>Escala de Recuperação (ESR)</Label>
-                <span className="font-bold text-primary">{recovery}</span>
+                <Label className="font-bold flex items-center gap-2 text-primary">
+                  <History className="h-4 w-4" /> Recuperação (ESR)
+                </Label>
+                <span className="text-2xl font-black text-primary">{recovery}</span>
               </div>
               <Slider value={[recovery]} onValueChange={v => setRecovery(v[0])} min={1} max={10} step={1} />
-              <p className="text-xs italic text-muted-foreground">{RECOVERY_MESSAGES[recovery]}</p>
+              <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
+                <p className="text-sm font-medium text-primary italic text-center">"{RECOVERY_MESSAGES[recovery]}"</p>
+              </div>
             </div>
-            <Button onClick={handleStartWorkout} className="w-full h-14 rounded-full text-lg font-bold">INICIAR TREINO</Button>
+            <Button onClick={handleStartWorkout} className="w-full h-16 rounded-full text-xl font-black shadow-lg hover:shadow-primary/20 active:scale-95 transition-all">
+              INICIAR TREINO
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -148,36 +158,36 @@ export function WorkoutSessionForm() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      <div className="bg-primary text-white p-6 rounded-3xl shadow-xl flex justify-between items-center">
+    <div className="max-w-4xl mx-auto space-y-6 pb-24">
+      <div className="bg-primary text-white p-8 rounded-3xl shadow-2xl flex justify-between items-center animate-in slide-in-from-top-4 duration-500">
         <div>
-          <h2 className="text-xl font-bold">Treino em Andamento</h2>
-          <p className="text-sm opacity-80">Lembre-se de registrar as cargas utilizadas.</p>
+          <h2 className="text-2xl font-black">Sessão Ativa</h2>
+          <p className="text-sm opacity-90 font-medium">Foque na técnica e registre suas cargas.</p>
         </div>
-        <Timer className="h-8 w-8 animate-pulse" />
+        <Timer className="h-10 w-10 animate-pulse text-white/50" />
       </div>
 
       <div className="grid gap-4">
         {prescribedExercises?.map(ex => (
-          <Card key={ex.id} className="rounded-2xl border-l-8 border-l-primary">
+          <Card key={ex.id} className="rounded-2xl border-l-8 border-l-primary shadow-sm hover:shadow-md transition-all">
             <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row justify-between gap-4">
+              <div className="flex flex-col md:flex-row justify-between gap-6">
                 <div className="flex-1">
-                  <p className="font-bold text-lg">{ex.name}</p>
-                  <p className="text-sm text-muted-foreground">{ex.sets}x {ex.reps} • {ex.weight}kg</p>
+                  <p className="font-black text-xl text-primary">{ex.name}</p>
+                  <p className="text-sm text-muted-foreground font-bold mt-1">Prescrito: {ex.sets}x {ex.reps} • {ex.weight}kg</p>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[10px]">Sets</Label>
-                    <Input className="h-9" type="number" value={exerciseLogs[ex.id]?.sets || ''} onChange={e => setExerciseLogs(prev => ({...prev, [ex.id]: {...prev[ex.id], sets: Number(e.target.value)}}))} />
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Séries</Label>
+                    <Input className="h-10 text-center font-bold" type="number" value={exerciseLogs[ex.id]?.sets || ''} onChange={e => setExerciseLogs(prev => ({...prev, [ex.id]: {...prev[ex.id], sets: Number(e.target.value)}}))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px]">Carga (kg)</Label>
-                    <Input className="h-9" type="number" value={exerciseLogs[ex.id]?.weight || ''} onChange={e => setExerciseLogs(prev => ({...prev, [ex.id]: {...prev[ex.id], weight: Number(e.target.value)}}))} />
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Peso (kg)</Label>
+                    <Input className="h-10 text-center font-bold" type="number" value={exerciseLogs[ex.id]?.weight || ''} onChange={e => setExerciseLogs(prev => ({...prev, [ex.id]: {...prev[ex.id], weight: Number(e.target.value)}}))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px]">PSE (1-10)</Label>
-                    <Input className="h-9" type="number" value={exerciseLogs[ex.id]?.pse || ''} onChange={e => setExerciseLogs(prev => ({...prev, [ex.id]: {...prev[ex.id], pse: Number(e.target.value)}}))} />
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground">PSE (1-10)</Label>
+                    <Input className="h-10 text-center font-bold" type="number" value={exerciseLogs[ex.id]?.pse || ''} onChange={e => setExerciseLogs(prev => ({...prev, [ex.id]: {...prev[ex.id], pse: Number(e.target.value)}}))} />
                   </div>
                 </div>
               </div>
@@ -186,33 +196,31 @@ export function WorkoutSessionForm() {
         ))}
       </div>
 
-      <Card className="rounded-3xl border-primary/20 bg-secondary/30 p-8 space-y-8">
-         <h3 className="text-lg font-bold text-center">Finalizar Sessão</h3>
+      <Card className="rounded-[2.5rem] border-primary/20 bg-secondary/40 p-10 space-y-10 shadow-inner">
+         <div className="text-center space-y-2">
+           <h3 className="text-2xl font-black text-primary">Finalizar Sessão</h3>
+           <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Feedback Imediato</p>
+         </div>
          
-         <div className="space-y-4">
+         <div className="space-y-6">
             <div className="flex justify-between items-center">
-               <Label className="flex items-center gap-2"><Smile className="h-5 w-5" /> Escala de Prazer (Feeling)</Label>
-               <span className="font-bold text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
+               <Label className="flex items-center gap-2 text-lg font-bold"><Smile className="h-6 w-6 text-primary" /> Como você se sente? (Prazer)</Label>
+               <span className="text-3xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
             </div>
-            <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} />
-            <div className="flex justify-between text-[10px] text-muted-foreground font-bold uppercase">
+            <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-4" />
+            <div className="flex justify-between text-[10px] text-muted-foreground font-black uppercase tracking-wider">
                <span>Muito Ruim (-5)</span>
                <span>Muito Bom (+5)</span>
             </div>
          </div>
 
-         <div className="space-y-4">
-            <div className="flex justify-between items-center">
-               <Label className="flex items-center gap-2"><Gauge className="h-5 w-5" /> PSE Geral do Treino (1-10)</Label>
-               <span className="font-bold text-primary">{pse}</span>
-            </div>
-            <Slider value={[pse]} onValueChange={v => setPse(v[0])} min={1} max={10} step={1} />
+         <div className="flex gap-4">
+            <Button variant="outline" onClick={() => setIsStarted(false)} className="flex-1 h-16 rounded-full font-bold border-2">DESCARTAR</Button>
+            <Button onClick={handleSubmit} disabled={loading} className="flex-[2] h-16 rounded-full text-xl font-black bg-primary shadow-xl">
+               {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-2 h-6 w-6" />}
+               FINALIZAR AGORA
+            </Button>
          </div>
-
-         <Button onClick={handleSubmit} disabled={loading} className="w-full h-16 rounded-full text-xl font-bold bg-primary shadow-xl">
-            {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-2" />}
-            FINALIZAR TREINO
-         </Button>
       </Card>
     </div>
   );
