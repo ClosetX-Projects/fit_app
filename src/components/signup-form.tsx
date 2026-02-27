@@ -73,6 +73,7 @@ function SignUpFormContent() {
   const handleGoogleSignup = async () => {
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    // O papel é determinado pelo parâmetro da URL no momento do clique
     const finalRole = roleParam === 'professor' ? 'professor' : 'student';
 
     try {
@@ -202,9 +203,11 @@ function SignUpFormContent() {
                 )}
               />
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3 items-start">
-                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="bg-primary/10 p-1.5 rounded-full shrink-0 mt-0.5">
+                   <Info className="h-4 w-4 text-primary" />
+                </div>
                 <p className="text-[11px] text-muted-foreground leading-tight">
-                  Simulação: O código está no Toast no topo da tela.
+                  Ambiente de Teste: O código está no Toast no topo da tela. Em produção, ele será enviado para o seu e-mail.
                 </p>
               </div>
               <div className="space-y-3">
@@ -325,18 +328,23 @@ function SignUpFormContent() {
             />
 
             <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-3">
-              {signupForm.watch('userType') === 'professor' ? (
-                <GraduationCap className="h-5 w-5 text-primary" />
-              ) : (
-                <UserRound className="h-5 w-5 text-primary" />
-              )}
-              <p className="text-xs font-bold text-primary">
-                Tipo de conta: {signupForm.watch('userType') === 'professor' ? 'Professor' : 'Aluno'}
-              </p>
+              <div className="bg-primary/10 p-2 rounded-full">
+                {signupForm.watch('userType') === 'professor' ? (
+                  <GraduationCap className="h-5 w-5 text-primary" />
+                ) : (
+                  <UserRound className="h-5 w-5 text-primary" />
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider">Perfil Selecionado</p>
+                <p className="text-sm font-black text-primary">
+                  {signupForm.watch('userType') === 'professor' ? 'Personal Trainer' : 'Aluno / Atleta'}
+                </p>
+              </div>
             </div>
 
             <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
-              {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Cadastrar com E-mail'}
+              {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Continuar com E-mail'}
             </Button>
           </form>
         </Form>
@@ -350,7 +358,7 @@ function SignUpFormContent() {
 
 export function SignUpForm() {
   return (
-    <Suspense fallback={<Loader2 className="animate-spin" />}>
+    <Suspense fallback={<div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>}>
       <SignUpFormContent />
     </Suspense>
   );
