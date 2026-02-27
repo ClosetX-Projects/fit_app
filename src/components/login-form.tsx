@@ -15,10 +15,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
 
-const formSchema = z.object({
+const loginFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
 });
+
+type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
@@ -26,15 +28,15 @@ export function LoginForm() {
   const { auth } = useFirebase();
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const loginForm = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
     defaultValues: {
       email: '',
       password: '',
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: LoginFormValues) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
@@ -55,17 +57,17 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
-        <CardTitle>Entrar</CardTitle>
+        <CardTitle className="text-2xl font-black text-primary">Entrar</CardTitle>
         <CardDescription>Acesse sua conta para continuar</CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Form {...loginForm}>
+          <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
-              control={form.control}
+              control={loginForm.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
@@ -78,7 +80,7 @@ export function LoginForm() {
               )}
             />
             <FormField
-              control={form.control}
+              control={loginForm.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
@@ -90,14 +92,14 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
         </Form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Não tem uma conta?{' '}
-          <Link href="/signup" className="text-primary hover:underline">
+          <Link href="/signup" className="text-primary font-bold hover:underline">
             Cadastre-se
           </Link>
         </p>

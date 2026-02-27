@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-const formSchema = z.object({
+const signupFormSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
@@ -28,6 +28,8 @@ const formSchema = z.object({
   whatsapp: z.string().optional(),
 });
 
+type SignupFormValues = z.infer<typeof signupFormSchema>;
+
 export function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -35,8 +37,8 @@ export function SignUpForm() {
   const router = useRouter();
   const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const signupForm = useForm<SignupFormValues>({
+    resolver: zodResolver(signupFormSchema),
     defaultValues: {
       name: '',
       email: '',
@@ -48,7 +50,7 @@ export function SignUpForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: SignupFormValues) {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -89,17 +91,17 @@ export function SignUpForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
-        <CardTitle>Criar Conta</CardTitle>
+        <CardTitle className="text-2xl font-black text-primary">Criar Conta</CardTitle>
         <CardDescription>Comece sua jornada fitness hoje</CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...signupForm}>
+          <form onSubmit={signupForm.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
-              control={form.control}
+              control={signupForm.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
@@ -113,7 +115,7 @@ export function SignUpForm() {
             />
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                control={form.control}
+                control={signupForm.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -126,7 +128,7 @@ export function SignUpForm() {
                 )}
               />
               <FormField
-                control={form.control}
+                control={signupForm.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
@@ -141,7 +143,7 @@ export function SignUpForm() {
             </div>
             
             <FormField
-              control={form.control}
+              control={signupForm.control}
               name="userType"
               render={({ field }) => (
                 <FormItem>
@@ -164,7 +166,7 @@ export function SignUpForm() {
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                control={form.control}
+                control={signupForm.control}
                 name="age"
                 render={({ field }) => (
                   <FormItem>
@@ -177,7 +179,7 @@ export function SignUpForm() {
                 )}
               />
               <FormField
-                control={form.control}
+                control={signupForm.control}
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
@@ -201,7 +203,7 @@ export function SignUpForm() {
             </div>
 
             <FormField
-              control={form.control}
+              control={signupForm.control}
               name="whatsapp"
               render={({ field }) => (
                 <FormItem>
@@ -214,14 +216,14 @@ export function SignUpForm() {
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
               {loading ? 'Criando conta...' : 'Cadastrar'}
             </Button>
           </form>
         </Form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Já tem uma conta?{' '}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-primary font-bold hover:underline">
             Entrar
           </Link>
         </p>
