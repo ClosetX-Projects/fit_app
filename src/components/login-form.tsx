@@ -120,7 +120,7 @@ export function LoginForm() {
 
   if (step === 'otp') {
     return (
-      <Card className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <Card key="otp-step-card" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
         <CardHeader className="items-center text-center">
           <div className="bg-primary/10 p-3 rounded-full mb-4">
             <ShieldCheck className="h-8 w-8 text-primary" />
@@ -142,10 +142,14 @@ export function LoginForm() {
                     <FormLabel>Código de Acesso</FormLabel>
                     <FormControl>
                       <Input 
+                        key="otp-input-field"
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
-                        autoComplete="one-time-code"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
@@ -157,7 +161,7 @@ export function LoginForm() {
               <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-3 items-start">
                 <Info className="h-4 w-4 text-primary mt-0.5" />
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  <strong>Nota do Protótipo:</strong> Como estamos em ambiente de teste, o código foi exibido na notificação (toast) no topo da tela. Em produção, ele será enviado para sua caixa de entrada.
+                  <strong>Nota do Protótipo:</strong> O código foi exibido no Toast no topo da tela. Digite-o no campo acima.
                 </p>
               </div>
 
@@ -184,7 +188,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-primary/20 shadow-xl">
+    <Card key="login-step-card" className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Entrar</CardTitle>

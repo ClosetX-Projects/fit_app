@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -156,7 +156,7 @@ export function SignUpForm() {
 
   if (step === 'otp') {
     return (
-      <Card className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <Card key="signup-otp-card" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
         <CardHeader className="items-center text-center">
           <div className="bg-primary/10 p-3 rounded-full mb-4">
             <ShieldCheck className="h-8 w-8 text-primary" />
@@ -178,10 +178,14 @@ export function SignUpForm() {
                     <FormLabel>Código de 6 Dígitos</FormLabel>
                     <FormControl>
                       <Input 
+                        key="signup-otp-input"
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
-                        autoComplete="one-time-code"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
@@ -220,7 +224,7 @@ export function SignUpForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-primary/20 shadow-xl">
+    <Card key="signup-form-card" className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Criar Conta</CardTitle>
