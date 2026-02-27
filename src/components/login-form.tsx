@@ -16,7 +16,7 @@ import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
-import { Loader2, ShieldCheck, Mail, ArrowLeft, Info } from 'lucide-react';
+import { Loader2, ShieldCheck, ArrowLeft, Info, LockKeyhole } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 
 const loginFormSchema = z.object({
@@ -34,7 +34,7 @@ type OtpFormValues = z.infer<typeof otpFormSchema>;
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'login' | 'otp'>('login');
-  const [tempCredentials, setTempCredentials] = useState<LoginFormValues | null>(null);
+  const [tempEmail, setTempEmail] = useState('');
   const { toast } = useToast();
   const { auth, firestore } = useFirebase();
   const router = useRouter();
@@ -53,28 +53,36 @@ export function LoginForm() {
     setLoading(true);
     const normalizedEmail = values.email.toLowerCase().trim();
     try {
+      // PASSO 1: Validar as credenciais ANTES de enviar o código
+      // Se o e-mail ou senha estiverem errados, o Firebase lançará um erro aqui
+      await signInWithEmailAndPassword(auth, normalizedEmail, values.password);
+      
+      // Se chegou aqui, as credenciais estão corretas. Agora geramos o código.
       const res = await sendLoginCode(normalizedEmail);
       if (res.success && res.code) {
-        // Salva o código associado ao email normalizado
         await setDoc(doc(firestore, 'auth_codes', normalizedEmail), {
           code: res.code,
           expiresAt: res.expiresAt,
         });
 
-        setTempCredentials({ ...values, email: normalizedEmail });
+        setTempEmail(normalizedEmail);
         setStep('otp');
+        otpForm.reset();
         
         toast({
           title: 'Código gerado!',
-          description: `SIMULAÇÃO: O código enviado por e-mail é ${res.code}`,
+          description: `SIMULAÇÃO: O código de segurança é ${res.code}`,
           duration: 15000,
         });
       }
     } catch (error: any) {
+      let message = 'E-mail ou senha incorretos.';
+      if (error.code === 'auth/user-not-found') message = 'Usuário não encontrado.';
+      
       toast({
         variant: 'destructive',
-        title: 'Erro no login',
-        description: 'Verifique seu e-mail e senha.',
+        title: 'Falha no login',
+        description: message,
       });
     } finally {
       setLoading(false);
@@ -82,43 +90,39 @@ export function LoginForm() {
   }
 
   async function onOtpSubmit(values: OtpFormValues) {
-    if (!tempCredentials) return;
+    if (!tempEmail) return;
     setLoading(true);
 
-    const normalizedEmail = tempCredentials.email.toLowerCase().trim();
     const cleanCode = values.code.trim();
 
     try {
-      const codeDoc = await getDoc(doc(firestore, 'auth_codes', normalizedEmail));
+      const codeDoc = await getDoc(doc(firestore, 'auth_codes', tempEmail));
       
       if (!codeDoc.exists()) {
-        throw new Error('Código não encontrado ou já utilizado.');
+        throw new Error('Código expirado ou não encontrado.');
       }
 
       const data = codeDoc.data();
       if (data.code !== cleanCode) {
-        throw new Error('Código incorreto. Verifique a notificação no topo da tela.');
+        throw new Error('Código incorreto. Verifique a notificação no topo.');
       }
 
       if (new Date(data.expiresAt) < new Date()) {
-        throw new Error('Código expirado. Por favor, solicite um novo.');
+        throw new Error('O código expirou. Volte e solicite um novo.');
       }
 
-      // Se código ok, faz o login real
-      await signInWithEmailAndPassword(auth, normalizedEmail, tempCredentials.password);
-      
-      // Limpa o código após sucesso
-      await deleteDoc(doc(firestore, 'auth_codes', normalizedEmail));
+      // Código OK, usuário já está autenticado no Firebase (feito no Passo 1)
+      await deleteDoc(doc(firestore, 'auth_codes', tempEmail));
 
       toast({
-        title: 'Bem-vindo de volta!',
-        description: 'Autenticação confirmada.',
+        title: 'Acesso liberado!',
+        description: 'Bem-vindo ao seu painel.',
       });
       router.push('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Falha na verificação',
+        title: 'Verificação falhou',
         description: error.message,
       });
     } finally {
@@ -128,15 +132,15 @@ export function LoginForm() {
 
   if (step === 'otp') {
     return (
-      <Card key="otp-step-card-unique" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <Card key="otp-auth-card" className="w-full max-w-md border-primary/20 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
         <CardHeader className="items-center text-center">
-          <div className="bg-primary/10 p-3 rounded-full mb-4">
-            <ShieldCheck className="h-8 w-8 text-primary" />
+          <div className="bg-primary/10 p-4 rounded-full mb-4">
+            <ShieldCheck className="h-10 w-10 text-primary" />
           </div>
           <CardTitle className="text-2xl font-black text-primary">Segurança</CardTitle>
           <CardDescription>
-            Digite o código enviado para <br />
-            <span className="font-bold text-foreground">{tempCredentials?.email}</span>
+            Confirmamos sua senha. Agora insira o código enviado para <br />
+            <span className="font-bold text-foreground">{tempEmail}</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,47 +151,45 @@ export function LoginForm() {
                 name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código de Acesso</FormLabel>
+                    <FormLabel className="text-center block w-full text-xs font-bold uppercase tracking-widest mb-4">Código de 6 dígitos</FormLabel>
                     <FormControl>
                       <Input 
-                        id="security_code_input"
-                        name="security_code"
-                        key="otp-input-field-security"
+                        id="otp_input_field"
+                        key="otp_input_key"
                         placeholder="000000" 
-                        className="text-center text-2xl tracking-[0.5em] font-black h-14" 
+                        className="text-center text-3xl tracking-[0.4em] font-black h-16 bg-muted/30 border-primary/20 focus:border-primary" 
                         maxLength={6}
                         type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        autoComplete="one-time-code"
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-center" />
                   </FormItem>
                 )}
               />
               
-              <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-3 items-start">
-                <Info className="h-4 w-4 text-primary mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  <strong>Nota do Protótipo:</strong> O código foi exibido no Toast no topo da tela. Digite-o no campo acima.
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3 items-start">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  <strong>Nota do Protótipo:</strong> O código está visível na notificação (Toast) que apareceu no topo da tela.
                 </p>
               </div>
 
               <div className="space-y-3">
-                <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
+                <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary shadow-lg shadow-primary/20" disabled={loading}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                   Verificar e Entrar
                 </Button>
                 <Button 
                   type="button" 
                   variant="ghost" 
-                  className="w-full text-muted-foreground" 
+                  className="w-full text-muted-foreground hover:text-primary" 
                   onClick={() => setStep('login')}
                   disabled={loading}
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar e corrigir dados
                 </Button>
               </div>
             </form>
@@ -198,11 +200,11 @@ export function LoginForm() {
   }
 
   return (
-    <Card key="login-step-card-base" className="w-full max-w-md border-primary/20 shadow-xl">
+    <Card key="login-base-card" className="w-full max-w-md border-primary/20 shadow-2xl">
       <CardHeader className="items-center text-center">
-        <Logo className="mb-4" />
-        <CardTitle className="text-2xl font-black text-primary">Entrar</CardTitle>
-        <CardDescription>Acesse sua conta</CardDescription>
+        <Logo className="mb-6 scale-125" />
+        <CardTitle className="text-3xl font-black text-primary">Entrar</CardTitle>
+        <CardDescription>Acesse sua plataforma FitAssist</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...loginForm}>
@@ -212,9 +214,9 @@ export function LoginForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>E-mail</FormLabel>
                   <FormControl>
-                    <Input id="login_email_field" placeholder="seu@email.com" {...field} />
+                    <Input id="email_login" placeholder="seu@email.com" className="h-12 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -227,21 +229,22 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input id="login_password_field" type="password" placeholder="Sua senha" {...field} />
+                    <Input id="password_login" type="password" placeholder="Sua senha" className="h-12 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
-              {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Solicitar Código'}
+            <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary shadow-lg shadow-primary/20" disabled={loading}>
+              {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LockKeyhole className="h-5 w-5 mr-2" />}
+              Acessar com Segurança
             </Button>
           </form>
         </Form>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          Não tem uma conta?{' '}
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Novo por aqui?{' '}
           <Link href="/signup" className="text-primary font-bold hover:underline">
-            Cadastre-se
+            Crie sua conta
           </Link>
         </p>
       </CardContent>

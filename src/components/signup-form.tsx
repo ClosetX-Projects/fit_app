@@ -78,6 +78,7 @@ export function SignUpForm() {
 
         setTempData({ ...values, email: normalizedEmail });
         setStep('otp');
+        otpForm.reset();
         
         toast({
           title: 'Código de Validação!',
@@ -115,11 +116,7 @@ export function SignUpForm() {
         throw new Error('Código incorreto. Veja o toast no topo.');
       }
 
-      if (new Date(data.expiresAt) < new Date()) {
-        throw new Error('Código expirado. Volte e solicite novamente.');
-      }
-
-      // Cria usuário
+      // Cria usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, tempData.password);
       const user = userCredential.user;
 
@@ -161,14 +158,14 @@ export function SignUpForm() {
 
   if (step === 'otp') {
     return (
-      <Card key="signup-otp-card-unique" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <Card key="signup-otp-auth" className="w-full max-w-md border-primary/20 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
         <CardHeader className="items-center text-center">
-          <div className="bg-primary/10 p-3 rounded-full mb-4">
-            <ShieldCheck className="h-8 w-8 text-primary" />
+          <div className="bg-primary/10 p-4 rounded-full mb-4">
+            <ShieldCheck className="h-10 w-10 text-primary" />
           </div>
           <CardTitle className="text-2xl font-black text-primary">Validar Cadastro</CardTitle>
           <CardDescription>
-            Insira o código de 6 dígitos que enviamos para <br />
+            Enviamos um código para o e-mail: <br />
             <span className="font-bold text-foreground">{tempData?.email}</span>
           </CardDescription>
         </CardHeader>
@@ -180,38 +177,34 @@ export function SignUpForm() {
                 name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código de 6 Dígitos</FormLabel>
+                    <FormLabel className="text-center block w-full text-xs font-bold uppercase tracking-widest mb-4">Código de 6 dígitos</FormLabel>
                     <FormControl>
                       <Input 
-                        id="signup_validation_code"
-                        name="signup_otp"
-                        key="signup-otp-input-field"
+                        id="signup_otp_input"
+                        key="signup_otp_key"
                         placeholder="000000" 
-                        className="text-center text-2xl tracking-[0.5em] font-black h-14" 
+                        className="text-center text-3xl tracking-[0.4em] font-black h-16 bg-muted/30 border-primary/20 focus:border-primary" 
                         maxLength={6}
                         type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        autoComplete="one-time-code"
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-center" />
                   </FormItem>
                 )}
               />
 
-              <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-3 items-start">
-                <div className="mt-0.5">
-                  <Info className="h-4 w-4 text-primary" />
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3 items-start">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-[11px] text-muted-foreground leading-tight">
                   <strong>Simulação:</strong> O código para o cadastro foi exibido na notificação. Copie e cole aqui para finalizar.
                 </p>
               </div>
 
               <div className="space-y-3">
-                <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
+                <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary shadow-lg shadow-primary/20" disabled={loading}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <MailCheck className="h-5 w-5 mr-2" />}
                   Confirmar Cadastro
                 </Button>
@@ -233,11 +226,11 @@ export function SignUpForm() {
   }
 
   return (
-    <Card key="signup-form-card-base" className="w-full max-w-md border-primary/20 shadow-xl">
+    <Card key="signup-base-form" className="w-full max-w-md border-primary/20 shadow-2xl">
       <CardHeader className="items-center text-center">
-        <Logo className="mb-4" />
-        <CardTitle className="text-2xl font-black text-primary">Criar Conta</CardTitle>
-        <CardDescription>Sua jornada começa aqui</CardDescription>
+        <Logo className="mb-6 scale-125" />
+        <CardTitle className="text-3xl font-black text-primary">Criar Conta</CardTitle>
+        <CardDescription>Sua jornada fitness começa agora</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...signupForm}>
@@ -249,7 +242,7 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>Nome Completo</FormLabel>
                   <FormControl>
-                    <Input id="signup_name_field" placeholder="Seu nome" {...field} />
+                    <Input id="signup_name" placeholder="Seu nome" className="h-11 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -263,7 +256,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input id="signup_email_field" placeholder="seu@email.com" {...field} />
+                      <Input id="signup_email" placeholder="seu@email.com" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -276,7 +269,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input id="signup_password_field" type="password" placeholder="Mín. 6 chars" {...field} />
+                      <Input id="signup_password" type="password" placeholder="Mín. 6 chars" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -292,7 +285,7 @@ export function SignUpForm() {
                   <FormLabel>Eu sou</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger id="signup_usertype_trigger">
+                      <SelectTrigger id="signup_user_type" className="h-11 rounded-xl">
                         <SelectValue placeholder="Selecione um perfil" />
                       </SelectTrigger>
                     </FormControl>
@@ -314,7 +307,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Idade</FormLabel>
                     <FormControl>
-                      <Input id="signup_age_field" type="number" {...field} />
+                      <Input id="signup_age" type="number" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -328,7 +321,7 @@ export function SignUpForm() {
                     <FormLabel>Gênero</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger id="signup_gender_trigger">
+                        <SelectTrigger id="signup_gender" className="h-11 rounded-xl">
                           <SelectValue placeholder="Gênero" />
                         </SelectTrigger>
                       </FormControl>
@@ -351,19 +344,19 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>WhatsApp</FormLabel>
                   <FormControl>
-                    <Input id="signup_whatsapp_field" placeholder="(00) 00000-0000" {...field} />
+                    <Input id="signup_whatsapp" placeholder="(00) 00000-0000" className="h-11 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
+            <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary shadow-lg shadow-primary/20 mt-4" disabled={loading}>
               {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Cadastrar e Validar'}
             </Button>
           </form>
         </Form>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Já tem uma conta?{' '}
           <Link href="/login" className="text-primary font-bold hover:underline">
             Entrar
