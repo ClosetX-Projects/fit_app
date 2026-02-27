@@ -12,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Loader2, ShieldCheck, ArrowLeft, MailCheck } from 'lucide-react';
+import { sendLoginCode } from '@/lib/actions';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
@@ -28,10 +30,17 @@ const signupFormSchema = z.object({
   whatsapp: z.string().optional(),
 });
 
+const otpFormSchema = z.object({
+  code: z.string().length(6, { message: 'O código deve ter 6 dígitos.' }),
+});
+
 type SignupFormValues = z.infer<typeof signupFormSchema>;
+type OtpFormValues = z.infer<typeof otpFormSchema>;
 
 export function SignUpForm() {
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<'signup' | 'otp'>('signup');
+  const [tempData, setTempData] = useState<SignupFormValues | null>(null);
   const { toast } = useToast();
   const { auth, firestore } = useFirebase();
   const router = useRouter();
@@ -50,39 +59,100 @@ export function SignUpForm() {
     },
   });
 
-  async function onSubmit(values: SignupFormValues) {
+  const otpForm = useForm<OtpFormValues>({
+    resolver: zodResolver(otpFormSchema),
+    defaultValues: { code: '' },
+  });
+
+  // Passo 1: Solicitar Código de Validação para Cadastro
+  async function onSignupSubmit(values: SignupFormValues) {
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const res = await sendLoginCode(values.email);
+      if (res.success && res.code) {
+        // Salvar código no Firestore para validação
+        await setDoc(doc(firestore, 'auth_codes', values.email), {
+          code: res.code,
+          expiresAt: res.expiresAt,
+        });
+
+        setTempData(values);
+        setStep('otp');
+        
+        toast({
+          title: 'Código de Validação!',
+          description: `Seu código de cadastro é: ${res.code} (Simulação)`,
+          duration: 10000,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no processo',
+        description: 'Não foi possível gerar seu código de validação.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Passo 2: Validar Código e Criar Conta Real
+  async function onOtpSubmit(values: OtpFormValues) {
+    if (!tempData) return;
+    setLoading(true);
+
+    try {
+      const codeDoc = await getDoc(doc(firestore, 'auth_codes', tempData.email));
+      
+      if (!codeDoc.exists()) {
+        throw new Error('Código expirado ou não encontrado.');
+      }
+
+      const data = codeDoc.data();
+      if (data.code !== values.code) {
+        throw new Error('Código incorreto.');
+      }
+
+      if (new Date(data.expiresAt) < new Date()) {
+        throw new Error('Código expirado.');
+      }
+
+      // 1. Criar Usuário no Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, tempData.email, tempData.password);
       const user = userCredential.user;
 
+      // 2. Atualizar Perfil Básico
       await updateProfile(user, { 
-        displayName: values.name,
+        displayName: tempData.name,
         photoURL: defaultAvatar
       });
 
+      // 3. Criar Perfil no Firestore
       const userDocRef = doc(firestore, 'users', user.uid);
       await setDoc(userDocRef, {
         id: user.uid,
-        name: values.name,
-        email: values.email,
-        userType: values.userType,
+        name: tempData.name,
+        email: tempData.email,
+        userType: tempData.userType,
         photoUrl: defaultAvatar,
-        age: values.age || null,
-        gender: values.gender || null,
-        whatsapp: values.whatsapp || null,
+        age: tempData.age || null,
+        gender: tempData.gender || null,
+        whatsapp: tempData.whatsapp || null,
         createdAt: new Date().toISOString(),
       });
 
+      // 4. Limpar código usado
+      await deleteDoc(doc(firestore, 'auth_codes', tempData.email));
+
       toast({
-        title: 'Cadastro realizado com sucesso!',
-        description: 'Redirecionando para o painel...',
+        title: 'Bem-vindo ao FitAssist!',
+        description: 'Cadastro validado com sucesso.',
       });
       router.push('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Erro no cadastro',
+        title: 'Falha na validação',
         description: error.message,
       });
     } finally {
@@ -90,16 +160,72 @@ export function SignUpForm() {
     }
   }
 
+  if (step === 'otp') {
+    return (
+      <Card className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+        <CardHeader className="items-center text-center">
+          <div className="bg-primary/10 p-3 rounded-full mb-4">
+            <ShieldCheck className="h-8 w-8 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-black text-primary">Validar Cadastro</CardTitle>
+          <CardDescription>
+            Insira o código de 6 dígitos que enviamos para <br />
+            <span className="font-bold text-foreground">{tempData?.email}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...otpForm}>
+            <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6">
+              <FormField
+                control={otpForm.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código de 6 Dígitos</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="000000" 
+                        className="text-center text-2xl tracking-[0.5em] font-black h-14" 
+                        maxLength={6}
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="space-y-3">
+                <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <MailCheck className="h-5 w-5 mr-2" />}
+                  Confirmar Cadastro
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full text-muted-foreground" 
+                  onClick={() => setStep('signup')}
+                  disabled={loading}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar e Corrigir Dados
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Criar Conta</CardTitle>
-        <CardDescription>Comece sua jornada fitness hoje</CardDescription>
+        <CardDescription>Sua jornada começa com validação segura</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...signupForm}>
-          <form onSubmit={signupForm.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-4">
             <FormField
               control={signupForm.control}
               name="name"
@@ -217,7 +343,7 @@ export function SignUpForm() {
             />
 
             <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
-              {loading ? 'Criando conta...' : 'Cadastrar'}
+              {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Cadastrar e Validar'}
             </Button>
           </form>
         </Form>
