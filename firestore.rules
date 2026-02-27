@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -30,11 +31,12 @@ service cloud.firestore {
       allow read, write: if isOwner(professorId);
     }
 
-    // Regras para Collection Group Queries (Essencial para Dashboard e Análise)
-    
+    // Regras para Tokens de Autenticação (Apenas sistema pode criar/deletar em teoria, mas para protótipo permitimos leitura se souber o código)
+    match /auth_codes/{email} {
+      allow read, write: if true; // Em produção isso seria restrito a Server Actions via Admin SDK
+    }
+
     match /{path=**}/workoutSessions/{sessionId} {
-      // Permite leitura se o usuário for o dono ou professor vinculado
-      // Filtramos na query por userId para garantir que resource.data.userId seja validado
       allow read: if isSignedIn() && (
         (request.auth.uid == resource.data.userId) || 
         exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))

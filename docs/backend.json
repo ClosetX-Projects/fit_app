@@ -19,6 +19,16 @@
         "goals": { "type": "string", "description": "Objetivos do aluno." }
       }
     },
+    "AuthCode": {
+      "title": "AuthCode",
+      "type": "object",
+      "description": "Tokens temporários para login via e-mail.",
+      "properties": {
+        "email": { "type": "string" },
+        "code": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "PhysicalAssessment": {
       "title": "PhysicalAssessment",
       "type": "object",
@@ -79,28 +89,16 @@
         "definition": { "entityName": "User", "description": "Perfil do usuário." }
       },
       {
+        "path": "/auth_codes/{email}",
+        "definition": { "entityName": "AuthCode", "description": "Tokens de segurança." }
+      },
+      {
         "path": "/users/{userId}/physicalAssessments/{assessmentId}",
         "definition": { "entityName": "PhysicalAssessment", "description": "Histórico de avaliações." }
       },
       {
         "path": "/users/{userId}/workoutHistory_flat/{sessionId}",
         "definition": { "entityName": "WorkoutSession", "description": "Sessões de treino para dashboards." }
-      },
-      {
-        "path": "/users/{userId}/exerciseHistory_flat/{exerciseId}",
-        "definition": { "entityName": "ExerciseHistory", "description": "Exercícios individuais para análises." }
-      },
-      {
-        "path": "/professors/{professorId}/students/{studentId}",
-        "definition": { "description": "ACL: Alunos vinculados a este professor." }
-      },
-      {
-        "path": "/users/{userId}/trainingPrograms/{programId}",
-        "definition": { "description": "Programas de treinamento prescritos." }
-      },
-      {
-        "path": "/users/{userId}/trainingPrograms/{programId}/prescribedExercises/{exerciseId}",
-        "definition": { "description": "Exercícios dentro de um programa." }
       }
     ]
   }
