@@ -1,3 +1,4 @@
+
 export const EXERCISE_LIST = [
   "Agachamento Livre",
   "Leg Press 45º",

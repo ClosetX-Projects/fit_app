@@ -12,17 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Dumbbell, Save, Loader2, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { EXERCISE_LIST } from "@/lib/constants"
 
 interface TrainingManagerProps {
   studentId: string;
-}
-
-interface ExerciseData {
-  id: string;
-  name: string;
-  sets: number;
-  reps: string;
-  weight: number;
 }
 
 export function TrainingManager({ studentId }: TrainingManagerProps) {
@@ -129,8 +123,17 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="ex-name">Nome do Exercício</Label>
-                <Input id="ex-name" placeholder="Ex: Agachamento Livre" value={exName} onChange={(e) => setExName(e.target.value)} />
+                <Label htmlFor="ex-name">Exercício</Label>
+                <Select value={exName} onValueChange={setExName}>
+                  <SelectTrigger id="ex-name">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXERCISE_LIST.map(ex => (
+                      <SelectItem key={ex} value={ex}>{ex}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ex-sets">Séries</Label>

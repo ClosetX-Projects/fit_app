@@ -10,49 +10,62 @@
         "userType": { "type": "string", "enum": ["student", "professor"] },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "photoUrl": { "type": "string", "description": "URL da foto de perfil do usuário." },
+        "photoUrl": { "type": "string" },
         "age": { "type": "number" },
         "gender": { "type": "string" },
-        "whatsapp": { "type": "string" }
+        "whatsapp": { "type": "string" },
+        "restrictions": { "type": "string", "description": "Restrições médicas ou físicas preenchidas pelo aluno." },
+        "anamnesis": { "type": "string", "description": "Histórico de saúde." },
+        "goals": { "type": "string", "description": "Objetivos do aluno." }
       }
     },
     "PhysicalAssessment": {
       "title": "PhysicalAssessment",
       "type": "object",
-      "description": "Dados básicos da avaliação física.",
+      "description": "Avaliação física completa incluindo composição corporal e medidas bilaterais.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "weight": { "type": "number" },
-        "height": { "type": "number" }
+        "height": { "type": "number" },
+        "subescapular": { "type": "number" },
+        "tricipital": { "type": "number" },
+        "bicipital": { "type": "number" },
+        "axilarMedia": { "type": "number" },
+        "peitoral": { "type": "number" },
+        "supraIliaca": { "type": "number" },
+        "abdominal": { "type": "number" },
+        "coxa": { "type": "number" },
+        "pernaMedial": { "type": "number" },
+        "bracoD": { "type": "number" },
+        "bracoE": { "type": "number" },
+        "antebracoD": { "type": "number" },
+        "antebracoE": { "type": "number" },
+        "coxaD": { "type": "number" },
+        "coxaE": { "type": "number" },
+        "pernaD": { "type": "number" },
+        "pernaE": { "type": "number" },
+        "cintura": { "type": "number" },
+        "abdomen": { "type": "number" },
+        "quadril": { "type": "number" },
+        "vo2Max": { "type": "number" },
+        "fatPercentage": { "type": "number" }
       }
     },
     "WorkoutSession": {
       "title": "WorkoutSession",
       "type": "object",
-      "description": "Registro de uma sessão de treino completa.",
+      "description": "Registro de uma sessão de treino com escalas de percepção.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "pseSession": { "type": "number" },
-        "pleasureScale": { "type": "number" },
-        "duration": { "type": "number" }
-      }
-    },
-    "ExerciseHistory": {
-      "title": "ExerciseHistory",
-      "type": "object",
-      "description": "Registro individual de cada exercício feito no treino.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "name": { "type": "string" },
-        "sets": { "type": "number" },
-        "reps": { "type": "string" },
-        "weight": { "type": "number" },
-        "pseExercise": { "type": "number" }
+        "recoveryScale": { "type": "number", "description": "Escala Subjetiva de Recuperação (ESR) 1-10" },
+        "pleasureScale": { "type": "number", "description": "Feeling Scale -5 a +5" },
+        "pseSession": { "type": "number", "description": "Percepção Subjetiva de Esforço 1-10" },
+        "duration": { "type": "number", "description": "Duração em minutos" },
+        "internalLoad": { "type": "number", "description": "Carga Interna (PSE x Duração)" }
       }
     }
   },
@@ -71,15 +84,23 @@
       },
       {
         "path": "/users/{userId}/workoutHistory_flat/{sessionId}",
-        "definition": { "entityName": "WorkoutSession", "description": "Sessões de treino (formato plano para dashboards)." }
+        "definition": { "entityName": "WorkoutSession", "description": "Sessões de treino para dashboards." }
       },
       {
         "path": "/users/{userId}/exerciseHistory_flat/{exerciseId}",
-        "definition": { "entityName": "ExerciseHistory", "description": "Exercícios individuais (formato plano para análises)." }
+        "definition": { "entityName": "ExerciseHistory", "description": "Exercícios individuais para análises." }
       },
       {
         "path": "/professors/{professorId}/students/{studentId}",
         "definition": { "description": "ACL: Alunos vinculados a este professor." }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}",
+        "definition": { "description": "Programas de treinamento prescritos." }
+      },
+      {
+        "path": "/users/{userId}/trainingPrograms/{programId}/prescribedExercises/{exerciseId}",
+        "definition": { "description": "Exercícios dentro de um programa." }
       }
     ]
   }
