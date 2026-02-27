@@ -1,13 +1,12 @@
-
 'use client';
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from 'recharts';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { Loader2, Gauge, Timer, Smile, TrendingUp } from 'lucide-react';
+import { Loader2, Gauge, Timer, Smile, TrendingUp, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface StudentAnalyticsProps {
@@ -17,133 +16,103 @@ interface StudentAnalyticsProps {
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   const { firestore } = useFirebase();
 
-  // Buscar sessões da COLEÇÃO PLANA para evitar erros de índice de collectionGroup
   const sessionsRef = useMemoFirebase(() => 
     collection(firestore!, 'users', studentId, 'workoutHistory_flat')
   , [firestore, studentId]);
 
   const { data: rawSessions, isLoading } = useCollection(sessionsRef);
 
-  // Ordenar sessões em memória
-  const sessions = useMemo(() => {
-    if (!rawSessions) return null;
-    return [...rawSessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const chartData = useMemo(() => {
+    if (!rawSessions) return [];
+    return [...rawSessions]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(s => ({
+        date: format(new Date(s.date), 'dd/MM'),
+        pse: s.pseSession || 0,
+        feeling: s.pleasureScale || 0,
+        load: s.internalLoad || 0,
+        duration: s.duration || 0,
+      }));
   }, [rawSessions]);
 
-  // Processar dados para o gráfico
-  const chartData = useMemo(() => {
-    if (!sessions || sessions.length === 0) return [];
-    
-    return sessions.map(session => ({
-      date: format(new Date(session.date), 'dd/MM'),
-      pse: session.pseSession || 0,
-      duration: session.duration || 0,
-      pleasure: session.pleasureScale || 0,
-      rawDate: session.date
-    }));
-  }, [sessions]);
-
-  const chartConfig = {
-    pse: { label: 'PSE (Esforço)', color: 'hsl(var(--chart-1))' },
-    duration: { label: 'Duração (min)', color: 'hsl(var(--chart-2))' },
-    pleasure: { label: 'Prazer', color: 'hsl(var(--chart-4))' },
+  const config = {
+    pse: { label: 'PSE', color: '#8A05BE' },
+    feeling: { label: 'Prazer (Feeling)', color: '#BA4DE3' },
+    load: { label: 'Carga Interna', color: '#4B0082' },
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!sessions || sessions.length === 0) {
-    return (
-      <Card className="py-12 text-center border-dashed">
-        <CardContent className="space-y-4">
-          <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-          <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Sem dados de treino ainda</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              Assim que o aluno realizar e finalizar os treinos prescritos, os gráficos de progresso aparecerão aqui.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <Card className="col-span-full md:col-span-1">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Gauge className="h-5 w-5 text-primary" />
-            <CardTitle>Percepção de Esforço (PSE)</CardTitle>
-          </div>
-          <CardDescription>Intensidade da carga interna nas sessões realizadas.</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ChartContainer config={chartConfig}>
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <YAxis domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Line 
-                type="monotone" 
-                dataKey="pse" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3} 
-                dot={{ r: 4, fill: 'hsl(var(--primary))' }} 
-                activeDot={{ r: 6 }} 
-              />
-            </LineChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="rounded-3xl border-primary/20 bg-primary/5">
+          <CardHeader className="p-4 pb-0"><CardDescription className="text-xs uppercase font-bold">Carga Interna Média</CardDescription></CardHeader>
+          <CardContent className="p-4 pt-1"><p className="text-2xl font-black text-primary">
+            {chartData.length ? (chartData.reduce((acc, curr) => acc + curr.load, 0) / chartData.length).toFixed(0) : '0'}
+          </p></CardContent>
+        </Card>
+        <Card className="rounded-3xl border-accent/20 bg-accent/5">
+          <CardHeader className="p-4 pb-0"><CardDescription className="text-xs uppercase font-bold">Feeling Médio</CardDescription></CardHeader>
+          <CardContent className="p-4 pt-1"><p className="text-2xl font-black text-accent">
+            {chartData.length ? (chartData.reduce((acc, curr) => acc + curr.feeling, 0) / chartData.length).toFixed(1) : '0'}
+          </p></CardContent>
+        </Card>
+        <Card className="rounded-3xl border-muted-foreground/20 bg-muted/30">
+          <CardHeader className="p-4 pb-0"><CardDescription className="text-xs uppercase font-bold">PSE Média</CardDescription></CardHeader>
+          <CardContent className="p-4 pt-1"><p className="text-2xl font-black text-muted-foreground">
+            {chartData.length ? (chartData.reduce((acc, curr) => acc + curr.pse, 0) / chartData.length).toFixed(1) : '0'}
+          </p></CardContent>
+        </Card>
+      </div>
 
-      <Card className="col-span-full md:col-span-1">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Timer className="h-5 w-5 text-accent" />
-            <CardTitle>Duração dos Treinos</CardTitle>
-          </div>
-          <CardDescription>Tempo investido em cada sessão (minutos).</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ChartContainer config={chartConfig}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="duration" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        <Card className="rounded-3xl lg:col-span-1">
+          <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Gauge className="h-4 w-4" /> PSE vs Feeling</CardTitle></CardHeader>
+          <CardContent className="h-[250px] p-0">
+             <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                   <XAxis dataKey="date" hide />
+                   <YAxis hide domain={[-5, 10]} />
+                   <ChartTooltip />
+                   <Line type="monotone" dataKey="pse" stroke="#8A05BE" strokeWidth={3} dot />
+                   <Line type="monotone" dataKey="feeling" stroke="#BA4DE3" strokeWidth={3} dot />
+                </LineChart>
+             </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-      <Card className="col-span-full">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Smile className="h-5 w-5 text-chart-4" />
-            <CardTitle>Escala de Prazer e Bem-estar</CardTitle>
-          </div>
-          <CardDescription>Nível de satisfação do aluno durante as sessões.</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ChartContainer config={chartConfig}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 10]} axisLine={false} tickLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Line type="stepAfter" dataKey="pleasure" stroke="hsl(var(--chart-4))" strokeWidth={3} />
-            </LineChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+        <Card className="rounded-3xl lg:col-span-1">
+          <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Zap className="h-4 w-4" /> Carga Interna (PSE x Dur)</CardTitle></CardHeader>
+          <CardContent className="h-[250px] p-0">
+             <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                   <XAxis dataKey="date" hide />
+                   <YAxis hide />
+                   <ChartTooltip />
+                   <Bar dataKey="load" fill="#8A05BE" radius={[4, 4, 0, 0]} />
+                </BarChart>
+             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl lg:col-span-1">
+          <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Timer className="h-4 w-4" /> Duração da Sessão</CardTitle></CardHeader>
+          <CardContent className="h-[250px] p-0">
+             <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                   <XAxis dataKey="date" hide />
+                   <YAxis hide />
+                   <ChartTooltip />
+                   <Line type="step" dataKey="duration" stroke="#BA4DE3" strokeWidth={3} />
+                </LineChart>
+             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -4,58 +4,53 @@
 
 @layer base {
   :root {
-    --background: 195 92% 94%;
-    --foreground: 210 40% 9%;
+    --background: 0 0% 100%;
+    --foreground: 280 40% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 210 40% 9%;
+    --card-foreground: 280 40% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 9%;
-    --primary: 207 90% 61%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 195 92% 88%;
-    --secondary-foreground: 210 40% 9%;
-    --muted: 195 92% 88%;
-    --muted-foreground: 210 20% 40%;
-    --accent: 231 39% 56%;
-    --accent-foreground: 210 40% 98%;
+    --popover-foreground: 280 40% 10%;
+    --primary: 281 95% 38%; /* Nubank Purple */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 280 20% 96%;
+    --secondary-foreground: 281 95% 38%;
+    --muted: 280 10% 96%;
+    --muted-foreground: 280 10% 40%;
+    --accent: 281 60% 60%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 207 90% 80%;
-    --input: 207 90% 88%;
-    --ring: 207 90% 61%;
-    --chart-1: 207 90% 61%;
+    --border: 280 20% 90%;
+    --input: 280 20% 90%;
+    --ring: 281 95% 38%;
+    --radius: 1rem;
+    --chart-1: 281 95% 38%;
     --chart-2: 231 39% 56%;
     --chart-3: 173 58% 39%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
   }
  
   .dark {
-    --background: 210 40% 5%;
-    --foreground: 195 92% 94%;
-    --card: 210 40% 9%;
-    --card-foreground: 195 92% 94%;
-    --popover: 210 40% 5%;
-    --popover-foreground: 195 92% 94%;
-    --primary: 207 90% 61%;
-    --primary-foreground: 210 40% 9%;
-    --secondary: 210 40% 12%;
-    --secondary-foreground: 195 92% 94%;
-    --muted: 210 40% 12%;
-    --muted-foreground: 195 92% 60%;
-    --accent: 231 39% 56%;
-    --accent-foreground: 195 92% 94%;
+    --background: 280 40% 5%;
+    --foreground: 280 20% 95%;
+    --card: 280 40% 8%;
+    --card-foreground: 280 20% 95%;
+    --popover: 280 40% 5%;
+    --popover-foreground: 280 20% 95%;
+    --primary: 281 95% 50%;
+    --primary-foreground: 280 40% 10%;
+    --secondary: 280 30% 15%;
+    --secondary-foreground: 281 95% 70%;
+    --muted: 280 30% 15%;
+    --muted-foreground: 280 10% 65%;
+    --accent: 281 60% 60%;
+    --accent-foreground: 280 40% 10%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 210 40% 20%;
-    --input: 210 40% 20%;
-    --ring: 207 90% 61%;
-    --chart-1: 207 90% 61%;
-    --chart-2: 231 39% 56%;
-    --chart-3: 173 58% 39%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --destructive-foreground: 280 40% 98%;
+    --border: 280 30% 20%;
+    --input: 280 30% 20%;
+    --ring: 281 95% 50%;
   }
 }
  
@@ -64,6 +59,14 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
   }
+}
+
+.nubank-card {
+  @apply bg-card border border-border shadow-sm rounded-2xl p-6 transition-all hover:shadow-md;
+}
+
+.nubank-button {
+  @apply rounded-full px-6 py-3 font-semibold transition-all active:scale-95;
 }

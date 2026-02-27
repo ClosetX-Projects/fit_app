@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, UserPlus, ClipboardList, Dumbbell, Search, Loader2 } from 'lucide-react';
+import { Users, UserPlus, ClipboardList, Dumbbell, Search, Loader2, BookOpen, UserCheck } from 'lucide-react';
 import { AddStudentDialog } from './add-student-dialog';
 import { StudentDetails } from './student-details';
 
@@ -28,52 +27,61 @@ export function ProfessorView() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Meus Alunos</h2>
-          <p className="text-muted-foreground">Gerencie seus alunos e prescreva treinamentos.</p>
+          <h2 className="text-4xl font-black tracking-tight text-primary">Área do Personal</h2>
+          <p className="text-muted-foreground mt-1">Gerencie seus programas de treino e acompanhe seus alunos.</p>
         </div>
         <AddStudentDialog />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? (
-          <div className="col-span-full flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : students && students.length > 0 ? (
-          students.map((student) => (
-            <Card key={student.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedStudentId(student.id)}>
-              <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-primary" />
+      <div className="grid gap-8 md:grid-cols-2">
+        {/* Seção de Alunos Ativos */}
+        <section className="space-y-4">
+           <h3 className="text-xl font-bold flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" /> Alunos Ativos
+           </h3>
+           <div className="grid gap-4">
+              {isLoading ? (
+                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
+              ) : students?.length ? (
+                students.map(student => (
+                  <div key={student.id} onClick={() => setSelectedStudentId(student.id)} className="nubank-card cursor-pointer group flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                           {student.name?.[0]}
+                        </div>
+                        <div>
+                           <p className="font-bold text-lg">{student.name}</p>
+                           <p className="text-xs text-muted-foreground">{student.email}</p>
+                        </div>
+                     </div>
+                     <Button variant="ghost" size="icon" className="group-hover:bg-primary group-hover:text-white rounded-full">
+                        <Search className="h-4 w-4" />
+                     </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="p-12 text-center bg-muted rounded-3xl border-2 border-dashed">
+                   <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                   <p className="font-medium">Nenhum aluno vinculado.</p>
                 </div>
-                <div>
-                  <CardTitle className="text-lg">{student.name || 'Aluno'}</CardTitle>
-                  <CardDescription>{student.email}</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="w-full">Ver Perfil</Button>
-                  <Button size="sm" className="w-full">Prescrever</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card className="col-span-full py-12">
-            <CardContent className="flex flex-col items-center justify-center text-center space-y-4">
-              <Users className="h-12 w-12 text-muted-foreground opacity-20" />
-              <div className="space-y-2">
-                <h3 className="font-semibold text-xl">Nenhum aluno vinculado</h3>
-                <p className="text-muted-foreground max-w-sm">Adicione alunos usando o ID do usuário para começar a prescrever treinos.</p>
-              </div>
-              <AddStudentDialog />
-            </CardContent>
-          </Card>
-        )}
+              )}
+           </div>
+        </section>
+
+        {/* Seção de Biblioteca de Programas */}
+        <section className="space-y-4">
+           <h3 className="text-xl font-bold flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" /> Biblioteca de Programas
+           </h3>
+           <div className="nubank-card border-dashed bg-muted/30 flex flex-col items-center justify-center py-12 text-center">
+              <Dumbbell className="h-10 w-10 mb-4 opacity-20" />
+              <p className="text-sm font-medium text-muted-foreground">Aqui você poderá criar programas base para replicar entre alunos.</p>
+              <Button variant="outline" className="mt-4 rounded-full border-primary text-primary">Em breve</Button>
+           </div>
+        </section>
       </div>
     </div>
   );
