@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,10 +15,10 @@ import { useFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from './icons';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Loader2, ShieldCheck, ArrowLeft, MailCheck, Info } from 'lucide-react';
+import { Loader2, ShieldCheck, ArrowLeft, Info, UserRound, GraduationCap } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 
@@ -39,28 +39,42 @@ const otpFormSchema = z.object({
 type SignupFormValues = z.infer<typeof signupFormSchema>;
 type OtpFormValues = z.infer<typeof otpFormSchema>;
 
-export function SignUpForm() {
+function SignUpFormContent() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'signup' | 'otp'>('signup');
   const [tempData, setTempData] = useState<SignupFormValues | null>(null);
   const { toast } = useToast();
   const { auth, firestore } = useFirebase();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get('role'); // 'student' ou 'professor'
   const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
 
   const signupForm = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
-    defaultValues: { name: '', email: '', password: '', userType: 'student', age: 18, gender: '', whatsapp: '' },
+    defaultValues: { 
+      name: '', 
+      email: '', 
+      password: '', 
+      userType: (roleParam === 'professor' ? 'professor' : 'student') as 'student' | 'professor',
+      age: 18, 
+      gender: '', 
+      whatsapp: '' 
+    },
   });
 
-  const otpForm = useForm<OtpFormValues>({
-    resolver: zodResolver(otpFormSchema),
-    defaultValues: { code: '' },
-  });
+  // Atualizar o tipo de usuário se o parâmetro da URL mudar
+  useEffect(() => {
+    if (roleParam === 'professor' || roleParam === 'student') {
+      signupForm.setValue('userType', roleParam);
+    }
+  }, [roleParam, signupForm]);
 
   const handleGoogleSignup = async () => {
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    const finalRole = roleParam === 'professor' ? 'professor' : 'student';
+
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -71,13 +85,16 @@ export function SignUpForm() {
           id: user.uid,
           name: user.displayName,
           email: user.email,
-          userType: 'student',
+          userType: finalRole,
           photoUrl: user.photoURL,
           createdAt: new Date().toISOString(),
         });
       }
 
-      toast({ title: 'Bem-vindo!', description: 'Cadastro realizado via Google.' });
+      toast({ 
+        title: 'Bem-vindo!', 
+        description: `Cadastro como ${finalRole === 'professor' ? 'Professor' : 'Aluno'} realizado via Google.` 
+      });
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha no cadastro com Google.' });
@@ -104,6 +121,11 @@ export function SignUpForm() {
       setLoading(false);
     }
   }
+
+  const otpForm = useForm<OtpFormValues>({
+    resolver: zodResolver(otpFormSchema),
+    defaultValues: { code: '' },
+  });
 
   async function onOtpSubmit(values: OtpFormValues) {
     if (!tempData) return;
@@ -132,7 +154,7 @@ export function SignUpForm() {
         createdAt: new Date().toISOString(),
       });
       await deleteDoc(doc(firestore, 'auth_codes', normalizedEmail));
-      toast({ title: 'Bem-vindo ao FitAssist!', description: 'Cadastro validado.' });
+      toast({ title: 'Bem-vindo ao FitAssist!', description: `Cadastro de ${tempData.userType === 'professor' ? 'Professor' : 'Aluno'} validado.` });
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Falha', description: error.message });
@@ -165,7 +187,7 @@ export function SignUpForm() {
                     <FormLabel className="text-center block w-full text-xs font-bold uppercase tracking-widest mb-4">Código</FormLabel>
                     <FormControl>
                       <Input 
-                        id="signup_otp_code"
+                        key="signup-otp-input"
                         placeholder="000000" 
                         className="text-center text-3xl tracking-[0.4em] font-black h-16 bg-muted/30 border-primary/20" 
                         maxLength={6}
@@ -179,6 +201,12 @@ export function SignUpForm() {
                   </FormItem>
                 )}
               />
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3 items-start">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Simulação: O código está no Toast no topo da tela.
+                </p>
+              </div>
               <div className="space-y-3">
                 <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
                   {loading && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
@@ -199,8 +227,12 @@ export function SignUpForm() {
     <Card className="w-full max-w-md border-primary/20 shadow-2xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-6 scale-125" />
-        <CardTitle className="text-3xl font-black text-primary">Criar Conta</CardTitle>
-        <CardDescription>Sua jornada fitness começa agora</CardDescription>
+        <CardTitle className="text-3xl font-black text-primary">
+          {roleParam === 'professor' ? 'Cadastro Personal' : 'Criar Conta'}
+        </CardTitle>
+        <CardDescription>
+          {roleParam === 'professor' ? 'Acesse ferramentas exclusivas de prescrição' : 'Sua jornada fitness começa agora'}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <Button 
@@ -274,7 +306,7 @@ export function SignUpForm() {
               control={signupForm.control}
               name="userType"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={roleParam ? "hidden" : "block"}>
                   <FormLabel>Eu sou</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
@@ -292,6 +324,17 @@ export function SignUpForm() {
               )}
             />
 
+            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-3">
+              {signupForm.watch('userType') === 'professor' ? (
+                <GraduationCap className="h-5 w-5 text-primary" />
+              ) : (
+                <UserRound className="h-5 w-5 text-primary" />
+              )}
+              <p className="text-xs font-bold text-primary">
+                Tipo de conta: {signupForm.watch('userType') === 'professor' ? 'Professor' : 'Aluno'}
+              </p>
+            </div>
+
             <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
               {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Cadastrar com E-mail'}
             </Button>
@@ -302,5 +345,13 @@ export function SignUpForm() {
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+export function SignUpForm() {
+  return (
+    <Suspense fallback={<Loader2 className="animate-spin" />}>
+      <SignUpFormContent />
+    </Suspense>
   );
 }
