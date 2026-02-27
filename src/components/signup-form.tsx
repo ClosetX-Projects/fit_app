@@ -67,15 +67,16 @@ export function SignUpForm() {
 
   async function onSignupSubmit(values: SignupFormValues) {
     setLoading(true);
+    const normalizedEmail = values.email.toLowerCase().trim();
     try {
-      const res = await sendLoginCode(values.email);
+      const res = await sendLoginCode(normalizedEmail);
       if (res.success && res.code) {
-        await setDoc(doc(firestore, 'auth_codes', values.email), {
+        await setDoc(doc(firestore, 'auth_codes', normalizedEmail), {
           code: res.code,
           expiresAt: res.expiresAt,
         });
 
-        setTempData(values);
+        setTempData({ ...values, email: normalizedEmail });
         setStep('otp');
         
         toast({
@@ -99,23 +100,27 @@ export function SignUpForm() {
     if (!tempData) return;
     setLoading(true);
 
+    const normalizedEmail = tempData.email.toLowerCase().trim();
+    const cleanCode = values.code.trim();
+
     try {
-      const codeDoc = await getDoc(doc(firestore, 'auth_codes', tempData.email));
+      const codeDoc = await getDoc(doc(firestore, 'auth_codes', normalizedEmail));
       
       if (!codeDoc.exists()) {
-        throw new Error('Código expirado ou não encontrado.');
+        throw new Error('Código não encontrado ou expirado.');
       }
 
       const data = codeDoc.data();
-      if (data.code !== values.code) {
-        throw new Error('Código incorreto.');
+      if (data.code !== cleanCode) {
+        throw new Error('Código incorreto. Veja o toast no topo.');
       }
 
       if (new Date(data.expiresAt) < new Date()) {
-        throw new Error('Código expirado.');
+        throw new Error('Código expirado. Volte e solicite novamente.');
       }
 
-      const userCredential = await createUserWithEmailAndPassword(auth, tempData.email, tempData.password);
+      // Cria usuário
+      const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, tempData.password);
       const user = userCredential.user;
 
       await updateProfile(user, { 
@@ -127,7 +132,7 @@ export function SignUpForm() {
       await setDoc(userDocRef, {
         id: user.uid,
         name: tempData.name,
-        email: tempData.email,
+        email: normalizedEmail,
         userType: tempData.userType,
         photoUrl: defaultAvatar,
         age: tempData.age || null,
@@ -136,7 +141,7 @@ export function SignUpForm() {
         createdAt: new Date().toISOString(),
       });
 
-      await deleteDoc(doc(firestore, 'auth_codes', tempData.email));
+      await deleteDoc(doc(firestore, 'auth_codes', normalizedEmail));
 
       toast({
         title: 'Bem-vindo ao FitAssist!',
@@ -156,7 +161,7 @@ export function SignUpForm() {
 
   if (step === 'otp') {
     return (
-      <Card key="signup-otp-card" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <Card key="signup-otp-card-unique" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
         <CardHeader className="items-center text-center">
           <div className="bg-primary/10 p-3 rounded-full mb-4">
             <ShieldCheck className="h-8 w-8 text-primary" />
@@ -178,7 +183,9 @@ export function SignUpForm() {
                     <FormLabel>Código de 6 Dígitos</FormLabel>
                     <FormControl>
                       <Input 
-                        key="signup-otp-input-unique"
+                        id="signup_validation_code"
+                        name="signup_otp"
+                        key="signup-otp-input-field"
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
@@ -226,7 +233,7 @@ export function SignUpForm() {
   }
 
   return (
-    <Card key="signup-form-card" className="w-full max-w-md border-primary/20 shadow-xl">
+    <Card key="signup-form-card-base" className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Criar Conta</CardTitle>
@@ -242,7 +249,7 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>Nome Completo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Seu nome" {...field} />
+                    <Input id="signup_name_field" placeholder="Seu nome" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -256,7 +263,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="seu@email.com" {...field} />
+                      <Input id="signup_email_field" placeholder="seu@email.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -269,7 +276,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Mín. 6 chars" {...field} />
+                      <Input id="signup_password_field" type="password" placeholder="Mín. 6 chars" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -285,7 +292,7 @@ export function SignUpForm() {
                   <FormLabel>Eu sou</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger id="signup_usertype_trigger">
                         <SelectValue placeholder="Selecione um perfil" />
                       </SelectTrigger>
                     </FormControl>
@@ -307,7 +314,7 @@ export function SignUpForm() {
                   <FormItem>
                     <FormLabel>Idade</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input id="signup_age_field" type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -321,7 +328,7 @@ export function SignUpForm() {
                     <FormLabel>Gênero</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger id="signup_gender_trigger">
                           <SelectValue placeholder="Gênero" />
                         </SelectTrigger>
                       </FormControl>
@@ -344,7 +351,7 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>WhatsApp</FormLabel>
                   <FormControl>
-                    <Input placeholder="(00) 00000-0000" {...field} />
+                    <Input id="signup_whatsapp_field" placeholder="(00) 00000-0000" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

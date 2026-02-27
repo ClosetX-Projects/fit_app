@@ -51,15 +51,17 @@ export function LoginForm() {
 
   async function onLoginSubmit(values: LoginFormValues) {
     setLoading(true);
+    const normalizedEmail = values.email.toLowerCase().trim();
     try {
-      const res = await sendLoginCode(values.email);
+      const res = await sendLoginCode(normalizedEmail);
       if (res.success && res.code) {
-        await setDoc(doc(firestore, 'auth_codes', values.email), {
+        // Salva o código associado ao email normalizado
+        await setDoc(doc(firestore, 'auth_codes', normalizedEmail), {
           code: res.code,
           expiresAt: res.expiresAt,
         });
 
-        setTempCredentials(values);
+        setTempCredentials({ ...values, email: normalizedEmail });
         setStep('otp');
         
         toast({
@@ -83,24 +85,30 @@ export function LoginForm() {
     if (!tempCredentials) return;
     setLoading(true);
 
+    const normalizedEmail = tempCredentials.email.toLowerCase().trim();
+    const cleanCode = values.code.trim();
+
     try {
-      const codeDoc = await getDoc(doc(firestore, 'auth_codes', tempCredentials.email));
+      const codeDoc = await getDoc(doc(firestore, 'auth_codes', normalizedEmail));
       
       if (!codeDoc.exists()) {
-        throw new Error('Código expirado ou não encontrado.');
+        throw new Error('Código não encontrado ou já utilizado.');
       }
 
       const data = codeDoc.data();
-      if (data.code !== values.code) {
-        throw new Error('Código incorreto.');
+      if (data.code !== cleanCode) {
+        throw new Error('Código incorreto. Verifique a notificação no topo da tela.');
       }
 
       if (new Date(data.expiresAt) < new Date()) {
-        throw new Error('Código expirado.');
+        throw new Error('Código expirado. Por favor, solicite um novo.');
       }
 
-      await signInWithEmailAndPassword(auth, tempCredentials.email, tempCredentials.password);
-      await deleteDoc(doc(firestore, 'auth_codes', tempCredentials.email));
+      // Se código ok, faz o login real
+      await signInWithEmailAndPassword(auth, normalizedEmail, tempCredentials.password);
+      
+      // Limpa o código após sucesso
+      await deleteDoc(doc(firestore, 'auth_codes', normalizedEmail));
 
       toast({
         title: 'Bem-vindo de volta!',
@@ -120,7 +128,7 @@ export function LoginForm() {
 
   if (step === 'otp') {
     return (
-      <Card key="otp-step-card" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+      <Card key="otp-step-card-unique" className="w-full max-w-md border-primary/20 shadow-xl animate-in fade-in zoom-in-95 duration-300">
         <CardHeader className="items-center text-center">
           <div className="bg-primary/10 p-3 rounded-full mb-4">
             <ShieldCheck className="h-8 w-8 text-primary" />
@@ -142,14 +150,16 @@ export function LoginForm() {
                     <FormLabel>Código de Acesso</FormLabel>
                     <FormControl>
                       <Input 
-                        key="otp-input-field"
+                        id="security_code_input"
+                        name="security_code"
+                        key="otp-input-field-security"
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        autoComplete="off"
+                        autoComplete="one-time-code"
                         {...field} 
                       />
                     </FormControl>
@@ -188,7 +198,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card key="login-step-card" className="w-full max-w-md border-primary/20 shadow-xl">
+    <Card key="login-step-card-base" className="w-full max-w-md border-primary/20 shadow-xl">
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Entrar</CardTitle>
@@ -204,7 +214,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="seu@email.com" {...field} />
+                    <Input id="login_email_field" placeholder="seu@email.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -217,7 +227,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Sua senha" {...field} />
+                    <Input id="login_password_field" type="password" placeholder="Sua senha" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
