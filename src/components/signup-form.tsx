@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -17,7 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Loader2, ShieldCheck, ArrowLeft, MailCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, ArrowLeft, MailCheck, Info } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 
 const signupFormSchema = z.object({
@@ -64,13 +65,11 @@ export function SignUpForm() {
     defaultValues: { code: '' },
   });
 
-  // Passo 1: Solicitar Código de Validação para Cadastro
   async function onSignupSubmit(values: SignupFormValues) {
     setLoading(true);
     try {
       const res = await sendLoginCode(values.email);
       if (res.success && res.code) {
-        // Salvar código no Firestore para validação
         await setDoc(doc(firestore, 'auth_codes', values.email), {
           code: res.code,
           expiresAt: res.expiresAt,
@@ -81,8 +80,8 @@ export function SignUpForm() {
         
         toast({
           title: 'Código de Validação!',
-          description: `Seu código de cadastro é: ${res.code} (Simulação)`,
-          duration: 10000,
+          description: `SIMULAÇÃO: O código de cadastro é ${res.code}`,
+          duration: 15000,
         });
       }
     } catch (error: any) {
@@ -96,7 +95,6 @@ export function SignUpForm() {
     }
   }
 
-  // Passo 2: Validar Código e Criar Conta Real
   async function onOtpSubmit(values: OtpFormValues) {
     if (!tempData) return;
     setLoading(true);
@@ -117,17 +115,14 @@ export function SignUpForm() {
         throw new Error('Código expirado.');
       }
 
-      // 1. Criar Usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, tempData.email, tempData.password);
       const user = userCredential.user;
 
-      // 2. Atualizar Perfil Básico
       await updateProfile(user, { 
         displayName: tempData.name,
         photoURL: defaultAvatar
       });
 
-      // 3. Criar Perfil no Firestore
       const userDocRef = doc(firestore, 'users', user.uid);
       await setDoc(userDocRef, {
         id: user.uid,
@@ -141,7 +136,6 @@ export function SignUpForm() {
         createdAt: new Date().toISOString(),
       });
 
-      // 4. Limpar código usado
       await deleteDoc(doc(firestore, 'auth_codes', tempData.email));
 
       toast({
@@ -187,6 +181,7 @@ export function SignUpForm() {
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
+                        autoComplete="one-time-code"
                         {...field} 
                       />
                     </FormControl>
@@ -194,6 +189,14 @@ export function SignUpForm() {
                   </FormItem>
                 )}
               />
+
+              <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-3 items-start">
+                <Info className="h-4 w-4 text-primary mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <strong>Simulação:</strong> O código para o cadastro foi exibido na notificação. Copie e cole aqui para finalizar.
+                </p>
+              </div>
+
               <div className="space-y-3">
                 <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <MailCheck className="h-5 w-5 mr-2" />}
@@ -206,7 +209,7 @@ export function SignUpForm() {
                   onClick={() => setStep('signup')}
                   disabled={loading}
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar e Corrigir Dados
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
                 </Button>
               </div>
             </form>
@@ -221,7 +224,7 @@ export function SignUpForm() {
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Criar Conta</CardTitle>
-        <CardDescription>Sua jornada começa com validação segura</CardDescription>
+        <CardDescription>Sua jornada começa aqui</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...signupForm}>

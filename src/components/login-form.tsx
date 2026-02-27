@@ -16,7 +16,7 @@ import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from './icons';
-import { Loader2, ShieldCheck, Mail, ArrowLeft } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, ArrowLeft, Info } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 
 const loginFormSchema = z.object({
@@ -49,18 +49,11 @@ export function LoginForm() {
     defaultValues: { code: '' },
   });
 
-  // Passo 1: Validar Email/Senha e "Enviar" Código
   async function onLoginSubmit(values: LoginFormValues) {
     setLoading(true);
     try {
-      // 1. Primeiro verificamos se as credenciais são válidas no Firebase Auth
-      // (Não fazemos o login completo ainda, apenas testamos ou preparamos)
-      // Nota: No Firebase, signInWithEmailAndPassword já loga o usuário. 
-      // Para MFA real, usaríamos o fluxo de MFA do Firebase. Aqui simulamos o bloqueio.
-      
       const res = await sendLoginCode(values.email);
       if (res.success && res.code) {
-        // Salvar código no Firestore para validação (Simulando processo seguro de servidor)
         await setDoc(doc(firestore, 'auth_codes', values.email), {
           code: res.code,
           expiresAt: res.expiresAt,
@@ -70,9 +63,9 @@ export function LoginForm() {
         setStep('otp');
         
         toast({
-          title: 'Código enviado!',
-          description: `Seu código de acesso é: ${res.code} (Simulação de e-mail)`,
-          duration: 10000,
+          title: 'Código gerado!',
+          description: `SIMULAÇÃO: O código enviado por e-mail é ${res.code}`,
+          duration: 15000,
         });
       }
     } catch (error: any) {
@@ -86,7 +79,6 @@ export function LoginForm() {
     }
   }
 
-  // Passo 2: Validar o Código Numérico
   async function onOtpSubmit(values: OtpFormValues) {
     if (!tempCredentials) return;
     setLoading(true);
@@ -107,10 +99,7 @@ export function LoginForm() {
         throw new Error('Código expirado.');
       }
 
-      // Se código está correto, fazemos o login real
       await signInWithEmailAndPassword(auth, tempCredentials.email, tempCredentials.password);
-      
-      // Limpar código usado
       await deleteDoc(doc(firestore, 'auth_codes', tempCredentials.email));
 
       toast({
@@ -136,9 +125,9 @@ export function LoginForm() {
           <div className="bg-primary/10 p-3 rounded-full mb-4">
             <ShieldCheck className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-black text-primary">Verificação de Segurança</CardTitle>
+          <CardTitle className="text-2xl font-black text-primary">Segurança</CardTitle>
           <CardDescription>
-            Enviamos um código de 6 dígitos para <br />
+            Digite o código enviado para <br />
             <span className="font-bold text-foreground">{tempCredentials?.email}</span>
           </CardDescription>
         </CardHeader>
@@ -156,6 +145,7 @@ export function LoginForm() {
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
+                        autoComplete="one-time-code"
                         {...field} 
                       />
                     </FormControl>
@@ -163,6 +153,14 @@ export function LoginForm() {
                   </FormItem>
                 )}
               />
+              
+              <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-3 items-start">
+                <Info className="h-4 w-4 text-primary mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <strong>Nota do Protótipo:</strong> Como estamos em ambiente de teste, o código foi exibido na notificação (toast) no topo da tela. Em produção, ele será enviado para sua caixa de entrada.
+                </p>
+              </div>
+
               <div className="space-y-3">
                 <Button type="submit" className="w-full h-12 text-lg font-bold rounded-full bg-primary" disabled={loading}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
@@ -175,7 +173,7 @@ export function LoginForm() {
                   onClick={() => setStep('login')}
                   disabled={loading}
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao Login
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
                 </Button>
               </div>
             </form>
@@ -190,7 +188,7 @@ export function LoginForm() {
       <CardHeader className="items-center text-center">
         <Logo className="mb-4" />
         <CardTitle className="text-2xl font-black text-primary">Entrar</CardTitle>
-        <CardDescription>Acesse sua conta com segurança extra</CardDescription>
+        <CardDescription>Acesse sua conta</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...loginForm}>
