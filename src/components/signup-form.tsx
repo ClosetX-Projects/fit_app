@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -178,14 +178,14 @@ export function SignUpForm() {
                     <FormLabel>Código de 6 Dígitos</FormLabel>
                     <FormControl>
                       <Input 
-                        key="signup-otp-input"
+                        key="signup-otp-input-unique"
                         placeholder="000000" 
                         className="text-center text-2xl tracking-[0.5em] font-black h-14" 
                         maxLength={6}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        autoComplete="off"
+                        autoComplete="one-time-code"
                         {...field} 
                       />
                     </FormControl>
@@ -195,7 +195,9 @@ export function SignUpForm() {
               />
 
               <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-3 items-start">
-                <Info className="h-4 w-4 text-primary mt-0.5" />
+                <div className="mt-0.5">
+                  <Info className="h-4 w-4 text-primary" />
+                </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   <strong>Simulação:</strong> O código para o cadastro foi exibido na notificação. Copie e cole aqui para finalizar.
                 </p>
