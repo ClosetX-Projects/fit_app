@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -58,7 +57,7 @@ export function LandingPage() {
           <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
             {[
               { title: "Treino Inteligente", desc: "IA que analisa seu PSE e sugere ajustes para evitar o platô." },
-              { title: "Dashboard Nubank", desc: "Interface limpa, rápida e moderna em tons de roxo para facilitar o foco." },
+              { title: "Interface Moderna", desc: "Design limpo e intuitivo em tons de roxo para otimizar sua experiência." },
               { title: "Controle Total", desc: "Acompanhamento detalhado de 9 dobras cutâneas e circunferências bilaterais." }
             ].map((feature, i) => (
               <div key={i} className="flex flex-col items-center text-center space-y-4">
