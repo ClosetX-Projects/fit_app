@@ -20,10 +20,13 @@ export function AICoach({ recentSessions, lastAssessment }: AICoachProps) {
       
       setLoading(true);
       try {
-        const res = await getStudentDailyInsight({ 
+        // Sanitizar dados para objetos planos antes de enviar para a Server Action
+        const sanitizedData = JSON.parse(JSON.stringify({ 
           recentSessions: recentSessions, 
           lastAssessment: lastAssessment 
-        });
+        }));
+
+        const res = await getStudentDailyInsight(sanitizedData);
 
         if (res.success && res.data) {
           setInsight(res.data);

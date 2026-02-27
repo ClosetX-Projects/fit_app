@@ -1,4 +1,3 @@
-
 "use client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -52,7 +51,7 @@ export function GoalRecommender() {
             bodyComposition: {
                 weight: lastAssessment?.weight || 0,
                 height: lastAssessment?.height || 0,
-                circumferences: {}, // Poderia ser preenchido com dados reais se necessário
+                circumferences: {}, 
                 skinfolds: {},
             },
             bioimpedanceData: {
@@ -68,10 +67,13 @@ export function GoalRecommender() {
                 vo2max: 0,
                 oneRepMaxTest: {},
             },
-            workoutConsistency: 50, // Valor padrão ou calculado
+            workoutConsistency: 50,
         }
 
-        const result = await getAIGoalRecommendations(inputData)
+        // Sanitizar inputData para remover métodos de Timestamps do Firestore antes de enviar para a Server Action
+        const sanitizedInput = JSON.parse(JSON.stringify(inputData));
+        const result = await getAIGoalRecommendations(sanitizedInput);
+        
         if (result.success && result.goals) {
             setGoals(result.goals)
         } else {
