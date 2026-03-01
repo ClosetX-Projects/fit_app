@@ -1,3 +1,4 @@
+
 "use client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -37,40 +38,41 @@ export function GoalRecommender() {
         setError(null)
         setGoals([])
 
-        // Montar input real para a IA
+        // Garantir que valores numéricos sejam de fato números (Number)
+        // O erro INVALID_ARGUMENT costuma ocorrer por tipos incorretos no payload
         const inputData: PersonalizedGoalRecommendationsInput = {
             userData: {
-                name: profile.name || user.displayName || 'Usuário',
-                age: profile.age || 0,
-                gender: profile.gender || 'Não informado',
-                weight: lastAssessment?.weight || profile.weight || 0,
-                height: lastAssessment?.height || profile.height || 0,
-                email: user.email || '',
-                whatsapp: profile.whatsapp || ''
+                name: String(profile.name || user.displayName || 'Usuário'),
+                age: Number(profile.age || 0),
+                gender: String(profile.gender || 'Não informado'),
+                weight: Number(lastAssessment?.weight || profile.weight || 0),
+                height: Number(lastAssessment?.height || profile.height || 0),
+                email: String(user.email || ''),
+                whatsapp: String(profile.whatsapp || '')
             },
             bodyComposition: {
-                weight: lastAssessment?.weight || 0,
-                height: lastAssessment?.height || 0,
+                weight: Number(lastAssessment?.weight || 0),
+                height: Number(lastAssessment?.height || 0),
                 circumferences: {}, 
                 skinfolds: {},
             },
             bioimpedanceData: {
-                age: profile.age || 0,
-                height: lastAssessment?.height || 0,
-                gender: profile.gender || '',
+                age: Number(profile.age || 0),
+                height: Number(lastAssessment?.height || 0),
+                gender: String(profile.gender || ''),
                 totalBodyWater: 0,
                 protein: 0,
                 mineralContent: 0,
                 bodyFatMass: 0,
             },
             strengthTestResults: {
-                vo2max: 0,
+                vo2max: Number(lastAssessment?.vo2max || 0),
                 oneRepMaxTest: {},
             },
             workoutConsistency: 50,
         }
 
-        // Sanitizar inputData para remover métodos de Timestamps do Firestore antes de enviar para a Server Action
+        // Sanitizar inputData para remover métodos de Timestamps do Firestore
         const sanitizedInput = JSON.parse(JSON.stringify(inputData));
         const result = await getAIGoalRecommendations(sanitizedInput);
         
@@ -114,7 +116,7 @@ export function GoalRecommender() {
             {error && (
                 <Alert variant="destructive">
                     <AlertTitle>Erro na IA</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription className="text-[10px] font-mono whitespace-pre-wrap">{error}</AlertDescription>
                 </Alert>
             )}
 
