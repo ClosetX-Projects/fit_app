@@ -36,6 +36,35 @@ interface StudentAssessmentsViewProps {
   studentId: string;
 }
 
+const INITIAL_FORM_DATA = {
+  weight: 0,
+  height: 0,
+  fatPercentage: 0,
+  vo2max: 0,
+  testNotes: '',
+  tenRmTest: 0,
+  sitToStand: 0,
+  tug: 0,
+  waist: 0,
+  armR: 0,
+  armL: 0,
+  forearmR: 0,
+  forearmL: 0,
+  thighR: 0,
+  thighL: 0,
+  legR: 0,
+  legL: 0,
+  subscapular: 0,
+  triceps: 0,
+  biceps: 0,
+  midAxillary: 0,
+  pectoral: 0,
+  suprailiac: 0,
+  abdominal: 0,
+  thigh: 0,
+  midLeg: 0,
+};
+
 export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
@@ -43,8 +72,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Estados locais para edição completa
-  const [formData, setFormData] = useState<any>({});
+  // Estados locais para edição completa inicializados corretamente
+  const [formData, setFormData] = useState<any>(INITIAL_FORM_DATA);
 
   // Buscar lista de avaliações do aluno em tempo real
   const assessmentsRef = useMemoFirebase(() => 
@@ -66,35 +95,35 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   useEffect(() => {
     if (assessment) {
       setFormData({
-        weight: assessment.weight || 0,
-        height: assessment.height || 0,
-        fatPercentage: assessment.fatPercentage || 0,
-        vo2max: assessment.vo2max || 0,
-        testNotes: assessment.metabolicNotes || '',
-        tenRmTest: assessment.tenRmTest || 0,
-        sitToStand: assessment.sitToStand || 0,
-        tug: assessment.tug || 0,
-        // Circunferências
-        waist: assessment.waist || 0,
-        armR: assessment.armR || 0,
-        armL: assessment.armL || 0,
-        forearmR: assessment.forearmR || 0,
-        forearmL: assessment.forearmL || 0,
-        thighR: assessment.thighR || 0,
-        thighL: assessment.thighL || 0,
-        legR: assessment.legR || 0,
-        legL: assessment.legL || 0,
-        // Dobras
-        subscapular: assessment.subscapular || 0,
-        triceps: assessment.triceps || 0,
-        biceps: assessment.biceps || 0,
-        midAxillary: assessment.midAxillary || 0,
-        pectoral: assessment.pectoral || 0,
-        suprailiac: assessment.suprailiac || 0,
-        abdominal: assessment.abdominal || 0,
-        thigh: assessment.thigh || 0,
-        midLeg: assessment.midLeg || 0,
+        weight: assessment.weight ?? 0,
+        height: assessment.height ?? 0,
+        fatPercentage: assessment.fatPercentage ?? 0,
+        vo2max: assessment.vo2max ?? 0,
+        testNotes: assessment.testNotes ?? '',
+        tenRmTest: assessment.tenRmTest ?? 0,
+        sitToStand: assessment.sitToStand ?? 0,
+        tug: assessment.tug ?? 0,
+        waist: assessment.waist ?? 0,
+        armR: assessment.armR ?? 0,
+        armL: assessment.armL ?? 0,
+        forearmR: assessment.forearmR ?? 0,
+        forearmL: assessment.forearmL ?? 0,
+        thighR: assessment.thighR ?? 0,
+        thighL: assessment.thighL ?? 0,
+        legR: assessment.legR ?? 0,
+        legL: assessment.legL ?? 0,
+        subscapular: assessment.subscapular ?? 0,
+        triceps: assessment.triceps ?? 0,
+        biceps: assessment.biceps ?? 0,
+        midAxillary: assessment.midAxillary ?? 0,
+        pectoral: assessment.pectoral ?? 0,
+        suprailiac: assessment.suprailiac ?? 0,
+        abdominal: assessment.abdominal ?? 0,
+        thigh: assessment.thigh ?? 0,
+        midLeg: assessment.midLeg ?? 0,
       });
+    } else {
+      setFormData(INITIAL_FORM_DATA);
     }
   }, [assessment]);
 
@@ -188,7 +217,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   };
 
   const updateField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
   if (isLoadingList) {
@@ -248,7 +277,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                        ].map(f => (
                          <div key={f.id} className="space-y-1">
                            <Label className="text-[10px]">{f.label}</Label>
-                           <Input type="number" step="0.1" value={formData[f.id]} onChange={e => updateField(f.id, e.target.value)} />
+                           <Input type="number" step="0.1" value={formData[f.id] ?? 0} onChange={e => updateField(f.id, e.target.value)} />
                          </div>
                        ))}
                     </div>
@@ -267,7 +296,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                       ].map(d => (
                         <div key={d.id} className="space-y-1 text-center">
                           <Label className="text-[10px]">{d.label}</Label>
-                          <Input type="number" step="0.1" value={formData[d.id]} onChange={e => updateField(d.id, e.target.value)} />
+                          <Input type="number" step="0.1" value={formData[d.id] ?? 0} onChange={e => updateField(d.id, e.target.value)} />
                         </div>
                       ))}
                     </div>
@@ -285,19 +314,19 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                   <div className="space-y-4">
                     <div className="space-y-1">
                       <Label className="text-[10px]">Teste 10 RM (kg)</Label>
-                      <Input type="number" value={formData.tenRmTest} onChange={e => updateField('tenRmTest', e.target.value)} />
+                      <Input type="number" value={formData.tenRmTest ?? 0} onChange={e => updateField('tenRmTest', e.target.value)} />
                     </div>
                     <div className="p-4 bg-background rounded-2xl border border-primary/10">
                       <p className="text-[10px] font-black uppercase opacity-60">1 RM Estimado:</p>
-                      <p className="text-2xl font-black text-primary">{(Number(formData.tenRmTest) * 1.33).toFixed(1)} kg</p>
+                      <p className="text-2xl font-black text-primary">{(Number(formData.tenRmTest || 0) * 1.33).toFixed(1)} kg</p>
                     </div>
                   </div>
                 </Card>
                 <Card className="rounded-3xl p-6 border-accent/20 bg-accent/5">
                   <h4 className="font-black text-xs flex items-center gap-2 mb-4 uppercase text-accent"><TrendingUp className="h-5 w-5" /> Funcionalidade</h4>
                   <div className="space-y-4">
-                    <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar (reps)</Label><Input type="number" value={formData.sitToStand} onChange={e => updateField('sitToStand', e.target.value)} /></div>
-                    <div className="space-y-1"><Label className="text-[10px]">TUG (segundos)</Label><Input type="number" step="0.1" value={formData.tug} onChange={e => updateField('tug', e.target.value)} /></div>
+                    <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar (reps)</Label><Input type="number" value={formData.sitToStand ?? 0} onChange={e => updateField('sitToStand', e.target.value)} /></div>
+                    <div className="space-y-1"><Label className="text-[10px]">TUG (segundos)</Label><Input type="number" step="0.1" value={formData.tug ?? 0} onChange={e => updateField('tug', e.target.value)} /></div>
                   </div>
                 </Card>
               </TabsContent>
@@ -310,7 +339,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                       <Input 
                         type="number" 
                         step="0.1" 
-                        value={formData.vo2max} 
+                        value={formData.vo2max ?? 0} 
                         onChange={(e) => updateField('vo2max', e.target.value)} 
                         className="h-16 text-3xl text-center font-black rounded-2xl bg-background border-primary/40"
                       />
@@ -318,7 +347,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                     <div className="space-y-2">
                       <Label className="font-bold text-primary">Observações Técnicas</Label>
                       <Textarea 
-                        value={formData.testNotes} 
+                        value={formData.testNotes ?? ''} 
                         onChange={(e) => updateField('testNotes', e.target.value)}
                         placeholder="Descreva as percepções do teste..."
                         className="min-h-[100px] rounded-2xl bg-background"

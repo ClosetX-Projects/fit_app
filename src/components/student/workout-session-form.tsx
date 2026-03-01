@@ -154,9 +154,9 @@ export function WorkoutSessionForm() {
                 <p className="text-xs text-muted-foreground">Prescrito: {ex.sets}x {ex.reps} | {ex.weight}kg</p>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1"><Label className="text-[10px]">Peso</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.weight} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} /></div>
-                <div className="space-y-1"><Label className="text-[10px]">Séries</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.sets} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} /></div>
-                <div className="space-y-1"><Label className="text-[10px]">PSE</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.pse} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} /></div>
+                <div className="space-y-1"><Label className="text-[10px]">Peso</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.weight ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} /></div>
+                <div className="space-y-1"><Label className="text-[10px]">Séries</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.sets ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} /></div>
+                <div className="space-y-1"><Label className="text-[10px]">PSE</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.pse ?? 7} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} /></div>
               </div>
             </CardContent>
           </Card>
