@@ -75,32 +75,17 @@
         }
       }
     },
-    "HealthData": {
-      "title": "HealthData",
+    "Notification": {
+      "title": "Notification",
       "type": "object",
-      "description": "Questionários e Exames de Sangue.",
+      "description": "Notificações internas para o usuário.",
       "properties": {
         "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "questionnaires": {
-          "type": "object",
-          "properties": {
-            "healthPerception": { "type": "number" },
-            "qualityOfLife": { "type": "number" },
-            "sleep": { "type": "number" },
-            "alcohol": { "type": "string" },
-            "tobacco": { "type": "string" }
-          }
-        },
-        "bloodWork": {
-          "type": "object",
-          "properties": {
-            "redSeries": { "type": "string" },
-            "hormones": { "type": "string" },
-            "liverIndicators": { "type": "string" }
-          }
-        }
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -110,6 +95,6 @@
   "firestore": {
     "/users/{userId}": { "schema": "User", "description": "Perfil" },
     "/users/{userId}/physicalAssessments/{id}": { "schema": "PhysicalAssessment", "description": "Avaliações" },
-    "/users/{userId}/healthData/{id}": { "schema": "HealthData", "description": "Exames e Saúde" }
+    "/users/{userId}/notifications/{id}": { "schema": "Notification", "description": "Notificações" }
   }
 }

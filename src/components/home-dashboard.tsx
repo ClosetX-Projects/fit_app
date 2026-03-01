@@ -8,13 +8,14 @@ import { StudentView } from '@/components/student/student-view';
 import { Logo } from '@/components/icons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Bell, Loader2, Copy, Check } from 'lucide-react';
+import { User, LogOut, Loader2, Copy, Check } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { EditProfileDialog } from '@/components/edit-profile-dialog';
+import { NotificationsDropdown } from '@/components/notifications-dropdown';
 
 export function HomeDashboard() {
   const { user, isUserLoading } = useUser();
@@ -85,9 +86,7 @@ export function HomeDashboard() {
             </div>
           </div>
 
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 hover:text-primary transition-colors">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationsDropdown />
           
           <Avatar className="h-9 w-9 border-2 border-primary/20">
             <AvatarImage src={currentPhotoUrl} />

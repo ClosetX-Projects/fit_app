@@ -4,10 +4,9 @@
 import { useState, useEffect } from 'react';
 import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, serverTimestamp, addDoc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,12 +40,11 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
-  const [isSavingMetabolic, setIsSavingMetabolic] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Estados para edição metabólica
-  const [metabolicVo2, setMetabolicVo2] = useState('');
-  const [metabolicNotes, setMetabolicNotes] = useState('');
+  // Estados locais para edição completa
+  const [formData, setFormData] = useState<any>({});
 
   // Buscar lista de avaliações do aluno em tempo real
   const assessmentsRef = useMemoFirebase(() => 
@@ -67,15 +65,59 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   useEffect(() => {
     if (assessment) {
-      setMetabolicVo2(assessment.vo2max?.toString() || '');
-      setMetabolicNotes(assessment.metabolicNotes || '');
+      setFormData({
+        weight: assessment.weight || 0,
+        height: assessment.height || 0,
+        fatPercentage: assessment.fatPercentage || 0,
+        vo2max: assessment.vo2max || 0,
+        testNotes: assessment.metabolicNotes || '',
+        tenRmTest: assessment.tenRmTest || 0,
+        sitToStand: assessment.sitToStand || 0,
+        tug: assessment.tug || 0,
+        // Circunferências
+        waist: assessment.waist || 0,
+        armR: assessment.armR || 0,
+        armL: assessment.armL || 0,
+        forearmR: assessment.forearmR || 0,
+        forearmL: assessment.forearmL || 0,
+        thighR: assessment.thighR || 0,
+        thighL: assessment.thighL || 0,
+        legR: assessment.legR || 0,
+        legL: assessment.legL || 0,
+        // Dobras
+        subscapular: assessment.subscapular || 0,
+        triceps: assessment.triceps || 0,
+        biceps: assessment.biceps || 0,
+        midAxillary: assessment.midAxillary || 0,
+        pectoral: assessment.pectoral || 0,
+        suprailiac: assessment.suprailiac || 0,
+        abdominal: assessment.abdominal || 0,
+        thigh: assessment.thigh || 0,
+        midLeg: assessment.midLeg || 0,
+      });
     }
   }, [assessment]);
 
+  const notifyStudent = (title: string, message: string) => {
+    if (!firestore || !studentId) return;
+    const notificationRef = collection(firestore, 'users', studentId, 'notifications');
+    addDocumentNonBlocking(notificationRef, {
+      title,
+      message,
+      type: 'assessment',
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+  };
+
   const handleSendQuestionnaire = () => {
+    notifyStudent(
+      "Novo Questionário de Saúde",
+      "Seu professor enviou um novo questionário de saúde para você responder."
+    );
     toast({
-      title: "Link Enviado!",
-      description: "O aluno recebeu uma notificação para responder os questionários de saúde.",
+      title: "Notificação Enviada!",
+      description: "O aluno recebeu um alerta para responder os questionários.",
     });
   };
 
@@ -98,7 +140,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       
       toast({
         title: "Nova Ficha Aberta",
-        description: "Você já pode começar a preencher os dados do aluno.",
+        description: "Você já pode preencher todos os campos da avaliação.",
       });
     } catch (error) {
       toast({
@@ -111,23 +153,42 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     }
   };
 
-  const handleSaveMetabolic = async () => {
+  const handleSaveFullAssessment = async () => {
     if (!selectedAssessmentId || !firestore) return;
-    setIsSavingMetabolic(true);
+    setIsSaving(true);
 
     const assessmentRef = doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId);
     
-    setDocumentNonBlocking(assessmentRef, {
-      vo2max: Number(metabolicVo2),
-      metabolicNotes: metabolicNotes,
+    // Cálculos Básicos
+    const w = Number(formData.weight) || 0;
+    const h = Number(formData.height) || 0;
+    const f = Number(formData.fatPercentage) || 0;
+    const imc = h > 0 ? (w / ((h / 100) ** 2)).toFixed(1) : "0.0";
+    const fatKg = ((w * f) / 100).toFixed(1);
+    const leanKg = (w - Number(fatKg)).toFixed(1);
+
+    const updateData = {
+      ...formData,
+      calculatedResults: { imc, fatKg, leanKg, leanPerc: (100 - f).toFixed(1) },
       updatedAt: serverTimestamp(),
-    }, { merge: true });
+    };
+
+    setDocumentNonBlocking(assessmentRef, updateData, { merge: true });
+
+    notifyStudent(
+      "Avaliação Atualizada",
+      `Seu professor finalizou a avaliação física do dia ${format(new Date(assessment?.date), "dd/MM")}. Confira os resultados!`
+    );
 
     toast({
-      title: "Sincronizado!",
-      description: "Os dados metabólicos foram salvos e compartilhados com o aluno.",
+      title: "Sincronizado com o Aluno!",
+      description: "Todos os campos foram salvos e o aluno foi notificado.",
     });
-    setIsSavingMetabolic(false);
+    setIsSaving(false);
+  };
+
+  const updateField = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   if (isLoadingList) {
@@ -138,30 +199,27 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     );
   }
 
-  // Se uma avaliação estiver selecionada, mostramos os detalhes
   if (selectedAssessmentId && assessment) {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-        <Button variant="ghost" onClick={() => setSelectedAssessmentId(null)} className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Voltar ao Painel
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => setSelectedAssessmentId(null)} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Voltar
+          </Button>
+          <Button onClick={handleSaveFullAssessment} disabled={isSaving} className="rounded-full px-8 bg-primary shadow-lg shadow-primary/20">
+            {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+            Salvar e Notificar Aluno
+          </Button>
+        </div>
 
         <Card className="border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="bg-primary/5 border-b border-primary/10">
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="text-xl font-black text-primary uppercase tracking-tighter">
-                  Análise Diagnóstica
-                </CardTitle>
-                <CardDescription>
-                  Dados de {format(new Date(assessment.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                </CardDescription>
-              </div>
-              <div className="bg-primary text-white px-6 py-3 rounded-2xl text-center shadow-lg shadow-primary/20">
-                <p className="text-[10px] font-black uppercase opacity-80">Massa Corporal</p>
-                <p className="text-2xl font-black">{assessment.weight}kg</p>
-              </div>
-            </div>
+            <CardTitle className="text-xl font-black text-primary uppercase tracking-tighter">
+              Edição Completa do Personal
+            </CardTitle>
+            <CardDescription>
+              Preencha todos os perímetros, dobras e testes funcionais.
+            </CardDescription>
           </CardHeader>
           
           <CardContent className="p-6">
@@ -173,67 +231,49 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               </TabsList>
 
               <TabsContent value="anthropometry" className="space-y-8">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-muted/50 p-4 rounded-3xl text-center border">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">IMC</p>
-                    <p className="text-lg font-black text-primary">{assessment.calculatedResults?.imc || '--'}</p>
-                  </div>
-                  <div className="bg-primary/5 p-4 rounded-3xl border border-primary/20 text-center">
-                    <p className="text-[10px] font-black text-primary uppercase">% Gordura</p>
-                    <p className="text-lg font-black">{assessment.fatPercentage}%</p>
-                  </div>
-                  <div className="bg-muted/50 p-4 rounded-3xl text-center border">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">Massa Gorda</p>
-                    <p className="text-lg font-black">{assessment.calculatedResults?.fatKg || '--'} kg</p>
-                  </div>
-                  <div className="bg-primary/5 p-4 rounded-3xl border border-primary/20 text-center">
-                    <p className="text-[10px] font-black text-primary uppercase">Massa Magra</p>
-                    <p className="text-lg font-black">{assessment.calculatedResults?.leanKg || '--'} kg</p>
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">
-                      <Ruler className="h-4 w-4" /> Perímetros (cm)
-                    </h4>
-                    <div className="grid grid-cols-1 gap-2 text-sm">
-                      {[
-                        { l: "Abdominal", v: assessment.waist },
-                        { l: "Braço D/E", v: `${assessment.armR} / ${assessment.armL}` },
-                        { l: "Antebraço D/E", v: `${assessment.forearmR} / ${assessment.forearmL}` },
-                        { l: "Coxa D/E", v: `${assessment.thighR} / ${assessment.thighL}` },
-                        { l: "Perna D/E", v: `${assessment.legR} / ${assessment.legL}` }
-                      ].map((p, i) => (
-                        <div key={i} className="flex justify-between border-b border-dashed py-1.5">
-                          <span className="text-muted-foreground">{p.l}:</span>
-                          <b className="font-black">{p.v}</b>
-                        </div>
-                      ))}
+                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">Básicos e Perímetros</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1"><Label className="text-[10px]">Peso (kg)</Label><Input type="number" step="0.1" value={formData.weight} onChange={e => updateField('weight', e.target.value)} /></div>
+                      <div className="space-y-1"><Label className="text-[10px]">Altura (cm)</Label><Input type="number" value={formData.height} onChange={e => updateField('height', e.target.value)} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                       {[
+                         { id: "waist", label: "Abdômen" },
+                         { id: "armR", label: "Braço D." },
+                         { id: "armL", label: "Braço E." },
+                         { id: "thighR", label: "Coxa D." },
+                         { id: "thighL", label: "Coxa E." }
+                       ].map(f => (
+                         <div key={f.id} className="space-y-1">
+                           <Label className="text-[10px]">{f.label}</Label>
+                           <Input type="number" step="0.1" value={formData[f.id]} onChange={e => updateField(f.id, e.target.value)} />
+                         </div>
+                       ))}
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">
-                      <Activity className="h-4 w-4" /> Dobras Cutâneas (mm)
-                    </h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">Dobras Cutâneas (mm)</h4>
+                    <div className="grid grid-cols-3 gap-2">
                       {[
-                        { l: "Subescapular", v: assessment.subscapular },
-                        { l: "Tricipital", v: assessment.triceps },
-                        { l: "Bicipital", v: assessment.biceps },
-                        { l: "Axilar Média", v: assessment.midAxillary },
-                        { l: "Peitoral", v: assessment.pectoral },
-                        { l: "Supra-ilíaca", v: assessment.suprailiac },
-                        { l: "Abdominal", v: assessment.abdominal },
-                        { l: "Coxa", v: assessment.thigh },
-                        { l: "Perna", v: assessment.midLeg }
-                      ].map((d, i) => (
-                        <div key={i} className="flex justify-between border-b py-1">
-                          <span>{d.l}:</span>
-                          <b className="text-primary">{d.v}</b>
+                        { id: "triceps", label: "Tric" },
+                        { id: "biceps", label: "Bic" },
+                        { id: "subscapular", label: "Sub" },
+                        { id: "abdominal", label: "Abd" },
+                        { id: "suprailiac", label: "Sup" },
+                        { id: "thigh", label: "Coxa" }
+                      ].map(d => (
+                        <div key={d.id} className="space-y-1 text-center">
+                          <Label className="text-[10px]">{d.label}</Label>
+                          <Input type="number" step="0.1" value={formData[d.id]} onChange={e => updateField(d.id, e.target.value)} />
                         </div>
                       ))}
+                    </div>
+                    <div className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                       <Label className="text-[10px] font-black uppercase text-primary">% Gordura Estimado</Label>
+                       <Input type="number" step="0.1" value={formData.fatPercentage} onChange={e => updateField('fatPercentage', e.target.value)} className="h-12 text-2xl font-black text-center" />
                     </div>
                   </div>
                 </div>
@@ -241,64 +281,49 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
               <TabsContent value="neuromotor" className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="rounded-3xl p-6 border-primary/20 bg-primary/5">
-                  <h4 className="font-black text-sm flex items-center gap-2 mb-4 uppercase text-primary"><Dumbbell className="h-5 w-5" /> Força</h4>
+                  <h4 className="font-black text-xs flex items-center gap-2 mb-4 uppercase text-primary"><Dumbbell className="h-5 w-5" /> Testes de Força</h4>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center bg-background p-4 rounded-2xl border">
-                      <span className="text-xs font-bold uppercase">Teste 10 RM:</span>
-                      <span className="text-xl font-black">{assessment.tenRmTest} kg</span>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Teste 10 RM (kg)</Label>
+                      <Input type="number" value={formData.tenRmTest} onChange={e => updateField('tenRmTest', e.target.value)} />
                     </div>
-                    <div className="flex justify-between items-center bg-primary text-white p-4 rounded-2xl shadow-md">
-                      <span className="text-xs font-black uppercase">1 RM Estimado:</span>
-                      <span className="text-2xl font-black">{(Number(assessment.tenRmTest) * 1.33).toFixed(1)} kg</span>
+                    <div className="p-4 bg-background rounded-2xl border border-primary/10">
+                      <p className="text-[10px] font-black uppercase opacity-60">1 RM Estimado:</p>
+                      <p className="text-2xl font-black text-primary">{(Number(formData.tenRmTest) * 1.33).toFixed(1)} kg</p>
                     </div>
                   </div>
                 </Card>
                 <Card className="rounded-3xl p-6 border-accent/20 bg-accent/5">
-                  <h4 className="font-black text-sm flex items-center gap-2 mb-4 uppercase text-accent"><TrendingUp className="h-5 w-5" /> Funcionalidade</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center bg-background p-3 rounded-xl border">
-                      <span className="text-xs font-bold uppercase">Sentar e Levantar:</span>
-                      <span className="text-lg font-black text-accent">{assessment.sitToStand} reps</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-background p-3 rounded-xl border">
-                      <span className="text-xs font-bold uppercase">TUG:</span>
-                      <span className="text-lg font-black text-accent">{assessment.tug} seg</span>
-                    </div>
+                  <h4 className="font-black text-xs flex items-center gap-2 mb-4 uppercase text-accent"><TrendingUp className="h-5 w-5" /> Funcionalidade</h4>
+                  <div className="space-y-4">
+                    <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar (reps)</Label><Input type="number" value={formData.sitToStand} onChange={e => updateField('sitToStand', e.target.value)} /></div>
+                    <div className="space-y-1"><Label className="text-[10px]">TUG (segundos)</Label><Input type="number" step="0.1" value={formData.tug} onChange={e => updateField('tug', e.target.value)} /></div>
                   </div>
                 </Card>
               </TabsContent>
 
               <TabsContent value="metabolic" className="space-y-6">
                 <Card className="rounded-[2rem] border-primary/20 bg-primary/5 p-8">
-                  <div className="text-center mb-8">
-                    <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
-                    <h4 className="text-xl font-black uppercase">Prescrição Metabólica</h4>
-                    <p className="text-sm text-muted-foreground">Atualize os dados de VO2 do aluno.</p>
-                  </div>
                   <div className="grid gap-6">
                     <div className="space-y-2">
                       <Label className="font-bold text-primary">VO2 Máximo Estimado (ml/kg/min)</Label>
                       <Input 
                         type="number" 
                         step="0.1" 
-                        value={metabolicVo2} 
-                        onChange={(e) => setMetabolicVo2(e.target.value)} 
+                        value={formData.vo2max} 
+                        onChange={(e) => updateField('vo2max', e.target.value)} 
                         className="h-16 text-3xl text-center font-black rounded-2xl bg-background border-primary/40"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="font-bold text-primary">Observações Técnicas</Label>
                       <Textarea 
-                        value={metabolicNotes} 
-                        onChange={(e) => setMetabolicNotes(e.target.value)}
+                        value={formData.testNotes} 
+                        onChange={(e) => updateField('testNotes', e.target.value)}
                         placeholder="Descreva as percepções do teste..."
                         className="min-h-[100px] rounded-2xl bg-background"
                       />
                     </div>
-                    <Button onClick={handleSaveMetabolic} disabled={isSavingMetabolic} className="w-full h-16 rounded-full text-lg font-black uppercase bg-primary shadow-xl">
-                      {isSavingMetabolic ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-5 w-5" />}
-                      Salvar Dados Metabólicos
-                    </Button>
                   </div>
                 </Card>
               </TabsContent>
@@ -311,43 +336,40 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Seção de Ações de Avaliação */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-dashed border-2 hover:border-primary/50 transition-colors bg-primary/5">
-          <CardHeader className="text-center">
-            <Send className="h-8 w-8 text-primary mx-auto mb-2" />
-            <CardTitle className="text-lg">Questionário de Saúde</CardTitle>
-            <CardDescription>Envie o link para o aluno responder em casa.</CardDescription>
+          <CardHeader className="text-center p-6">
+            <Send className="h-10 w-10 text-primary mx-auto mb-3" />
+            <CardTitle className="text-xl">Questionário de Saúde</CardTitle>
+            <CardDescription>O aluno será notificado instantaneamente no app.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-12 gap-2">
-              <FileText className="h-4 w-4" /> Enviar Questionário
+          <CardContent className="p-6 pt-0">
+            <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-14 text-lg font-bold gap-3">
+              <FileText className="h-5 w-5" /> Enviar para o Aluno
             </Button>
           </CardContent>
         </Card>
 
         <Card className="border-dashed border-2 hover:border-accent/50 transition-colors bg-accent/5">
-          <CardHeader className="text-center">
-            <UserPlus className="h-8 w-8 text-accent mx-auto mb-2" />
-            <CardTitle className="text-lg">Avaliação Presencial</CardTitle>
-            <CardDescription>Responda agora mesmo pelo seu aluno.</CardDescription>
+          <CardHeader className="text-center p-6">
+            <UserPlus className="h-10 w-10 text-accent mx-auto mb-3" />
+            <CardTitle className="text-xl">Avaliação Presencial</CardTitle>
+            <CardDescription>Abra uma ficha agora para preencher com o aluno.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-12 border-accent text-accent hover:bg-accent/10 gap-2">
-              {isCreating ? <Loader2 className="animate-spin" /> : <ClipboardList className="h-4 w-4" />}
-              Responder pelo Aluno
+          <CardContent className="p-6 pt-0">
+            <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-14 text-lg font-bold border-accent text-accent hover:bg-accent/10 gap-3">
+              {isCreating ? <Loader2 className="animate-spin" /> : <ClipboardList className="h-5 w-5" />}
+              Nova Avaliação Manual
             </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Histórico Completo Abaixo dos Botões */}
       <Card className="border-primary/10 rounded-3xl overflow-hidden shadow-lg">
         <CardHeader className="bg-primary/5 border-b">
           <CardTitle className="text-sm font-black flex items-center gap-2 uppercase tracking-widest">
-            <History className="h-4 w-4 text-primary" /> Histórico de Avaliações do Aluno
+            <History className="h-4 w-4 text-primary" /> Histórico de Avaliações
           </CardTitle>
-          <CardDescription>Clique em uma data para ver os detalhes completos e editar.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-primary/5">
@@ -371,25 +393,16 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                         <p className="text-[10px] text-primary uppercase font-black tracking-tighter bg-primary/10 px-2 py-0.5 rounded">
                           Gordura: {item.fatPercentage}%
                         </p>
-                        {item.vo2max > 0 && (
-                          <p className="text-[10px] text-accent uppercase font-black tracking-tighter bg-accent/10 px-2 py-0.5 rounded">
-                            VO2: {item.vo2max}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">Ver Ficha</span>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
               ))
             ) : (
               <div className="p-24 text-center">
                 <ClipboardList className="h-16 w-16 mx-auto mb-4 opacity-10" />
-                <p className="text-muted-foreground font-medium italic">Nenhuma avaliação registrada para este aluno.</p>
-                <p className="text-xs text-muted-foreground mt-2">Use os botões acima para começar.</p>
+                <p className="text-muted-foreground font-medium italic">Nenhuma avaliação registrada.</p>
               </div>
             )}
           </div>
