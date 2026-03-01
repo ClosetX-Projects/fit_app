@@ -27,13 +27,15 @@ service cloud.firestore {
     }
 
     // ACL Professor-Aluno
+    // Permite que o professor gerencie sua lista e que o aluno se vincule a ela durante o cadastro
     match /professors/{professorId}/students/{studentId} {
-      allow read, write: if isOwner(professorId);
+      allow read: if isOwner(professorId);
+      allow write: if isOwner(professorId) || (isSignedIn() && request.auth.uid == studentId);
     }
 
-    // Regras para Tokens de Autenticação (Apenas sistema pode criar/deletar em teoria, mas para protótipo permitimos leitura se souber o código)
+    // Regras para Tokens de Autenticação (Apenas sistema pode criar/deletar em teoria)
     match /auth_codes/{email} {
-      allow read, write: if true; // Em produção isso seria restrito a Server Actions via Admin SDK
+      allow read, write: if true; 
     }
 
     match /{path=**}/workoutSessions/{sessionId} {

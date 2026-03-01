@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
+import { useFirebase, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
@@ -77,10 +77,10 @@ function SignUpFormContent() {
     }
   }, [roleParam, signupForm]);
 
-  const linkProfessor = async (studentId: string, studentName: string, studentEmail: string) => {
+  const linkProfessor = (studentId: string, studentName: string, studentEmail: string) => {
     if (invitedBy && firestore) {
       const professorStudentRef = doc(firestore, 'professors', invitedBy, 'students', studentId);
-      await setDoc(professorStudentRef, {
+      setDocumentNonBlocking(professorStudentRef, {
         id: studentId,
         name: studentName,
         email: studentEmail,
@@ -111,7 +111,7 @@ function SignUpFormContent() {
         });
 
         if (finalRole === 'student' && invitedBy) {
-          await linkProfessor(user.uid, user.displayName || '', user.email || '');
+          linkProfessor(user.uid, user.displayName || '', user.email || '');
         }
       }
 
@@ -179,7 +179,7 @@ function SignUpFormContent() {
       });
 
       if (tempData.userType === 'student' && invitedBy) {
-        await linkProfessor(user.uid, tempData.name, normalizedEmail);
+        linkProfessor(user.uid, tempData.name, normalizedEmail);
       }
 
       await deleteDoc(doc(firestore, 'auth_codes', normalizedEmail));
