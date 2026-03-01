@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Personalized fitness goal recommendations flow.
@@ -54,16 +55,26 @@ const personalizedGoalRecommendationsPrompt = ai.definePrompt({
   name: 'personalizedGoalRecommendationsPrompt',
   input: {schema: PersonalizedGoalRecommendationsInputSchema},
   output: {schema: PersonalizedGoalRecommendationsOutputSchema},
-  prompt: `Você é um personal trainer especialista. Com base nos dados abaixo, sugira 3 metas reais e motivadoras.
+  prompt: `Você é um personal trainer especialista e coach motivacional de elite. 
+  Com base nos dados técnicos do aluno abaixo, você deve sugerir exatamente 3 metas de curto e médio prazo que sejam realistas, desafiadoras e baseadas em evidências científicas.
 
-  Usuário: {{{userData.name}}}, {{{userData.age}}} anos, {{{userData.gender}}}.
-  Peso: {{{userData.weight}}}kg, Altura: {{{userData.height}}}cm.
-  Consistência: {{{workoutConsistency}}}%.
+  PERFIL DO ALUNO:
+  Nome: {{{userData.name}}}
+  Idade: {{{userData.age}}} anos
+  Gênero: {{{userData.gender}}}
+  Peso Atual: {{{userData.weight}}} kg
+  Altura: {{{userData.height}}} cm
+  Consistência nos Treinos: {{{workoutConsistency}}}%
 
-  Gordura Corporal (Bio): {{{bioimpedanceData.bodyFatMass}}} kg.
-  Proteína: {{{bioimpedanceData.protein}}} kg.
+  DADOS COMPLEMENTARES:
+  Gordura Corporal Estimada: {{{bioimpedanceData.bodyFatMass}}} kg
+  VO2 Máximo: {{{strengthTestResults.vo2max}}} ml/kg/min
 
-  Responda em Português do Brasil.`,
+  INSTRUÇÕES:
+  1. Analise o IMC e a composição corporal para definir se o foco deve ser perda de gordura, hipertrofia ou condicionamento.
+  2. Gere 3 sugestões de metas curtas (ex: "Reduzir 2kg de gordura em 30 dias").
+  3. Seja motivador no tom, mas técnico na recomendação.
+  4. Responda em Português do Brasil.`,
 });
 
 const personalizedGoalRecommendationsFlow = ai.defineFlow(
@@ -73,8 +84,15 @@ const personalizedGoalRecommendationsFlow = ai.defineFlow(
     outputSchema: PersonalizedGoalRecommendationsOutputSchema,
   },
   async input => {
-    const {output} = await personalizedGoalRecommendationsPrompt(input);
-    if (!output) throw new Error('Falha na resposta da IA');
-    return output;
+    try {
+      const {output} = await personalizedGoalRecommendationsPrompt(input);
+      if (!output) {
+        throw new Error('Não foi possível obter uma resposta estruturada da IA.');
+      }
+      return output;
+    } catch (error: any) {
+      console.error('Erro na execução do Flow de Metas:', error);
+      throw new Error('Falha na comunicação com o serviço de inteligência artificial.');
+    }
   }
 );

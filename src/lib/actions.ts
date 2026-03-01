@@ -16,10 +16,21 @@ export async function getAIGoalRecommendations(data: PersonalizedGoalRecommendat
   try {
     const cleanData = cleanObject(data);
     const result = await personalizedGoalRecommendations(cleanData);
-    return { success: true, goals: result.goalSuggestions };
+    
+    if (!result || !result.goalSuggestions) {
+      throw new Error('A IA não retornou sugestões de metas válidas.');
+    }
+
+    return { 
+      success: true, 
+      goals: result.goalSuggestions 
+    };
   } catch (error: any) {
     console.error('Erro detalhado da IA (Metas):', error);
-    return { success: false, error: 'Ocorreu um erro ao processar as metas pela IA.' };
+    return { 
+      success: false, 
+      error: error.message || 'Ocorreu um erro ao processar as metas pela IA. Verifique sua conexão e tente novamente.' 
+    };
   }
 }
 
@@ -41,10 +52,6 @@ export async function sendLoginCode(email: string) {
   try {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    
-    // Em um app real, aqui você usaria o Admin SDK para salvar no Firestore de forma segura
-    // e enviaria o e-mail via SendGrid/Resend.
-    // Como estamos em um protótipo, retornaremos o código para exibição no Toast.
     
     return { success: true, code, expiresAt, message: 'Código gerado com sucesso.' };
   } catch (error) {
