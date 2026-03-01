@@ -6,19 +6,23 @@ import { generateStudentDailyInsight, type StudentDailyInsightInput } from '@/ai
 
 /**
  * Limpa objetos recursivamente para garantir que sejam apenas objetos simples (POJO).
+ * O Genkit exige que os inputs sigam estritamente o esquema Zod.
  */
-function cleanObject(obj: any): any {
+function sanitizeForAI(obj: any): any {
   if (!obj) return obj;
+  // Deep clone to remove any Firestore-specific hidden methods/properties
   return JSON.parse(JSON.stringify(obj));
 }
 
 export async function getAIGoalRecommendations(data: PersonalizedGoalRecommendationsInput) {
   try {
-    const cleanData = cleanObject(data);
+    const cleanData = sanitizeForAI(data);
+    
+    // Executa o flow de metas personalizado
     const result = await personalizedGoalRecommendations(cleanData);
     
     if (!result || !result.goalSuggestions) {
-      throw new Error('A IA não retornou sugestões de metas válidas.');
+      throw new Error('A IA não retornou uma resposta válida. Verifique os dados de entrada.');
     }
 
     return { 
@@ -26,17 +30,20 @@ export async function getAIGoalRecommendations(data: PersonalizedGoalRecommendat
       goals: result.goalSuggestions 
     };
   } catch (error: any) {
-    console.error('Erro detalhado da IA (Metas):', error);
+    console.error('Erro na Action de Metas IA:', error);
+    
+    // Captura erros específicos do modelo ou de validação para exibir no UI
+    const errorMessage = error.message || 'Erro de comunicação com o serviço Gemini.';
     return { 
       success: false, 
-      error: error.message || 'Ocorreu um erro ao processar as metas pela IA. Verifique sua conexão e tente novamente.' 
+      error: errorMessage
     };
   }
 }
 
 export async function getStudentDailyInsight(data: StudentDailyInsightInput) {
   try {
-    const cleanData = cleanObject(data);
+    const cleanData = sanitizeForAI(data);
     const result = await generateStudentDailyInsight(cleanData);
     return { success: true, data: result };
   } catch (error: any) {

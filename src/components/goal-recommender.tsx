@@ -38,8 +38,7 @@ export function GoalRecommender() {
         setError(null)
         setGoals([])
 
-        // Garantir que valores numéricos sejam de fato números (Number)
-        // O erro INVALID_ARGUMENT costuma ocorrer por tipos incorretos no payload
+        // Garantir conversão estrita para Number para evitar erros de validação da IA
         const inputData: PersonalizedGoalRecommendationsInput = {
             userData: {
                 name: String(profile.name || user.displayName || 'Usuário'),
@@ -72,16 +71,19 @@ export function GoalRecommender() {
             workoutConsistency: 50,
         }
 
-        // Sanitizar inputData para remover métodos de Timestamps do Firestore
-        const sanitizedInput = JSON.parse(JSON.stringify(inputData));
-        const result = await getAIGoalRecommendations(sanitizedInput);
-        
-        if (result.success && result.goals) {
-            setGoals(result.goals)
-        } else {
-            setError(result.error || "Ocorreu um erro ao gerar metas.")
+        try {
+            const result = await getAIGoalRecommendations(inputData);
+            
+            if (result.success && result.goals) {
+                setGoals(result.goals)
+            } else {
+                setError(result.error || "Ocorreu um erro inesperado ao gerar metas.")
+            }
+        } catch (e: any) {
+            setError(e.message || "Erro na comunicação com o serviço de IA.");
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     return (
@@ -114,9 +116,9 @@ export function GoalRecommender() {
             </Card>
 
             {error && (
-                <Alert variant="destructive">
-                    <AlertTitle>Erro na IA</AlertTitle>
-                    <AlertDescription className="text-[10px] font-mono whitespace-pre-wrap">{error}</AlertDescription>
+                <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+                    <AlertTitle className="font-bold">Falha na IA</AlertTitle>
+                    <AlertDescription className="text-[10px] font-mono whitespace-pre-wrap mt-2">{error}</AlertDescription>
                 </Alert>
             )}
 
@@ -135,7 +137,7 @@ export function GoalRecommender() {
                                     <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                                         {index + 1}
                                     </div>
-                                    <p className="pt-1 leading-relaxed">{goal}</p>
+                                    <p className="pt-1 leading-relaxed text-sm font-medium">{goal}</p>
                                 </li>
                             ))}
                         </ul>
