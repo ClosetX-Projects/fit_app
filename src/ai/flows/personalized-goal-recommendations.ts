@@ -91,7 +91,6 @@ const personalizedGoalRecommendationsFlow = ai.defineFlow(
       }
       return output;
     } catch (error: any) {
-      // Retornando o erro real para debug visual na tela
       console.error('Erro na execução do Flow de Metas:', error);
       throw new Error(`Erro na IA: ${error.message || 'Falha desconhecida na comunicação.'}`);
     }
