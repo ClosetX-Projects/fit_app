@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, serverTimestamp } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -23,7 +23,8 @@ import {
   ClipboardList, 
   Ruler, 
   Save,
-  TrendingUp
+  TrendingUp,
+  History
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,7 +43,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   const [metabolicVo2, setMetabolicVo2] = useState('');
   const [metabolicNotes, setMetabolicNotes] = useState('');
 
-  // Buscar lista de avaliações do aluno
+  // Buscar lista de avaliações do aluno em tempo real
   const assessmentsRef = useMemoFirebase(() => 
     query(
       collection(firestore, 'users', studentId, 'physicalAssessments'),
@@ -52,12 +53,20 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   const { data: assessments, isLoading: isLoadingList } = useCollection(assessmentsRef);
 
-  // Buscar detalhes da avaliação selecionada
+  // Buscar detalhes da avaliação selecionada em tempo real
   const selectedAssessmentRef = useMemoFirebase(() => 
     selectedAssessmentId ? doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId) : null
   , [firestore, studentId, selectedAssessmentId]);
   
   const { data: assessment } = useDoc(selectedAssessmentRef);
+
+  // Sincronizar estados locais quando a avaliação mudar no banco
+  useEffect(() => {
+    if (assessment) {
+      setMetabolicVo2(assessment.vo2max?.toString() || '');
+      setMetabolicNotes(assessment.metabolicNotes || '');
+    }
+  }, [assessment]);
 
   const handleSaveMetabolic = async () => {
     if (!selectedAssessmentId || !firestore) return;
@@ -72,19 +81,10 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     }, { merge: true });
 
     toast({
-      title: "Dados Metabólicos Atualizados",
-      description: "O VO2 Máx e as notas foram salvos com sucesso.",
+      title: "Dados Metabólicos Sincronizados",
+      description: "O aluno já pode visualizar os resultados na página dele.",
     });
     setIsSavingMetabolic(false);
-  };
-
-  const handleSelectAssessment = (id: string) => {
-    setSelectedAssessmentId(id);
-    const selected = assessments?.find(a => a.id === id);
-    if (selected) {
-      setMetabolicVo2(selected.vo2max?.toString() || '');
-      setMetabolicNotes(selected.metabolicNotes || '');
-    }
   };
 
   if (isLoadingList) {
@@ -96,24 +96,24 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Lista de Avaliações */}
-      <Card className="md:col-span-4 h-fit border-primary/10">
-        <CardHeader>
+      <Card className="lg:col-span-4 h-fit border-primary/10 rounded-3xl overflow-hidden shadow-md">
+        <CardHeader className="bg-primary/5">
           <CardTitle className="text-lg flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-primary" /> Histórico
+            <History className="h-5 w-5 text-primary" /> Histórico do Aluno
           </CardTitle>
-          <CardDescription>Clique para ver os detalhes.</CardDescription>
+          <CardDescription>Dados atualizados em tempo real.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[500px]">
             {assessments && assessments.length > 0 ? (
-              <div className="divide-y">
+              <div className="divide-y divide-primary/5">
                 {assessments.map((item) => (
                   <div 
                     key={item.id} 
-                    className={`flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors ${selectedAssessmentId === item.id ? 'bg-primary/5 border-l-4 border-l-primary' : ''}`}
-                    onClick={() => handleSelectAssessment(item.id)}
+                    className={`flex items-center justify-between p-4 cursor-pointer hover:bg-primary/5 transition-colors ${selectedAssessmentId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+                    onClick={() => setSelectedAssessmentId(item.id)}
                   >
                     <div className="flex items-center gap-3">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -124,34 +124,34 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                         </p>
                       </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <ChevronRight className={`h-4 w-4 transition-colors ${selectedAssessmentId === item.id ? 'text-primary' : 'text-muted-foreground'}`} />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-12 text-center text-muted-foreground italic text-sm">Nenhuma avaliação realizada.</div>
+              <div className="p-12 text-center text-muted-foreground italic text-sm">O aluno ainda não possui avaliações.</div>
             )}
           </ScrollArea>
         </CardContent>
       </Card>
 
       {/* Detalhes da Avaliação Selecionada */}
-      <div className="md:col-span-8">
+      <div className="lg:col-span-8">
         {selectedAssessmentId && assessment ? (
-          <Card className="border-primary/20 shadow-xl rounded-[2rem] overflow-hidden">
+          <Card className="border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="bg-primary/5 border-b border-primary/10">
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-xl font-black text-primary uppercase tracking-tighter">
-                    Detalhes da Avaliação
+                    Análise Diagnóstica
                   </CardTitle>
                   <CardDescription>
-                    Realizada em {format(new Date(assessment.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    Dados de {format(new Date(assessment.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                   </CardDescription>
                 </div>
-                <div className="bg-primary text-white px-4 py-2 rounded-2xl text-center">
-                  <p className="text-[10px] font-black uppercase">Peso</p>
-                  <p className="text-xl font-black">{assessment.weight}kg</p>
+                <div className="bg-primary text-white px-6 py-3 rounded-2xl text-center shadow-lg shadow-primary/20">
+                  <p className="text-[10px] font-black uppercase opacity-80">Massa Corporal</p>
+                  <p className="text-2xl font-black">{assessment.weight}kg</p>
                 </div>
               </div>
             </CardHeader>
@@ -165,81 +165,88 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 </TabsList>
 
                 <TabsContent value="anthropometry" className="space-y-8 animate-in fade-in duration-500">
-                  {/* Composição Corporal */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="bg-muted/50 p-3 rounded-2xl border text-center">
+                    <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                       <p className="text-[10px] font-black text-muted-foreground uppercase">IMC</p>
                       <p className="text-lg font-black text-primary">{assessment.calculatedResults?.imc || '--'}</p>
                     </div>
-                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/20 text-center">
+                    <div className="bg-primary/5 p-4 rounded-3xl border border-primary/20 text-center">
                       <p className="text-[10px] font-black text-primary uppercase">% Gordura</p>
                       <p className="text-lg font-black">{assessment.fatPercentage}%</p>
                     </div>
-                    <div className="bg-muted/50 p-3 rounded-2xl border text-center">
-                      <p className="text-[10px] font-black text-muted-foreground uppercase">Gordura (kg)</p>
+                    <div className="bg-muted/50 p-4 rounded-3xl text-center border">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase">Massa Gorda</p>
                       <p className="text-lg font-black">{assessment.calculatedResults?.fatKg || '--'} kg</p>
                     </div>
-                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/20 text-center">
-                      <p className="text-[10px] font-black text-primary uppercase">Massa Magra (kg)</p>
+                    <div className="bg-primary/5 p-4 rounded-3xl border border-primary/20 text-center">
+                      <p className="text-[10px] font-black text-primary uppercase">Massa Magra</p>
                       <p className="text-lg font-black">{assessment.calculatedResults?.leanKg || '--'} kg</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Circunferências */}
                     <div className="space-y-4">
                       <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">
-                        <Ruler className="h-4 w-4" /> Circunferências (cm)
+                        <Ruler className="h-4 w-4" /> Perímetros (cm)
                       </h4>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Abdominal:</span> <b>{assessment.waist}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Braço D:</span> <b>{assessment.armR}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Braço E:</span> <b>{assessment.armL}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Antebraço D:</span> <b>{assessment.forearmR}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Antebraço E:</span> <b>{assessment.forearmL}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Coxa D:</span> <b>{assessment.thighR}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Coxa E:</span> <b>{assessment.thighL}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Perna D:</span> <b>{assessment.legR}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Perna E:</span> <b>{assessment.legL}</b></div>
+                      <div className="grid grid-cols-1 gap-2 text-sm">
+                        {[
+                          { l: "Abdominal", v: assessment.waist },
+                          { l: "Braço D/E", v: `${assessment.armR} / ${assessment.armL}` },
+                          { l: "Antebraço D/E", v: `${assessment.forearmR} / ${assessment.forearmL}` },
+                          { l: "Coxa D/E", v: `${assessment.thighR} / ${assessment.thighL}` },
+                          { l: "Perna D/E", v: `${assessment.legR} / ${assessment.legL}` }
+                        ].map((p, i) => (
+                          <div key={i} className="flex justify-between border-b border-dashed py-1.5">
+                            <span className="text-muted-foreground">{p.l}:</span>
+                            <b className="font-black">{p.v}</b>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Dobras */}
                     <div className="space-y-4">
                       <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">
                         <Activity className="h-4 w-4" /> Dobras Cutâneas (mm)
                       </h4>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Subescapular:</span> <b>{assessment.subscapular}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Tricipital:</span> <b>{assessment.triceps}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Bicipital:</span> <b>{assessment.biceps}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Axilar Média:</span> <b>{assessment.midAxillary}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Peitoral:</span> <b>{assessment.pectoral}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Supra-ilíaca:</span> <b>{assessment.suprailiac}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Abdominal:</span> <b>{assessment.abdominal}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Coxa:</span> <b>{assessment.thigh}</b></div>
-                        <div className="flex justify-between border-b border-dashed py-1"><span>Perna:</span> <b>{assessment.midLeg}</b></div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                        {[
+                          { l: "Subescapular", v: assessment.subscapular },
+                          { l: "Tricipital", v: assessment.triceps },
+                          { l: "Bicipital", v: assessment.biceps },
+                          { l: "Axilar Média", v: assessment.midAxillary },
+                          { l: "Peitoral", v: assessment.pectoral },
+                          { l: "Supra-ilíaca", v: assessment.suprailiac },
+                          { l: "Abdominal", v: assessment.abdominal },
+                          { l: "Coxa", v: assessment.thigh },
+                          { l: "Perna", v: assessment.midLeg }
+                        ].map((d, i) => (
+                          <div key={i} className="flex justify-between border-b py-1">
+                            <span>{d.l}:</span>
+                            <b className="text-primary">{d.v}</b>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="neuromotor" className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-500">
-                  <Card className="rounded-3xl p-6 border-primary/10 bg-primary/5">
-                    <h4 className="font-bold flex items-center gap-2 mb-4"><Dumbbell className="h-5 w-5 text-primary" /> Força Muscular</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center bg-background p-3 rounded-xl border">
+                  <Card className="rounded-3xl p-6 border-primary/20 bg-primary/5">
+                    <h4 className="font-black text-sm flex items-center gap-2 mb-4 uppercase text-primary"><Dumbbell className="h-5 w-5" /> Força</h4>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center bg-background p-4 rounded-2xl border">
                         <span className="text-xs font-bold uppercase">Teste 10 RM:</span>
-                        <span className="text-lg font-black text-primary">{assessment.tenRmTest} kg</span>
+                        <span className="text-xl font-black">{assessment.tenRmTest} kg</span>
                       </div>
-                      <div className="flex justify-between items-center bg-primary text-white p-3 rounded-xl">
+                      <div className="flex justify-between items-center bg-primary text-white p-4 rounded-2xl shadow-md">
                         <span className="text-xs font-black uppercase">1 RM Estimado:</span>
-                        <span className="text-xl font-black">{(Number(assessment.tenRmTest) * 1.33).toFixed(1)} kg</span>
+                        <span className="text-2xl font-black">{(Number(assessment.tenRmTest) * 1.33).toFixed(1)} kg</span>
                       </div>
                     </div>
                   </Card>
-                  <Card className="rounded-3xl p-6 border-accent/10 bg-accent/5">
-                    <h4 className="font-bold flex items-center gap-2 mb-4"><TrendingUp className="h-5 w-5 text-accent" /> Funcionalidade</h4>
+                  <Card className="rounded-3xl p-6 border-accent/20 bg-accent/5">
+                    <h4 className="font-black text-sm flex items-center gap-2 mb-4 uppercase text-accent"><TrendingUp className="h-5 w-5" /> Funcionalidade</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center bg-background p-3 rounded-xl border">
                         <span className="text-xs font-bold uppercase">Sentar e Levantar:</span>
@@ -254,11 +261,11 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 </TabsContent>
 
                 <TabsContent value="metabolic" className="space-y-6 animate-in fade-in duration-500">
-                  <Card className="rounded-[2rem] border-primary/20 bg-primary/5 p-6 md:p-10">
+                  <Card className="rounded-[2rem] border-primary/20 bg-primary/5 p-8">
                     <div className="text-center mb-8">
                       <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
-                      <h4 className="text-xl font-black uppercase tracking-tight">Prescrição Metabólica</h4>
-                      <p className="text-sm text-muted-foreground">O personal pode preencher estes dados para o aluno.</p>
+                      <h4 className="text-xl font-black uppercase">Prescrição Metabólica</h4>
+                      <p className="text-sm text-muted-foreground">Atualize os dados de VO2 e desempenho do aluno.</p>
                     </div>
 
                     <div className="grid gap-6">
@@ -269,26 +276,26 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                           step="0.1" 
                           value={metabolicVo2} 
                           onChange={(e) => setMetabolicVo2(e.target.value)} 
-                          className="h-16 text-3xl text-center font-black rounded-2xl bg-background"
-                          placeholder="Ex: 45.5"
+                          className="h-16 text-3xl text-center font-black rounded-2xl bg-background border-primary/40 focus:ring-primary"
+                          placeholder="00.0"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-bold text-primary">Observações do Teste Metabólico</Label>
+                        <Label className="font-bold text-primary">Observações Técnicas</Label>
                         <Textarea 
                           value={metabolicNotes} 
                           onChange={(e) => setMetabolicNotes(e.target.value)}
-                          placeholder="Descreva o protocolo utilizado e percepções..."
-                          className="min-h-[120px] rounded-2xl bg-background"
+                          placeholder="Descreva as percepções do teste e ajustes necessários..."
+                          className="min-h-[120px] rounded-2xl bg-background border-primary/20"
                         />
                       </div>
                       <Button 
                         onClick={handleSaveMetabolic} 
                         disabled={isSavingMetabolic} 
-                        className="w-full h-14 rounded-full text-lg font-black uppercase tracking-widest bg-primary shadow-lg shadow-primary/20"
+                        className="w-full h-16 rounded-full text-lg font-black uppercase tracking-widest bg-primary shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform"
                       >
-                        {isSavingMetabolic ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
-                        Salvar Dados Metabólicos
+                        {isSavingMetabolic ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-5 w-5" />}
+                        Sincronizar com Aluno
                       </Button>
                     </div>
                   </Card>
@@ -298,9 +305,9 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           </Card>
         ) : (
           <div className="h-[600px] flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-[3rem] opacity-30 bg-muted/20">
-            <ClipboardList className="h-24 w-24 mb-6" />
-            <h3 className="text-2xl font-black uppercase">Nenhuma avaliação selecionada</h3>
-            <p className="text-sm max-w-xs font-medium">Selecione uma data no histórico ao lado para analisar os dados do aluno.</p>
+            <ClipboardList className="h-20 w-20 mb-6 text-primary" />
+            <h3 className="text-2xl font-black uppercase">Aguardando Seleção</h3>
+            <p className="text-sm max-w-xs font-medium">Selecione uma data no histórico do aluno para gerenciar a avaliação.</p>
           </div>
         )}
       </div>
