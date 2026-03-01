@@ -9,74 +9,60 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs-rebuilt" // Custom fixed tabs
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser } from "@/firebase"
 import { doc, collection, serverTimestamp } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Zap, HelpCircle, Info, Calculator, PieChart as PieIcon, Ruler } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Loader2, Save, Activity, Zap, Ruler, Dumbbell, Beaker, ClipboardList } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as ChartTooltip } from 'recharts'
 
 const assessmentSchema = z.object({
-  weight: z.coerce.number().min(1, "Peso é obrigatório"),
-  height: z.coerce.number().min(1, "Estatura é obrigatória"),
-  // Circunferências Bilaterais
-  peitoral: z.coerce.number().default(0),
-  cintura: z.coerce.number().default(0),
-  abdomen: z.coerce.number().default(0),
-  quadril: z.coerce.number().default(0),
-  bracoD: z.coerce.number().default(0),
-  bracoE: z.coerce.number().default(0),
-  antebracoD: z.coerce.number().default(0),
-  antebracoE: z.coerce.number().default(0),
-  coxaD: z.coerce.number().default(0),
-  coxaE: z.coerce.number().default(0),
-  pernaD: z.coerce.number().default(0),
-  pernaE: z.coerce.number().default(0),
-  // Dobras Cutâneas (Composição Corporal)
-  subescapular: z.coerce.number().default(0),
-  tricipital: z.coerce.number().default(0),
-  bicipital: z.coerce.number().default(0),
-  axilarMedia: z.coerce.number().default(0),
-  peitoralDobra: z.coerce.number().default(0),
-  supraIliaca: z.coerce.number().default(0),
-  abdominalDobra: z.coerce.number().default(0),
-  coxaDobra: z.coerce.number().default(0),
-  pernaMedial: z.coerce.number().default(0),
-  // Bio/Desempenho
+  weight: z.coerce.number().min(1),
+  height: z.coerce.number().min(1),
+  // Antropometria - Circunferências
+  waist: z.coerce.number().default(0),
+  armR: z.coerce.number().default(0),
+  armL: z.coerce.number().default(0),
+  forearmR: z.coerce.number().default(0),
+  forearmL: z.coerce.number().default(0),
+  thighR: z.coerce.number().default(0),
+  thighL: z.coerce.number().default(0),
+  legR: z.coerce.number().default(0),
+  legL: z.coerce.number().default(0),
+  // Antropometria - 9 Dobras
+  subscapular: z.coerce.number().default(0),
+  triceps: z.coerce.number().default(0),
+  biceps: z.coerce.number().default(0),
+  midAxillary: z.coerce.number().default(0),
+  pectoral: z.coerce.number().default(0),
+  suprailiac: z.coerce.number().default(0),
+  abdominal: z.coerce.number().default(0),
+  thigh: z.coerce.number().default(0),
+  midLeg: z.coerce.number().default(0),
+  // Metabólico
+  vo2max: z.coerce.number().default(0),
+  // Neuromotor
+  tenRmTest: z.coerce.number().default(0),
+  sitToStand: z.coerce.number().default(0),
+  tug: z.coerce.number().default(0),
   fatPercentage: z.coerce.number().default(0),
-  vo2Max: z.coerce.number().default(0),
-  oneRmTest: z.coerce.number().default(0),
 })
-
-type AssessmentValues = z.infer<typeof assessmentSchema>
 
 export function AssessmentForm() {
   const { toast } = useToast()
   const { firestore } = useFirebase()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("antropometria")
 
-  const form = useForm<AssessmentValues>({
+  const form = useForm<z.infer<typeof assessmentSchema>>({
     resolver: zodResolver(assessmentSchema),
-    defaultValues: {
-      weight: 0,
-      height: 0,
-      fatPercentage: 0,
-      bracoD: 0, bracoE: 0, coxaD: 0, coxaE: 0,
-    },
+    defaultValues: { weight: 0, height: 0, fatPercentage: 0 }
   })
 
   const watchedWeight = form.watch("weight")
   const watchedFatPerc = form.watch("fatPercentage")
-  const watchedHeight = form.watch("height")
-
-  const imc = useMemo(() => {
-    if (!watchedWeight || !watchedHeight) return 0;
-    const h = watchedHeight / 100;
-    return (watchedWeight / (h * h)).toFixed(1);
-  }, [watchedWeight, watchedHeight]);
 
   const compositionData = useMemo(() => {
     if (!watchedWeight || !watchedFatPerc) return [{ name: 'Massa Magra', value: 100, color: '#8A05BE' }, { name: 'Gordura', value: 0, color: '#E2E2E2' }];
@@ -88,185 +74,155 @@ export function AssessmentForm() {
     ];
   }, [watchedWeight, watchedFatPerc]);
 
-  const onSubmit = async (values: AssessmentValues) => {
+  const onSubmit = async (values: any) => {
     if (!user || !firestore) return
     setLoading(true)
-    try {
-      const assessmentRef = doc(collection(firestore, "users", user.uid, "physicalAssessments"))
-      setDocumentNonBlocking(assessmentRef, {
-        ...values,
-        id: assessmentRef.id,
-        userId: user.uid,
-        date: new Date().toISOString(),
-        createdAt: serverTimestamp(),
-      }, { merge: true })
-
-      toast({ title: "Avaliação salva!", description: "Dados registrados com sucesso." })
-      form.reset()
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao salvar." })
-    } finally {
-      setLoading(false)
-    }
+    const assessmentRef = doc(collection(firestore, "users", user.uid, "physicalAssessments"))
+    setDocumentNonBlocking(assessmentRef, {
+      ...values,
+      id: assessmentRef.id,
+      userId: user.uid,
+      date: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    }, { merge: true })
+    toast({ title: "Avaliação salva!" })
+    setLoading(false)
   }
 
-  const LabelWithInfo = ({ label, info, id }: { label: string; info: string; id: string }) => (
-    <div className="flex items-center gap-1 mb-1">
-      <Label htmlFor={id} className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <HelpCircle className="h-3 w-3 text-primary cursor-help" />
-          </TooltipTrigger>
-          <TooltipContent className="max-w-[200px] bg-primary text-white p-3 rounded-xl shadow-xl"><p className="text-xs">{info}</p></TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
-  )
-
   return (
-    <Card className="w-full max-w-5xl mx-auto border-primary/20 shadow-2xl rounded-[2rem] overflow-hidden">
+    <Card className="border-primary/20 shadow-xl rounded-[2rem] overflow-hidden">
       <CardHeader className="bg-primary/5 p-8 border-b border-primary/10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-3xl font-black text-primary flex items-center gap-3">
-              <Activity className="h-8 w-8" /> Avaliação Física Profissional
-            </CardTitle>
-            <CardDescription className="text-sm font-medium">Protocolos avançados e controle de composição corporal.</CardDescription>
-          </div>
-          <div className="flex items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border">
-            <Calculator className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground">IMC Estimado</p>
-              <p className="text-xl font-black text-primary">{imc}</p>
-            </div>
-          </div>
-        </div>
+        <CardTitle className="text-2xl font-black text-primary flex items-center gap-3">
+          <Activity className="h-7 w-7" /> Avaliação da Aptidão Física
+        </CardTitle>
+        <CardDescription>Antropometria, Metabólico e Neuromotor</CardDescription>
       </CardHeader>
       <CardContent className="p-8">
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
-          <Tabs defaultValue="composition" className="w-full">
-            <TabsList className="flex flex-wrap h-auto p-1.5 bg-muted rounded-2xl mb-10 gap-1">
-              <TabsTrigger value="basic" className="rounded-xl py-3 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Básicos</TabsTrigger>
-              <TabsTrigger value="composition" className="rounded-xl py-3 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Composição Corporal</TabsTrigger>
-              <TabsTrigger value="circumference" className="rounded-xl py-3 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Circunferências</TabsTrigger>
-              <TabsTrigger value="performance" className="rounded-xl py-3 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Performance</TabsTrigger>
-            </TabsList>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <div className="flex flex-wrap gap-2 mb-6">
+            {["antropometria", "metabolico", "neuromotor", "composicao"].map((tab) => (
+              <Button
+                key={tab}
+                type="button"
+                variant={activeTab === tab ? "default" : "outline"}
+                onClick={() => setActiveTab(tab)}
+                className="rounded-full capitalize font-bold"
+              >
+                {tab}
+              </Button>
+            ))}
+          </div>
 
-            <TabsContent value="basic" className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div className="space-y-6">
+          {activeTab === "antropometria" && (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <LabelWithInfo id="weight" label="Peso Total (kg)" info="Massa corporal total medida na balança." />
-                  <Input id="weight" type="number" step="0.1" {...form.register("weight")} className="h-14 text-lg font-bold rounded-2xl" />
+                  <Label>Massa Corporal (kg)</Label>
+                  <Input type="number" step="0.1" {...form.register("weight")} className="rounded-xl h-12" />
                 </div>
                 <div className="space-y-2">
-                  <LabelWithInfo id="height" label="Estatura (cm)" info="Sua altura total em centímetros." />
-                  <Input id="height" type="number" {...form.register("height")} className="h-14 text-lg font-bold rounded-2xl" />
-                </div>
-                <div className="p-6 bg-primary/5 rounded-3xl border border-primary/20">
-                   <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-4">Dica de Medição</h4>
-                   <p className="text-sm italic">"Para melhores resultados, realize a pesagem em jejum, preferencialmente no mesmo horário."</p>
+                  <Label>Estatura (cm)</Label>
+                  <Input type="number" {...form.register("height")} className="rounded-xl h-12" />
                 </div>
               </div>
-              <div className="bg-secondary/30 rounded-[2.5rem] p-10 flex flex-col items-center justify-center shadow-inner">
-                 <p className="text-sm font-black text-primary uppercase tracking-widest mb-6">Divisão de Massa Corporal</p>
-                 <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie data={compositionData} innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value">
-                        {compositionData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />)}
-                      </Pie>
-                      <ChartTooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                      <Legend verticalAlign="bottom" height={36}/>
-                    </PieChart>
-                 </ResponsiveContainer>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="composition" className="space-y-10">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                {[
-                  { id: "tricipital", label: "Tricipital" },
-                  { id: "bicipital", label: "Bicipital" },
-                  { id: "subescapular", label: "Subescapular" },
-                  { id: "axilarMedia", label: "Axilar Média" },
-                  { id: "peitoralDobra", label: "Peitoral" },
-                  { id: "supraIliaca", label: "Supra-ilíaca" },
-                  { id: "abdominalDobra", label: "Abdominal" },
-                  { id: "coxaDobra", label: "Coxa" },
-                  { id: "pernaMedial", label: "Perna Medial" }
-                ].map(dobra => (
-                  <div key={dobra.id} className="space-y-2 group">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground group-focus-within:text-primary transition-colors">{dobra.label} (mm)</Label>
-                    <Input type="number" step="0.1" {...form.register(dobra.id as any)} className="h-12 rounded-xl border-primary/10 focus:border-primary/50" />
-                  </div>
-                ))}
-              </div>
-              <div className="p-8 bg-primary text-white rounded-[2rem] shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                  <h4 className="text-lg font-black uppercase tracking-tight">Cálculo de Composição</h4>
-                  <p className="text-xs opacity-80 font-medium">Informe o percentual final para gerar o gráfico de KG.</p>
-                </div>
-                <div className="w-full md:w-48 space-y-2">
-                  <Label className="text-xs font-black uppercase text-white/70">Gordura Corporal (%)</Label>
-                  <Input type="number" step="0.1" {...form.register("fatPercentage")} className="h-14 bg-white/20 border-none text-white text-2xl font-black rounded-2xl placeholder:text-white/40" />
+              <div className="space-y-4">
+                <h4 className="text-sm font-black uppercase text-primary border-b pb-1">Circunferências (cm)</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="space-y-1"><Label className="text-[10px]">Abdominal</Label><Input {...form.register("waist")} /></div>
+                  <div className="space-y-1"><Label className="text-[10px]">Braço Dir.</Label><Input {...form.register("armR")} /></div>
+                  <div className="space-y-1"><Label className="text-[10px]">Braço Esq.</Label><Input {...form.register("armL")} /></div>
+                  <div className="space-y-1"><Label className="text-[10px]">Coxa Dir.</Label><Input {...form.register("thighR")} /></div>
+                  <div className="space-y-1"><Label className="text-[10px]">Coxa Esq.</Label><Input {...form.register("thighL")} /></div>
+                  <div className="space-y-1"><Label className="text-[10px]">Perna Dir.</Label><Input {...form.register("legR")} /></div>
                 </div>
               </div>
-            </TabsContent>
 
-            <TabsContent value="circumference" className="grid grid-cols-1 md:grid-cols-2 gap-10">
-               <div className="space-y-6">
-                  <h4 className="text-sm font-black uppercase text-primary border-b-2 border-primary/10 pb-2">Membros Superiores (cm)</h4>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Braço Dir.</Label><Input {...form.register("bracoD")} className="rounded-xl" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Braço Esq.</Label><Input {...form.register("bracoE")} className="rounded-xl" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Antebr. Dir.</Label><Input {...form.register("antebracoD")} className="rounded-xl" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Antebr. Esq.</Label><Input {...form.register("antebracoE")} className="rounded-xl" /></div>
-                  </div>
-               </div>
-               <div className="space-y-6">
-                  <h4 className="text-sm font-black uppercase text-primary border-b-2 border-primary/10 pb-2">Tronco e Inferiores (cm)</h4>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Peitoral</Label><Input {...form.register("peitoral")} className="rounded-xl" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Quadril</Label><Input {...form.register("quadril")} className="rounded-xl" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Coxa Dir.</Label><Input {...form.register("coxaD")} className="rounded-xl" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-bold">Coxa Esq.</Label><Input {...form.register("coxaE")} className="rounded-xl" /></div>
-                  </div>
-               </div>
-            </TabsContent>
+              <div className="space-y-4">
+                <h4 className="text-sm font-black uppercase text-primary border-b pb-1">Dobras Cutâneas (mm) - As 9 Dobras</h4>
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                  {[
+                    { id: "triceps", label: "Tric" },
+                    { id: "subscapular", label: "Sub" },
+                    { id: "biceps", label: "Bic" },
+                    { id: "midAxillary", label: "AxM" },
+                    { id: "pectoral", label: "Peit" },
+                    { id: "suprailiac", label: "SI" },
+                    { id: "abdominal", label: "Abd" },
+                    { id: "thigh", label: "Cox" },
+                    { id: "midLeg", label: "Per" }
+                  ].map(d => (
+                    <div key={d.id} className="space-y-1">
+                      <Label className="text-[10px] font-bold">{d.label}</Label>
+                      <Input type="number" step="0.1" {...form.register(d.id as any)} className="h-10" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-            <TabsContent value="performance" className="space-y-8">
-               <div className="p-8 bg-accent/5 rounded-[2.5rem] border-2 border-dashed border-accent/20">
-                  <h4 className="text-xl font-black text-accent flex items-center gap-3 mb-6">
-                     <Zap className="h-6 w-6" /> Performance e VO2 Max
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                     <div className="space-y-6">
-                        <LabelWithInfo id="vo2" label="VO2 Máximo (ml/kg/min)" info="Capacidade aeróbica máxima." />
-                        <Input id="vo2" type="number" step="0.1" {...form.register("vo2Max")} placeholder="Ex: 45.5" className="h-14 rounded-2xl text-lg font-bold" />
-                        <div className="text-sm bg-white p-6 rounded-3xl border shadow-sm">
-                           <p className="font-black text-primary uppercase text-xs mb-2">Instruções do Teste</p>
-                           <ul className="space-y-2 text-xs text-muted-foreground list-disc pl-4">
-                              <li>Realize o teste de Cooper (corrida de 12 min) para estimar este valor.</li>
-                              <li>Mantenha um ritmo constante para maior precisão.</li>
-                              <li>Utilize a fórmula: VO2 = (Distância em metros - 504.9) / 44.73</li>
-                           </ul>
-                        </div>
-                     </div>
-                     <div className="space-y-6">
-                        <LabelWithInfo id="onerm" label="Força Máxima (1RM kg)" info="Carga máxima para uma repetição completa." />
-                        <Input id="onerm" type="number" {...form.register("oneRmTest")} placeholder="Ex: 120" className="h-14 rounded-2xl text-lg font-bold" />
-                        <div className="p-6 bg-accent/10 rounded-3xl">
-                           <p className="text-xs font-bold text-accent italic">"O teste de 1RM é fundamental para prescrever as zonas de intensidade de treinamento corretas."</p>
-                        </div>
-                     </div>
+          {activeTab === "metabolico" && (
+            <div className="space-y-6">
+              <div className="p-6 bg-primary/5 rounded-3xl border border-primary/20">
+                <h4 className="text-lg font-bold flex items-center gap-2 mb-4"><Zap className="h-5 w-5" /> Capacidade Aeróbica</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>VO2 Máximo Estimado (ml/kg/min)</Label>
+                    <Input type="number" step="0.1" {...form.register("vo2max")} className="h-14 text-xl font-black" />
                   </div>
-               </div>
-            </TabsContent>
-          </Tabs>
+                  <p className="text-xs text-muted-foreground italic">"Utilize o Teste de Cooper (12 min) ou Rockport (1 milha) para preencher este dado."</p>
+                </div>
+              </div>
+            </div>
+          )}
 
-          <Button type="submit" className="w-full h-20 text-xl rounded-full font-black shadow-2xl bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]" disabled={loading}>
-            {loading ? <Loader2 className="h-8 w-8 animate-spin mr-3" /> : <Save className="h-8 w-8 mr-3" />}
-            FINALIZAR E SALVAR AVALIAÇÃO
+          {activeTab === "neuromotor" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 border rounded-3xl space-y-4">
+                <h4 className="font-bold flex items-center gap-2"><Dumbbell className="h-5 w-5" /> Força Muscular</h4>
+                <div className="space-y-2">
+                  <Label>Teste 10 RM (Peso em kg)</Label>
+                  <Input type="number" {...form.register("tenRmTest")} placeholder="Carga para 10 repetições" />
+                </div>
+              </div>
+              <div className="p-6 border rounded-3xl space-y-4">
+                <h4 className="font-bold flex items-center gap-2"><Activity className="h-5 w-5" /> Funcionalidade</h4>
+                <div className="space-y-2">
+                  <Label>Sentar e Levantar (Reps/30s)</Label>
+                  <Input type="number" {...form.register("sitToStand")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>TUG - Time Up and Go (Segundos)</Label>
+                  <Input type="number" step="0.1" {...form.register("tug")} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "composicao" && (
+            <div className="flex flex-col items-center gap-8 py-8">
+              <div className="w-full max-w-sm space-y-4">
+                <Label className="text-center block font-black uppercase tracking-widest text-primary">% de Gordura Estimado</Label>
+                <Input type="number" step="0.1" {...form.register("fatPercentage")} className="h-20 text-4xl text-center font-black rounded-3xl border-primary" />
+              </div>
+              <div className="h-[300px] w-full max-w-md bg-secondary/20 rounded-[3rem] p-8 shadow-inner">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={compositionData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                      {compositionData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                    </Pie>
+                    <ChartTooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full h-16 rounded-full text-xl font-black bg-primary" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-6 w-6" />}
+            SALVAR AVALIAÇÃO COMPLETA
           </Button>
         </form>
       </CardContent>

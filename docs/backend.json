@@ -4,7 +4,7 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Perfil do usuário (Aluno ou Professor).",
+      "description": "Perfil do usuário incluindo gênero para identificação visual.",
       "properties": {
         "id": { "type": "string" },
         "userType": { "type": "string", "enum": ["student", "professor"] },
@@ -12,70 +12,95 @@
         "email": { "type": "string", "format": "email" },
         "photoUrl": { "type": "string" },
         "age": { "type": "number" },
-        "gender": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
         "whatsapp": { "type": "string" },
-        "restrictions": { "type": "string", "description": "Restrições médicas ou físicas preenchidas pelo aluno." },
-        "anamnesis": { "type": "string", "description": "Histórico de saúde." },
-        "goals": { "type": "string", "description": "Objetivos do aluno." }
-      }
-    },
-    "AuthCode": {
-      "title": "AuthCode",
-      "type": "object",
-      "description": "Tokens temporários para login via e-mail.",
-      "properties": {
-        "email": { "type": "string" },
-        "code": { "type": "string" },
-        "expiresAt": { "type": "string", "format": "date-time" }
+        "restrictions": { "type": "string" },
+        "anamnesis": { "type": "string" },
+        "goals": { "type": "string" }
       }
     },
     "PhysicalAssessment": {
       "title": "PhysicalAssessment",
       "type": "object",
-      "description": "Avaliação física completa incluindo composição corporal e medidas bilaterais.",
+      "description": "Avaliação completa: Antropometria, Metabólico e Neuromotor.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "weight": { "type": "number" },
         "height": { "type": "number" },
-        "subescapular": { "type": "number" },
-        "tricipital": { "type": "number" },
-        "bicipital": { "type": "number" },
-        "axilarMedia": { "type": "number" },
-        "peitoral": { "type": "number" },
-        "supraIliaca": { "type": "number" },
-        "abdominal": { "type": "number" },
-        "coxa": { "type": "number" },
-        "pernaMedial": { "type": "number" },
-        "bracoD": { "type": "number" },
-        "bracoE": { "type": "number" },
-        "antebracoD": { "type": "number" },
-        "antebracoE": { "type": "number" },
-        "coxaD": { "type": "number" },
-        "coxaE": { "type": "number" },
-        "pernaD": { "type": "number" },
-        "pernaE": { "type": "number" },
-        "cintura": { "type": "number" },
-        "abdomen": { "type": "number" },
-        "quadril": { "type": "number" },
-        "vo2Max": { "type": "number" },
-        "fatPercentage": { "type": "number" }
+        "circumferences": {
+          "type": "object",
+          "properties": {
+            "waist": { "type": "number" },
+            "armR": { "type": "number" },
+            "armL": { "type": "number" },
+            "forearmR": { "type": "number" },
+            "forearmL": { "type": "number" },
+            "thighR": { "type": "number" },
+            "thighL": { "type": "number" },
+            "legR": { "type": "number" },
+            "legL": { "type": "number" }
+          }
+        },
+        "skinfolds": {
+          "type": "object",
+          "properties": {
+            "subscapular": { "type": "number" },
+            "triceps": { "type": "number" },
+            "biceps": { "type": "number" },
+            "midAxillary": { "type": "number" },
+            "pectoral": { "type": "number" },
+            "suprailiac": { "type": "number" },
+            "abdominal": { "type": "number" },
+            "thigh": { "type": "number" },
+            "midLeg": { "type": "number" }
+          }
+        },
+        "metabolic": {
+          "type": "object",
+          "properties": {
+            "vo2max": { "type": "number" },
+            "testNotes": { "type": "string" }
+          }
+        },
+        "neuromotor": {
+          "type": "object",
+          "properties": {
+            "tenRmTest": { "type": "number" },
+            "oneRmEstimated": { "type": "number" },
+            "sitToStand": { "type": "number" },
+            "tug": { "type": "number" }
+          }
+        }
       }
     },
-    "WorkoutSession": {
-      "title": "WorkoutSession",
+    "HealthData": {
+      "title": "HealthData",
       "type": "object",
-      "description": "Registro de uma sessão de treino com escalas de percepção.",
+      "description": "Questionários e Exames de Sangue.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "recoveryScale": { "type": "number", "description": "Escala Subjetiva de Recuperação (ESR) 1-10" },
-        "pleasureScale": { "type": "number", "description": "Feeling Scale -5 a +5" },
-        "pseSession": { "type": "number", "description": "Percepção Subjetiva de Esforço 1-10" },
-        "duration": { "type": "number", "description": "Duração em minutos" },
-        "internalLoad": { "type": "number", "description": "Carga Interna (PSE x Duração)" }
+        "questionnaires": {
+          "type": "object",
+          "properties": {
+            "healthPerception": { "type": "number" },
+            "qualityOfLife": { "type": "number" },
+            "sleep": { "type": "number" },
+            "alcohol": { "type": "string" },
+            "tobacco": { "type": "string" }
+          }
+        },
+        "bloodWork": {
+          "type": "object",
+          "properties": {
+            "redSeries": { "type": "string" },
+            "hormones": { "type": "string" },
+            "liverIndicators": { "type": "string" }
+          }
+        }
       }
     }
   },
@@ -83,23 +108,8 @@
     "providers": ["password", "google.com"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": { "entityName": "User", "description": "Perfil do usuário." }
-      },
-      {
-        "path": "/auth_codes/{email}",
-        "definition": { "entityName": "AuthCode", "description": "Tokens de segurança." }
-      },
-      {
-        "path": "/users/{userId}/physicalAssessments/{assessmentId}",
-        "definition": { "entityName": "PhysicalAssessment", "description": "Histórico de avaliações." }
-      },
-      {
-        "path": "/users/{userId}/workoutHistory_flat/{sessionId}",
-        "definition": { "entityName": "WorkoutSession", "description": "Sessões de treino para dashboards." }
-      }
-    ]
+    "/users/{userId}": { "schema": "User", "description": "Perfil" },
+    "/users/{userId}/physicalAssessments/{id}": { "schema": "PhysicalAssessment", "description": "Avaliações" },
+    "/users/{userId}/healthData/{id}": { "schema": "HealthData", "description": "Exames e Saúde" }
   }
 }
