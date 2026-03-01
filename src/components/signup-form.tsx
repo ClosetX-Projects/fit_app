@@ -18,7 +18,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from './icons';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Loader2, ShieldCheck, ArrowLeft, Info, UserRound, GraduationCap } from 'lucide-react';
+import { Loader2, ShieldCheck, ArrowLeft, Info, UserRound, GraduationCap, Lock } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 
@@ -47,10 +47,16 @@ function SignUpFormContent() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const roleParam = searchParams.get('role');
-  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
   
+  const roleParam = searchParams.get('role');
+  const invitedBy = searchParams.get('invitedBy');
+  
+  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
   const otpInputId = useId();
+
+  const isStudentInvite = roleParam === 'student' && invitedBy;
+  const isDirectProfessor = roleParam === 'professor';
+  const isBlocked = roleParam === 'student' && !invitedBy;
 
   const signupForm = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
@@ -67,11 +73,24 @@ function SignUpFormContent() {
 
   useEffect(() => {
     if (roleParam === 'professor' || roleParam === 'student') {
-      signupForm.setValue('userType', roleParam);
+      signupForm.setValue('userType', roleParam as any);
     }
   }, [roleParam, signupForm]);
 
+  const linkProfessor = async (studentId: string, studentName: string, studentEmail: string) => {
+    if (invitedBy && firestore) {
+      const professorStudentRef = doc(firestore, 'professors', invitedBy, 'students', studentId);
+      await setDoc(professorStudentRef, {
+        id: studentId,
+        name: studentName,
+        email: studentEmail,
+        linkedAt: new Date().toISOString()
+      }, { merge: true });
+    }
+  };
+
   const handleGoogleSignup = async () => {
+    if (isBlocked) return;
     setLoading(true);
     const provider = new GoogleAuthProvider();
     const finalRole = roleParam === 'professor' ? 'professor' : 'student';
@@ -90,26 +109,26 @@ function SignUpFormContent() {
           photoUrl: user.photoURL,
           createdAt: new Date().toISOString(),
         });
+
+        if (finalRole === 'student' && invitedBy) {
+          await linkProfessor(user.uid, user.displayName || '', user.email || '');
+        }
       }
 
       toast({ 
         title: 'Bem-vindo!', 
-        description: `Cadastro como ${finalRole === 'professor' ? 'Professor' : 'Aluno'} realizado via Google.` 
+        description: `Cadastro como ${finalRole === 'professor' ? 'Professor' : 'Aluno'} realizado.` 
       });
       router.push('/');
     } catch (error: any) {
-      console.error("Erro Google SignUp:", error.code, error.message);
-      let errorMsg = "Falha no cadastro com Google.";
-      if (error.code === 'auth/unauthorized-domain') {
-        errorMsg = "Este domínio não está autorizado no Console do Firebase (Auth > Settings > Authorized Domains).";
-      }
-      toast({ variant: 'destructive', title: 'Erro', description: errorMsg });
+      toast({ variant: 'destructive', title: 'Erro', description: "Falha no cadastro com Google." });
     } finally {
       setLoading(false);
     }
   };
 
   async function onSignupSubmit(values: SignupFormValues) {
+    if (isBlocked) return;
     setLoading(true);
     const normalizedEmail = values.email.toLowerCase().trim();
     try {
@@ -119,7 +138,7 @@ function SignUpFormContent() {
         setTempData({ ...values, email: normalizedEmail });
         setStep('otp');
         otpForm.reset();
-        toast({ title: 'Código de Validação!', description: `Código: ${res.code}`, duration: 15000 });
+        toast({ title: 'Código Enviado!', description: `Código: ${res.code}`, duration: 15000 });
       }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao gerar código.' });
@@ -146,6 +165,7 @@ function SignUpFormContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, tempData.password);
       const user = userCredential.user;
       await updateProfile(user, { displayName: tempData.name, photoURL: defaultAvatar });
+      
       await setDoc(doc(firestore, 'users', user.uid), {
         id: user.uid,
         name: tempData.name,
@@ -157,14 +177,45 @@ function SignUpFormContent() {
         whatsapp: tempData.whatsapp || null,
         createdAt: new Date().toISOString(),
       });
+
+      if (tempData.userType === 'student' && invitedBy) {
+        await linkProfessor(user.uid, tempData.name, normalizedEmail);
+      }
+
       await deleteDoc(doc(firestore, 'auth_codes', normalizedEmail));
-      toast({ title: 'Bem-vindo ao FitAssist!', description: `Cadastro de ${tempData.userType === 'professor' ? 'Professor' : 'Aluno'} validado.` });
+      toast({ title: 'Bem-vindo!', description: `Cadastro validado.` });
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Falha', description: error.message });
     } finally {
       setLoading(false);
     }
+  }
+
+  if (isBlocked) {
+    return (
+      <div className="w-full max-w-md">
+        <Card className="border-destructive/20 shadow-2xl text-center">
+          <CardHeader className="items-center">
+            <div className="bg-destructive/10 p-4 rounded-full mb-4">
+              <Lock className="h-10 w-10 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl font-black text-destructive">Convite Necessário</CardTitle>
+            <CardDescription>
+              Para garantir o acompanhamento profissional, o cadastro de alunos é feito exclusivamente através de um link enviado pelo seu Personal Trainer.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Solicite o link de convite ao seu professor para vincular sua conta automaticamente.
+            </p>
+            <Button asChild variant="outline" className="w-full rounded-full">
+              <Link href="/">Voltar para Início</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -177,7 +228,7 @@ function SignUpFormContent() {
             </div>
             <CardTitle className="text-2xl font-black text-primary">Validar Cadastro</CardTitle>
             <CardDescription>
-              Enviamos um código para o e-mail: <br />
+              Enviamos um código para: <br />
               <span className="font-bold text-foreground">{tempData?.email}</span>
             </CardDescription>
           </CardHeader>
@@ -193,13 +244,9 @@ function SignUpFormContent() {
                       <FormControl>
                         <Input 
                           id={otpInputId}
-                          name="security-code"
                           placeholder="000000" 
                           className="text-center text-3xl tracking-[0.4em] font-black h-16 bg-muted/30 border-primary/20" 
                           maxLength={6}
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
                           {...field} 
                         />
                       </FormControl>
@@ -207,23 +254,10 @@ function SignUpFormContent() {
                     </FormItem>
                   )}
                 />
-                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3 items-start">
-                  <div className="bg-primary/10 p-1.5 rounded-full shrink-0 mt-0.5">
-                     <Info className="h-4 w-4 text-primary" />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    Ambiente de Teste: O código está no aviso (Toast) no topo.
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
-                    {loading && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
-                    Confirmar Cadastro
-                  </Button>
-                  <Button variant="ghost" className="w-full" onClick={() => setStep('signup')} disabled={loading}>
-                     <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
-                  </Button>
-                </div>
+                <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
+                  {loading && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
+                  Confirmar Cadastro
+                </Button>
               </form>
             </Form>
           </CardContent>
@@ -233,10 +267,10 @@ function SignUpFormContent() {
           <CardHeader className="items-center text-center">
             <Logo className="mb-6 scale-125" />
             <CardTitle className="text-3xl font-black text-primary">
-              {roleParam === 'professor' ? 'Cadastro Personal' : 'Criar Conta'}
+              {isStudentInvite ? 'Finalizar Cadastro' : 'Novo Personal'}
             </CardTitle>
             <CardDescription>
-              {roleParam === 'professor' ? 'Acesse ferramentas exclusivas de prescrição' : 'Sua jornada fitness começa agora'}
+              {isStudentInvite ? 'Vincule-se agora ao seu professor' : 'Crie sua conta profissional'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -246,14 +280,12 @@ function SignUpFormContent() {
               onClick={handleGoogleSignup}
               disabled={loading}
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                <svg className="h-5 w-5" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-              )}
+              <svg className="h-5 w-5" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
               Cadastrar com Google
             </Button>
 
@@ -272,7 +304,7 @@ function SignUpFormContent() {
                     <FormItem>
                       <FormLabel>Nome Completo</FormLabel>
                       <FormControl>
-                        <Input placeholder="Seu nome" autoComplete="name" className="h-11 rounded-xl" {...field} />
+                        <Input placeholder="Seu nome" className="h-11 rounded-xl" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -286,7 +318,7 @@ function SignUpFormContent() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="seu@email.com" autoComplete="email" className="h-11 rounded-xl" {...field} />
+                          <Input placeholder="seu@email.com" className="h-11 rounded-xl" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -299,7 +331,7 @@ function SignUpFormContent() {
                       <FormItem>
                         <FormLabel>Senha</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="Mín. 6 chars" autoComplete="new-password" className="h-11 rounded-xl" {...field} />
+                          <Input type="password" placeholder="Mín. 6 chars" className="h-11 rounded-xl" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -307,28 +339,6 @@ function SignUpFormContent() {
                   />
                 </div>
                 
-                <FormField
-                  control={signupForm.control}
-                  name="userType"
-                  render={({ field }) => (
-                    <FormItem className={roleParam ? "hidden" : "block"}>
-                      <FormLabel>Eu sou</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-11 rounded-xl">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="student">Aluno</SelectItem>
-                          <SelectItem value="professor">Professor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-3">
                   <div className="bg-primary/10 p-2 rounded-full">
                     {signupForm.watch('userType') === 'professor' ? (
@@ -338,21 +348,18 @@ function SignUpFormContent() {
                     )}
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider">Perfil Selecionado</p>
-                    <p className="text-sm font-black text-primary">
-                      {signupForm.watch('userType') === 'professor' ? 'Personal Trainer' : 'Aluno / Atleta'}
+                    <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider">Papel</p>
+                    <p className="text-sm font-black text-primary uppercase">
+                      {signupForm.watch('userType') === 'professor' ? 'Personal Trainer' : 'Aluno'}
                     </p>
                   </div>
                 </div>
 
                 <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Continuar com E-mail'}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : 'Finalizar Cadastro'}
                 </Button>
               </form>
             </Form>
-            <p className="text-center text-sm text-muted-foreground">
-              Já tem uma conta? <Link href="/login" className="text-primary font-bold hover:underline">Entrar</Link>
-            </p>
           </CardContent>
         </Card>
       )}

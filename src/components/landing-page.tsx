@@ -1,9 +1,10 @@
+
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
 import Image from 'next/image';
-import { UserRound, GraduationCap, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, CheckCircle2, Lock } from 'lucide-react';
 
 export function LandingPage() {
   return (
@@ -15,7 +16,7 @@ export function LandingPage() {
             <Link href="/login">Entrar</Link>
           </Button>
           <Button asChild className="rounded-full bg-primary text-white">
-            <Link href="/signup">Começar Agora</Link>
+            <Link href="/signup?role=professor">Sou Personal</Link>
           </Button>
         </div>
       </header>
@@ -31,24 +32,26 @@ export function LandingPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
           <div className="relative z-10 flex h-full flex-col items-center justify-center text-center px-4">
-            <h1 className="text-5xl font-black md:text-7xl tracking-tighter text-foreground drop-shadow-sm">
+            <h1 className="text-5xl font-black md:text-7xl tracking-tighter text-foreground">
               Evolua com <span className="text-primary">Inteligência</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg md:text-xl text-muted-foreground font-medium">
-              A plataforma definitiva para personal trainers e alunos que buscam resultados reais baseados em dados e IA.
+              A plataforma definitiva para personal trainers e seus alunos.
             </p>
             
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
-              <Button asChild size="lg" className="h-16 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20">
-                <Link href="/signup?role=student" className="flex items-center justify-center gap-3">
-                  <UserRound className="h-6 w-6" /> Sou Aluno
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="h-16 rounded-2xl text-lg font-bold border-2 border-primary text-primary hover:bg-primary/5">
+            <div className="mt-12 flex flex-col items-center gap-6 w-full max-w-md">
+              <Button asChild size="lg" className="w-full h-16 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20">
                 <Link href="/signup?role=professor" className="flex items-center justify-center gap-3">
                   <GraduationCap className="h-6 w-6" /> Sou Personal Trainer
                 </Link>
               </Button>
+              
+              <div className="flex items-center gap-3 text-muted-foreground bg-muted/50 px-6 py-4 rounded-2xl border border-dashed border-primary/20">
+                <Lock className="h-5 w-5 shrink-0" />
+                <p className="text-xs text-left">
+                  <strong>Área do Aluno:</strong> O cadastro de alunos é feito exclusivamente por meio de convite enviado pelo seu Personal Trainer.
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -56,9 +59,9 @@ export function LandingPage() {
         <section className="py-24 px-4 bg-muted/30">
           <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
             {[
-              { title: "Treino Inteligente", desc: "IA que analisa seu PSE e sugere ajustes para evitar o platô." },
-              { title: "Interface Moderna", desc: "Design limpo e intuitivo em tons de roxo para otimizar sua experiência." },
-              { title: "Controle Total", desc: "Acompanhamento detalhado de 9 dobras cutâneas e circunferências bilaterais." }
+              { title: "Gestão de Alunos", desc: "Vincule seus alunos automaticamente via links de convite exclusivos." },
+              { title: "Interface Moderna", desc: "Design focado em produtividade e clareza técnica para prescrição." },
+              { title: "Acompanhamento Real", desc: "Monitore 9 dobras cutâneas e circunferências bilaterais em tempo real." }
             ].map((feature, i) => (
               <div key={i} className="flex flex-col items-center text-center space-y-4">
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
