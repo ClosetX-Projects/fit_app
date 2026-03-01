@@ -15,12 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, 
   Calendar, 
-  Activity, 
   Dumbbell, 
-  Zap, 
   ChevronRight, 
   ClipboardList, 
-  Ruler, 
   Save,
   TrendingUp,
   History,
@@ -72,10 +69,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Estados locais para edição completa inicializados corretamente
   const [formData, setFormData] = useState<any>(INITIAL_FORM_DATA);
 
-  // Buscar lista de avaliações do aluno em tempo real
   const assessmentsRef = useMemoFirebase(() => 
     query(
       collection(firestore, 'users', studentId, 'physicalAssessments'),
@@ -85,7 +80,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   const { data: assessments, isLoading: isLoadingList } = useCollection(assessmentsRef);
 
-  // Buscar detalhes da avaliação selecionada
   const selectedAssessmentRef = useMemoFirebase(() => 
     selectedAssessmentId ? doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId) : null
   , [firestore, studentId, selectedAssessmentId]);
@@ -127,13 +121,13 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     }
   }, [assessment]);
 
-  const notifyStudent = (title: string, message: string) => {
+  const notifyStudent = (title: string, message: string, type: 'health-questionnaire' | 'assessment-result') => {
     if (!firestore || !studentId) return;
     const notificationRef = collection(firestore, 'users', studentId, 'notifications');
     addDocumentNonBlocking(notificationRef, {
       title,
       message,
-      type: 'assessment',
+      type,
       read: false,
       createdAt: new Date().toISOString()
     });
@@ -141,12 +135,13 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   const handleSendQuestionnaire = () => {
     notifyStudent(
-      "Novo Questionário de Saúde",
-      "Seu professor enviou um novo questionário de saúde para você responder."
+      "Responder Questionário de Saúde",
+      "Seu professor enviou um novo questionário para você. Clique aqui para responder.",
+      "health-questionnaire"
     );
     toast({
-      title: "Notificação Enviada!",
-      description: "O aluno recebeu um alerta para responder os questionários.",
+      title: "Questionário Enviado!",
+      description: "O aluno foi notificado e redirecionado para a aba Saúde.",
     });
   };
 
@@ -161,7 +156,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         height: 0,
         fatPercentage: 0,
         createdAt: serverTimestamp(),
-        calculatedResults: { imc: "0.0", fatKg: "0.0", leanKg: "0.0", leanPerc: "100" }
       };
       
       const docRef = await addDoc(colRef, newAssessment);
@@ -169,14 +163,10 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       
       toast({
         title: "Nova Ficha Aberta",
-        description: "Você já pode preencher todos os campos da avaliação.",
+        description: "Você já pode preencher todos os campos.",
       });
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao criar",
-        description: "Não foi possível abrir uma nova avaliação.",
-      });
+      toast({ variant: "destructive", title: "Erro ao criar" });
     } finally {
       setIsCreating(false);
     }
@@ -188,7 +178,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
     const assessmentRef = doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId);
     
-    // Cálculos Básicos
     const w = Number(formData.weight) || 0;
     const h = Number(formData.height) || 0;
     const f = Number(formData.fatPercentage) || 0;
@@ -205,13 +194,14 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     setDocumentNonBlocking(assessmentRef, updateData, { merge: true });
 
     notifyStudent(
-      "Avaliação Atualizada",
-      `Seu professor finalizou a avaliação física do dia ${format(new Date(assessment?.date), "dd/MM")}. Confira os resultados!`
+      "Sua Avaliação Física foi Atualizada",
+      `Os resultados da avaliação de ${format(new Date(assessment?.date), "dd/MM")} já estão disponíveis. Confira aqui!`,
+      "assessment-result"
     );
 
     toast({
-      title: "Sincronizado com o Aluno!",
-      description: "Todos os campos foram salvos e o aluno foi notificado.",
+      title: "Sincronizado!",
+      description: "O aluno foi notificado sobre a atualização dos dados.",
     });
     setIsSaving(false);
   };
@@ -220,13 +210,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  if (isLoadingList) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (isLoadingList) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   if (selectedAssessmentId && assessment) {
     return (
@@ -235,24 +219,19 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           <Button variant="ghost" onClick={() => setSelectedAssessmentId(null)} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Button>
-          <Button onClick={handleSaveFullAssessment} disabled={isSaving} className="rounded-full px-8 bg-primary shadow-lg shadow-primary/20">
+          <Button onClick={handleSaveFullAssessment} disabled={isSaving} className="rounded-full px-8 bg-primary">
             {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-            Salvar e Notificar Aluno
+            Salvar e Notificar
           </Button>
         </div>
 
         <Card className="border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="bg-primary/5 border-b border-primary/10">
-            <CardTitle className="text-xl font-black text-primary uppercase tracking-tighter">
-              Edição Completa do Personal
-            </CardTitle>
-            <CardDescription>
-              Preencha todos os perímetros, dobras e testes funcionais.
-            </CardDescription>
+            <CardTitle className="text-xl font-black text-primary uppercase">Edição de Avaliação</CardTitle>
+            <CardDescription>Preencha todos os campos antropométricos e funcionais.</CardDescription>
           </CardHeader>
-          
           <CardContent className="p-6">
-            <Tabs defaultValue="anthropometry" className="w-full">
+            <Tabs defaultValue="anthropometry">
               <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted rounded-2xl mb-6">
                 <TabsTrigger value="anthropometry" className="rounded-xl py-2 text-xs font-bold uppercase">Antropometria</TabsTrigger>
                 <TabsTrigger value="neuromotor" className="rounded-xl py-2 text-xs font-bold uppercase">Neuromotor</TabsTrigger>
@@ -262,7 +241,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               <TabsContent value="anthropometry" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">Básicos e Perímetros</h4>
+                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Básicos e Perímetros</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1"><Label className="text-[10px]">Peso (kg)</Label><Input type="number" step="0.1" value={formData.weight} onChange={e => updateField('weight', e.target.value)} /></div>
                       <div className="space-y-1"><Label className="text-[10px]">Altura (cm)</Label><Input type="number" value={formData.height} onChange={e => updateField('height', e.target.value)} /></div>
@@ -284,7 +263,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1 flex items-center gap-2">Dobras Cutâneas (mm)</h4>
+                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Dobras Cutâneas</h4>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { id: "triceps", label: "Tric" },
@@ -294,36 +273,32 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                         { id: "suprailiac", label: "Sup" },
                         { id: "thigh", label: "Coxa" }
                       ].map(d => (
-                        <div key={d.id} className="space-y-1 text-center">
+                        <div key={d.id} className="space-y-1">
                           <Label className="text-[10px]">{d.label}</Label>
                           <Input type="number" step="0.1" value={formData[d.id] ?? 0} onChange={e => updateField(d.id, e.target.value)} />
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/20">
-                       <Label className="text-[10px] font-black uppercase text-primary">% Gordura Estimado</Label>
-                       <Input type="number" step="0.1" value={formData.fatPercentage} onChange={e => updateField('fatPercentage', e.target.value)} className="h-12 text-2xl font-black text-center" />
+                    <div className="mt-4 p-4 bg-primary/5 rounded-2xl">
+                       <Label className="text-[10px] font-black uppercase text-primary">% Gordura Final</Label>
+                       <Input type="number" step="0.1" value={formData.fatPercentage} onChange={e => updateField('fatPercentage', e.target.value)} className="h-10 font-bold" />
                     </div>
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="neuromotor" className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="rounded-3xl p-6 border-primary/20 bg-primary/5">
-                  <h4 className="font-black text-xs flex items-center gap-2 mb-4 uppercase text-primary"><Dumbbell className="h-5 w-5" /> Testes de Força</h4>
+                <Card className="p-6 bg-primary/5 border-primary/20">
+                  <h4 className="text-xs font-black uppercase text-primary mb-4 flex items-center gap-2"><Dumbbell className="h-4 w-4" /> Força</h4>
                   <div className="space-y-4">
                     <div className="space-y-1">
                       <Label className="text-[10px]">Teste 10 RM (kg)</Label>
                       <Input type="number" value={formData.tenRmTest ?? 0} onChange={e => updateField('tenRmTest', e.target.value)} />
                     </div>
-                    <div className="p-4 bg-background rounded-2xl border border-primary/10">
-                      <p className="text-[10px] font-black uppercase opacity-60">1 RM Estimado:</p>
-                      <p className="text-2xl font-black text-primary">{(Number(formData.tenRmTest || 0) * 1.33).toFixed(1)} kg</p>
-                    </div>
                   </div>
                 </Card>
-                <Card className="rounded-3xl p-6 border-accent/20 bg-accent/5">
-                  <h4 className="font-black text-xs flex items-center gap-2 mb-4 uppercase text-accent"><TrendingUp className="h-5 w-5" /> Funcionalidade</h4>
+                <Card className="p-6 bg-accent/5 border-accent/20">
+                  <h4 className="text-xs font-black uppercase text-accent mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Funcional</h4>
                   <div className="space-y-4">
                     <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar (reps)</Label><Input type="number" value={formData.sitToStand ?? 0} onChange={e => updateField('sitToStand', e.target.value)} /></div>
                     <div className="space-y-1"><Label className="text-[10px]">TUG (segundos)</Label><Input type="number" step="0.1" value={formData.tug ?? 0} onChange={e => updateField('tug', e.target.value)} /></div>
@@ -332,28 +307,11 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               </TabsContent>
 
               <TabsContent value="metabolic" className="space-y-6">
-                <Card className="rounded-[2rem] border-primary/20 bg-primary/5 p-8">
-                  <div className="grid gap-6">
-                    <div className="space-y-2">
-                      <Label className="font-bold text-primary">VO2 Máximo Estimado (ml/kg/min)</Label>
-                      <Input 
-                        type="number" 
-                        step="0.1" 
-                        value={formData.vo2max ?? 0} 
-                        onChange={(e) => updateField('vo2max', e.target.value)} 
-                        className="h-16 text-3xl text-center font-black rounded-2xl bg-background border-primary/40"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-bold text-primary">Observações Técnicas</Label>
-                      <Textarea 
-                        value={formData.testNotes ?? ''} 
-                        onChange={(e) => updateField('testNotes', e.target.value)}
-                        placeholder="Descreva as percepções do teste..."
-                        className="min-h-[100px] rounded-2xl bg-background"
-                      />
-                    </div>
-                  </div>
+                <Card className="p-6 bg-primary/5 border-primary/20">
+                  <Label className="font-bold text-primary">VO2 Máximo Estimado</Label>
+                  <Input type="number" step="0.1" value={formData.vo2max ?? 0} onChange={(e) => updateField('vo2max', e.target.value)} className="h-12 text-xl font-bold mt-2" />
+                  <Label className="font-bold text-primary mt-4 block">Observações do Teste</Label>
+                  <Textarea value={formData.testNotes ?? ''} onChange={(e) => updateField('testNotes', e.target.value)} className="mt-2" />
                 </Card>
               </TabsContent>
             </Tabs>
@@ -366,28 +324,28 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border-dashed border-2 hover:border-primary/50 transition-colors bg-primary/5">
+        <Card className="border-dashed border-2 hover:border-primary/50 bg-primary/5">
           <CardHeader className="text-center p-6">
-            <Send className="h-10 w-10 text-primary mx-auto mb-3" />
+            <FileText className="h-10 w-10 text-primary mx-auto mb-3" />
             <CardTitle className="text-xl">Questionário de Saúde</CardTitle>
-            <CardDescription>O aluno será notificado instantaneamente no app.</CardDescription>
+            <CardDescription>Peça para o aluno responder os questionários.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
-            <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-14 text-lg font-bold gap-3">
-              <FileText className="h-5 w-5" /> Enviar para o Aluno
+            <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-12 font-bold gap-2">
+              <Send className="h-4 w-4" /> Enviar para o Aluno
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="border-dashed border-2 hover:border-accent/50 transition-colors bg-accent/5">
+        <Card className="border-dashed border-2 hover:border-accent/50 bg-accent/5">
           <CardHeader className="text-center p-6">
-            <UserPlus className="h-10 w-10 text-accent mx-auto mb-3" />
+            <ClipboardList className="h-10 w-10 text-accent mx-auto mb-3" />
             <CardTitle className="text-xl">Avaliação Presencial</CardTitle>
-            <CardDescription>Abra uma ficha agora para preencher com o aluno.</CardDescription>
+            <CardDescription>Preencha os dados agora com o aluno.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
-            <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-14 text-lg font-bold border-accent text-accent hover:bg-accent/10 gap-3">
-              {isCreating ? <Loader2 className="animate-spin" /> : <ClipboardList className="h-5 w-5" />}
+            <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-12 font-bold border-accent text-accent hover:bg-accent/10 gap-2">
+              {isCreating ? <Loader2 className="animate-spin" /> : <UserPlus className="h-4 w-4" />}
               Nova Avaliação Manual
             </Button>
           </CardContent>
@@ -396,45 +354,26 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
       <Card className="border-primary/10 rounded-3xl overflow-hidden shadow-lg">
         <CardHeader className="bg-primary/5 border-b">
-          <CardTitle className="text-sm font-black flex items-center gap-2 uppercase tracking-widest">
-            <History className="h-4 w-4 text-primary" /> Histórico de Avaliações
+          <CardTitle className="text-sm font-black flex items-center gap-2 uppercase">
+            <History className="h-4 w-4 text-primary" /> Histórico
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y divide-primary/5">
-            {assessments && assessments.length > 0 ? (
-              assessments.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="flex items-center justify-between p-6 cursor-pointer hover:bg-primary/5 transition-all group"
-                  onClick={() => setSelectedAssessmentId(item.id)}
-                >
-                  <div className="flex items-center gap-6">
-                    <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                      <Calendar className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="font-black text-lg">{format(new Date(item.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
-                      <div className="flex gap-4 mt-1">
-                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter bg-muted px-2 py-0.5 rounded">
-                          Peso: {item.weight}kg
-                        </p>
-                        <p className="text-[10px] text-primary uppercase font-black tracking-tighter bg-primary/10 px-2 py-0.5 rounded">
-                          Gordura: {item.fatPercentage}%
-                        </p>
-                      </div>
-                    </div>
+          {assessments && assessments.length > 0 ? (
+            <div className="divide-y divide-primary/5">
+              {assessments.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-6 cursor-pointer hover:bg-primary/5 group" onClick={() => setSelectedAssessmentId(item.id)}>
+                  <div>
+                    <p className="font-black">{format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR })}</p>
+                    <p className="text-xs text-muted-foreground">{item.weight}kg | {item.fatPercentage}% Gord.</p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-              ))
-            ) : (
-              <div className="p-24 text-center">
-                <ClipboardList className="h-16 w-16 mx-auto mb-4 opacity-10" />
-                <p className="text-muted-foreground font-medium italic">Nenhuma avaliação registrada.</p>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center text-muted-foreground italic">Nenhuma avaliação registrada.</div>
+          )}
         </CardContent>
       </Card>
     </div>

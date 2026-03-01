@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dashboard } from '@/components/dashboard';
 import { WorkoutSessionForm } from './workout-session-form';
 import { AssessmentForm } from '@/components/assessment-form';
 import { GoalRecommender } from '@/components/goal-recommender';
 import { HealthDiagnostics } from '@/components/health-diagnostics';
-import { LayoutGrid, ClipboardPen, BrainCircuit, UserCog, HeartPulse, ClipboardCheck } from 'lucide-react';
+import { LayoutGrid, ClipboardPen, BrainCircuit, HeartPulse, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function StudentView() {
@@ -20,6 +20,19 @@ export function StudentView() {
     { id: 'health', label: 'Saúde', icon: HeartPulse },
     { id: 'goals', label: 'Metas', icon: BrainCircuit },
   ];
+
+  useEffect(() => {
+    // Listener para eventos de troca de aba disparados por notificações ou outras partes do app
+    const handleTabChange = (event: any) => {
+      const targetTab = event.detail;
+      if (navItems.some(item => item.id === targetTab)) {
+        setActiveTab(targetTab);
+      }
+    };
+
+    window.addEventListener('app:change-tab', handleTabChange);
+    return () => window.removeEventListener('app:change-tab', handleTabChange);
+  }, []);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-8rem)]">

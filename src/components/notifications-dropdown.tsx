@@ -27,10 +27,24 @@ export function NotificationsDropdown() {
 
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
 
-  const handleMarkAsRead = async (id: string) => {
+  const handleNotificationClick = async (n: any) => {
     if (!user) return;
-    const ref = doc(firestore, 'users', user.uid, 'notifications', id);
-    await updateDoc(ref, { read: true });
+    
+    // Marcar como lida
+    if (!n.read) {
+      const ref = doc(firestore, 'users', user.uid, 'notifications', n.id);
+      updateDoc(ref, { read: true });
+    }
+
+    // Lógica de Redirecionamento baseada no tipo
+    let targetTab = '';
+    if (n.type === 'health-questionnaire') targetTab = 'health';
+    if (n.type === 'assessment-result') targetTab = 'assessment';
+    
+    if (targetTab) {
+      const event = new CustomEvent('app:change-tab', { detail: targetTab });
+      window.dispatchEvent(event);
+    }
   };
 
   const handleMarkAllAsRead = async () => {
@@ -72,8 +86,8 @@ export function NotificationsDropdown() {
               {notifications.map((n) => (
                 <div 
                   key={n.id} 
-                  className={`p-4 transition-colors flex gap-3 group ${n.read ? 'opacity-60' : 'bg-primary/5'}`}
-                  onClick={() => !n.read && handleMarkAsRead(n.id)}
+                  className={`p-4 transition-colors flex gap-3 cursor-pointer group ${n.read ? 'opacity-60' : 'bg-primary/5'}`}
+                  onClick={() => handleNotificationClick(n)}
                 >
                   <div className="mt-1">
                     {!n.read ? <Circle className="h-2 w-2 fill-primary text-primary" /> : <div className="h-2 w-2" />}
@@ -89,11 +103,6 @@ export function NotificationsDropdown() {
                       {n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: ptBR }) : '--'}
                     </p>
                   </div>
-                  {!n.read && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Check className="h-4 w-4 text-primary" />
-                    </Button>
-                  )}
                 </div>
               ))}
             </div>
