@@ -57,14 +57,13 @@ export function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      // Verificar se o perfil já existe no Firestore, se não, criar como aluno por padrão
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       if (!userDoc.exists()) {
         await setDoc(doc(firestore, 'users', user.uid), {
           id: user.uid,
           name: user.displayName,
           email: user.email,
-          userType: 'student', // Padrão inicial para login social
+          userType: 'student',
           photoUrl: user.photoURL,
           createdAt: new Date().toISOString(),
         });
@@ -110,11 +109,10 @@ export function LoginForm() {
         });
       }
     } catch (error: any) {
-      let message = 'E-mail ou senha incorretos.';
       toast({
         variant: 'destructive',
         title: 'Falha no login',
-        description: message,
+        description: 'E-mail ou senha incorretos.',
       });
     } finally {
       setLoading(false);
@@ -124,14 +122,12 @@ export function LoginForm() {
   async function onOtpSubmit(values: OtpFormValues) {
     if (!tempEmail) return;
     setLoading(true);
-    const cleanCode = values.code.trim();
-
     try {
       const codeDoc = await getDoc(doc(firestore, 'auth_codes', tempEmail));
       if (!codeDoc.exists()) throw new Error('Código expirado ou não encontrado.');
 
       const data = codeDoc.data();
-      if (data.code !== cleanCode) throw new Error('Código incorreto.');
+      if (data.code !== values.code.trim()) throw new Error('Código incorreto.');
       if (new Date(data.expiresAt) < new Date()) throw new Error('O código expirou.');
 
       await deleteDoc(doc(firestore, 'auth_codes', tempEmail));
@@ -168,7 +164,6 @@ export function LoginForm() {
                     <FormLabel className="text-center block w-full text-xs font-bold uppercase tracking-widest mb-4">Código de 6 dígitos</FormLabel>
                     <FormControl>
                       <Input 
-                        id="otp_code_input"
                         placeholder="000000" 
                         className="text-center text-3xl tracking-[0.4em] font-black h-16 bg-muted/30 border-primary/20" 
                         maxLength={6}
@@ -244,7 +239,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>E-mail</FormLabel>
                   <FormControl>
-                    <Input id="email_login_field" placeholder="seu@email.com" className="h-12 rounded-xl" {...field} />
+                    <Input placeholder="seu@email.com" className="h-12 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -257,7 +252,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input id="pass_login_field" type="password" placeholder="Sua senha" className="h-12 rounded-xl" {...field} />
+                    <Input type="password" placeholder="Sua senha" className="h-12 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

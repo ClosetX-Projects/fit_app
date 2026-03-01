@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useFirebase, useUser } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -17,6 +18,7 @@ export function AddStudentDialog() {
   const [studentId, setStudentId] = useState('');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const inputId = useId();
   const { firestore } = useFirebase();
   const { user: professor } = useUser();
   const { toast } = useToast();
@@ -26,14 +28,12 @@ export function AddStudentDialog() {
     setLoading(true);
 
     try {
-      // Verificar se o aluno existe
       const studentDocRef = doc(firestore, 'users', studentId);
       let studentDoc;
       
       try {
         studentDoc = await getDoc(studentDocRef);
       } catch (e: any) {
-        // Se falhar por permissão, emitimos o erro contextual para depuração
         const permissionError = new FirestorePermissionError({
           path: studentDocRef.path,
           operation: 'get',
@@ -64,7 +64,6 @@ export function AddStudentDialog() {
         return;
       }
 
-      // Vincular no ACL do professor
       const professorStudentRef = doc(firestore, 'professors', professor.uid, 'students', studentId);
       setDocumentNonBlocking(professorStudentRef, {
         id: studentId,
@@ -106,9 +105,9 @@ export function AddStudentDialog() {
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="studentId">ID do Usuário Aluno</Label>
+            <Label htmlFor={inputId}>ID do Usuário Aluno</Label>
             <Input 
-              id="studentId" 
+              id={inputId} 
               placeholder="Cole o ID do aluno aqui" 
               value={studentId} 
               onChange={(e) => setStudentId(e.target.value)} 

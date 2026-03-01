@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { useFirebase, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
@@ -22,6 +22,8 @@ export function EditProfileDialog({ profile }: EditProfileDialogProps) {
   const [photoUrl, setPhotoUrl] = useState(profile?.photoUrl || '');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const nameId = useId();
+  const photoId = useId();
   const { firestore, auth } = useFirebase();
   const { user } = useUser();
   const { toast } = useToast();
@@ -38,13 +40,11 @@ export function EditProfileDialog({ profile }: EditProfileDialogProps) {
     setLoading(true);
 
     try {
-      // 1. Atualizar Perfil no Firebase Auth
       await updateProfile(auth.currentUser, {
         displayName: name,
         photoURL: photoUrl,
       });
 
-      // 2. Atualizar Documento no Firestore
       const userRef = doc(firestore, 'users', user.uid);
       await updateDoc(userRef, {
         name,
@@ -96,18 +96,18 @@ export function EditProfileDialog({ profile }: EditProfileDialogProps) {
 
           <div className="grid w-full gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome Completo</Label>
+              <Label htmlFor={nameId}>Nome Completo</Label>
               <Input 
-                id="name" 
+                id={nameId} 
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
                 placeholder="Seu nome"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="photo">URL da Foto de Perfil</Label>
+              <Label htmlFor={photoId}>URL da Foto de Perfil</Label>
               <Input 
-                id="photo" 
+                id={photoId} 
                 value={photoUrl} 
                 onChange={(e) => setPhotoUrl(e.target.value)} 
                 placeholder="https://exemplo.com/foto.jpg"

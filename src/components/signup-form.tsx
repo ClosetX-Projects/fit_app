@@ -47,7 +47,7 @@ function SignUpFormContent() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const roleParam = searchParams.get('role'); // 'student' ou 'professor'
+  const roleParam = searchParams.get('role');
   const defaultAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar')?.imageUrl || '';
 
   const signupForm = useForm<SignupFormValues>({
@@ -63,7 +63,6 @@ function SignUpFormContent() {
     },
   });
 
-  // Atualizar o tipo de usuário se o parâmetro da URL mudar
   useEffect(() => {
     if (roleParam === 'professor' || roleParam === 'student') {
       signupForm.setValue('userType', roleParam);
@@ -73,7 +72,6 @@ function SignUpFormContent() {
   const handleGoogleSignup = async () => {
     setLoading(true);
     const provider = new GoogleAuthProvider();
-    // O papel é determinado pelo parâmetro da URL no momento do clique
     const finalRole = roleParam === 'professor' ? 'professor' : 'student';
 
     try {
@@ -132,13 +130,11 @@ function SignUpFormContent() {
     if (!tempData) return;
     setLoading(true);
     const normalizedEmail = tempData.email.toLowerCase().trim();
-    const cleanCode = values.code.trim();
-
     try {
       const codeDoc = await getDoc(doc(firestore, 'auth_codes', normalizedEmail));
       if (!codeDoc.exists()) throw new Error('Código não encontrado.');
       const data = codeDoc.data();
-      if (data.code !== cleanCode) throw new Error('Código incorreto.');
+      if (data.code !== values.code.trim()) throw new Error('Código incorreto.');
 
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, tempData.password);
       const user = userCredential.user;
@@ -188,7 +184,6 @@ function SignUpFormContent() {
                     <FormLabel className="text-center block w-full text-xs font-bold uppercase tracking-widest mb-4">Código</FormLabel>
                     <FormControl>
                       <Input 
-                        key="signup-otp-input"
                         placeholder="000000" 
                         className="text-center text-3xl tracking-[0.4em] font-black h-16 bg-muted/30 border-primary/20" 
                         maxLength={6}
@@ -207,7 +202,7 @@ function SignUpFormContent() {
                    <Info className="h-4 w-4 text-primary" />
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-tight">
-                  Ambiente de Teste: O código está no Toast no topo da tela. Em produção, ele será enviado para o seu e-mail.
+                  Ambiente de Teste: O código está no Toast no topo da tela.
                 </p>
               </div>
               <div className="space-y-3">
@@ -270,7 +265,7 @@ function SignUpFormContent() {
                 <FormItem>
                   <FormLabel>Nome Completo</FormLabel>
                   <FormControl>
-                    <Input id="signup_name_field" placeholder="Seu nome" className="h-11 rounded-xl" {...field} />
+                    <Input placeholder="Seu nome" className="h-11 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -284,7 +279,7 @@ function SignUpFormContent() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input id="signup_email_field" placeholder="seu@email.com" className="h-11 rounded-xl" {...field} />
+                      <Input placeholder="seu@email.com" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -297,7 +292,7 @@ function SignUpFormContent() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input id="signup_pass_field" type="password" placeholder="Mín. 6 chars" className="h-11 rounded-xl" {...field} />
+                      <Input type="password" placeholder="Mín. 6 chars" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -313,7 +308,7 @@ function SignUpFormContent() {
                   <FormLabel>Eu sou</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger id="signup_type_trigger" className="h-11 rounded-xl">
+                      <SelectTrigger className="h-11 rounded-xl">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                     </FormControl>
