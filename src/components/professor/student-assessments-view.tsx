@@ -24,7 +24,8 @@ import {
   Send,
   UserPlus,
   ArrowLeft,
-  FileText
+  FileText,
+  ClipboardCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -121,7 +122,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     }
   }, [assessment]);
 
-  const notifyStudent = (title: string, message: string, type: 'health-questionnaire' | 'assessment-result') => {
+  const notifyStudent = (title: string, message: string, type: string) => {
     if (!firestore || !studentId) return;
     const notificationRef = collection(firestore, 'users', studentId, 'notifications');
     addDocumentNonBlocking(notificationRef, {
@@ -136,12 +137,24 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   const handleSendQuestionnaire = () => {
     notifyStudent(
       "Responder Questionário de Saúde",
-      "Seu professor enviou um novo questionário para você. Clique aqui para responder.",
+      "Seu professor enviou um novo questionário de saúde para você. Clique aqui para responder.",
       "health-questionnaire"
     );
     toast({
       title: "Questionário Enviado!",
       description: "O aluno foi notificado e redirecionado para a aba Saúde.",
+    });
+  };
+
+  const handleRequestPhysicalAssessment = () => {
+    notifyStudent(
+      "Avaliação de Aptidão Física",
+      "Seu professor solicitou que você preencha seus dados antropométricos. Clique aqui para iniciar.",
+      "physical-assessment-request"
+    );
+    toast({
+      title: "Solicitação Enviada!",
+      description: "O aluno foi notificado e será levado à aba de Avaliação Física.",
     });
   };
 
@@ -323,16 +336,29 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-dashed border-2 hover:border-primary/50 bg-primary/5">
           <CardHeader className="text-center p-6">
             <FileText className="h-10 w-10 text-primary mx-auto mb-3" />
-            <CardTitle className="text-xl">Questionário de Saúde</CardTitle>
-            <CardDescription>Peça para o aluno responder os questionários.</CardDescription>
+            <CardTitle className="text-xl">Questionário Saúde</CardTitle>
+            <CardDescription>Peça para o aluno responder aos questionários.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-12 font-bold gap-2">
-              <Send className="h-4 w-4" /> Enviar para o Aluno
+              <Send className="h-4 w-4" /> Enviar Saúde
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-dashed border-2 hover:border-primary/50 bg-primary/5">
+          <CardHeader className="text-center p-6">
+            <ClipboardCheck className="h-10 w-10 text-primary mx-auto mb-3" />
+            <CardTitle className="text-xl">Aptidão Física</CardTitle>
+            <CardDescription>Solicite que o aluno preencha seus perímetros.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 pt-0">
+            <Button onClick={handleRequestPhysicalAssessment} variant="outline" className="w-full rounded-full h-12 font-bold border-primary text-primary hover:bg-primary/10 gap-2">
+              <Send className="h-4 w-4" /> Pedir Avaliação
             </Button>
           </CardContent>
         </Card>
@@ -340,13 +366,13 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         <Card className="border-dashed border-2 hover:border-accent/50 bg-accent/5">
           <CardHeader className="text-center p-6">
             <ClipboardList className="h-10 w-10 text-accent mx-auto mb-3" />
-            <CardTitle className="text-xl">Avaliação Presencial</CardTitle>
-            <CardDescription>Preencha os dados agora com o aluno.</CardDescription>
+            <CardTitle className="text-xl">Ficha Presencial</CardTitle>
+            <CardDescription>Preencha os dados agora junto com o aluno.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-12 font-bold border-accent text-accent hover:bg-accent/10 gap-2">
               {isCreating ? <Loader2 className="animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Nova Avaliação Manual
+              Nova Ficha Manual
             </Button>
           </CardContent>
         </Card>
@@ -355,7 +381,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       <Card className="border-primary/10 rounded-3xl overflow-hidden shadow-lg">
         <CardHeader className="bg-primary/5 border-b">
           <CardTitle className="text-sm font-black flex items-center gap-2 uppercase">
-            <History className="h-4 w-4 text-primary" /> Histórico
+            <History className="h-4 w-4 text-primary" /> Histórico de Avaliações
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">

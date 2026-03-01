@@ -39,7 +39,7 @@ export function NotificationsDropdown() {
     // Lógica de Redirecionamento baseada no tipo
     let targetTab = '';
     if (n.type === 'health-questionnaire') targetTab = 'health';
-    if (n.type === 'assessment-result') targetTab = 'assessment';
+    if (n.type === 'assessment-result' || n.type === 'physical-assessment-request') targetTab = 'assessment';
     
     if (targetTab) {
       const event = new CustomEvent('app:change-tab', { detail: targetTab });
