@@ -96,7 +96,12 @@ function SignUpFormContent() {
       });
       router.push('/');
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Falha no cadastro com Google.' });
+      console.error("Erro Google SignUp:", error.code, error.message);
+      let errorMsg = "Falha no cadastro com Google.";
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMsg = "Este domínio não está autorizado no Console do Firebase (Auth > Settings > Authorized Domains).";
+      }
+      toast({ variant: 'destructive', title: 'Erro', description: errorMsg });
     } finally {
       setLoading(false);
     }
@@ -265,7 +270,7 @@ function SignUpFormContent() {
                 <FormItem>
                   <FormLabel>Nome Completo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Seu nome" className="h-11 rounded-xl" {...field} />
+                    <Input placeholder="Seu nome" autoComplete="name" className="h-11 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -279,7 +284,7 @@ function SignUpFormContent() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="seu@email.com" className="h-11 rounded-xl" {...field} />
+                      <Input placeholder="seu@email.com" autoComplete="email" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -292,7 +297,7 @@ function SignUpFormContent() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Mín. 6 chars" className="h-11 rounded-xl" {...field} />
+                      <Input type="password" placeholder="Mín. 6 chars" autoComplete="new-password" className="h-11 rounded-xl" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

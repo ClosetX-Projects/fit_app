@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,10 +75,15 @@ export function LoginForm() {
       });
       router.push('/');
     } catch (error: any) {
+      console.error("Erro Google Login:", error.code, error.message);
+      let errorMsg = "Não foi possível autenticar com o Google.";
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMsg = "Este domínio não está autorizado no Console do Firebase (Auth > Settings > Authorized Domains).";
+      }
       toast({
         variant: 'destructive',
         title: 'Erro no Google Login',
-        description: 'Não foi possível autenticar com o Google.',
+        description: errorMsg,
       });
     } finally {
       setLoading(false);
@@ -239,7 +244,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>E-mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="seu@email.com" className="h-12 rounded-xl" {...field} />
+                    <Input placeholder="seu@email.com" autoComplete="email" className="h-12 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -252,7 +257,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Sua senha" className="h-12 rounded-xl" {...field} />
+                    <Input type="password" placeholder="Sua senha" autoComplete="current-password" className="h-12 rounded-xl" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
