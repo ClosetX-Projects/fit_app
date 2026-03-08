@@ -16,10 +16,16 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
+    function isProfessor() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'professor';
+    }
+
     // Perfis de usuários e subcoleções diretas
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      // Permite que o dono edite seu perfil OU um professor crie o perfil inicial de um aluno
+      allow create: if isSignedIn();
+      allow update: if isOwner(userId) || isProfessorOfStudent(userId);
 
       match /{allSubcollections=**} {
         allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
@@ -27,13 +33,12 @@ service cloud.firestore {
     }
 
     // ACL Professor-Aluno
-    // Permite que o professor gerencie sua lista e que o aluno se vincule a ela durante o cadastro
     match /professors/{professorId}/students/{studentId} {
       allow read: if isOwner(professorId);
       allow write: if isOwner(professorId) || (isSignedIn() && request.auth.uid == studentId);
     }
 
-    // Regras para Tokens de Autenticação (Apenas sistema pode criar/deletar em teoria)
+    // Regras para Tokens de Autenticação
     match /auth_codes/{email} {
       allow read, write: if true; 
     }
@@ -50,6 +55,14 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId) || 
         exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
       );
+    }
+    
+    // Suporte para histórico plano
+    match /users/{userId}/workoutHistory_flat/{id} {
+      allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
+    }
+    match /users/{userId}/exerciseHistory_flat/{id} {
+      allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
     }
   }
 }
