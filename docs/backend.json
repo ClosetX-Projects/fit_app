@@ -75,6 +75,18 @@
         }
       }
     },
+    "TrainingTemplate": {
+      "title": "TrainingTemplate",
+      "type": "object",
+      "description": "Modelo de programa de treino para ser replicado.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "Notification": {
       "title": "Notification",
       "type": "object",
@@ -95,6 +107,7 @@
   "firestore": {
     "/users/{userId}": { "schema": "User", "description": "Perfil" },
     "/users/{userId}/physicalAssessments/{id}": { "schema": "PhysicalAssessment", "description": "Avaliações" },
-    "/users/{userId}/notifications/{id}": { "schema": "Notification", "description": "Notificações" }
+    "/users/{userId}/notifications/{id}": { "schema": "Notification", "description": "Notificações" },
+    "/users/{userId}/programTemplates/{id}": { "schema": "TrainingTemplate", "description": "Biblioteca de Modelos do Professor" }
   }
 }
