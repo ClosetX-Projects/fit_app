@@ -189,12 +189,12 @@ export function ProgramLibrary() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-primary tracking-tighter uppercase">Biblioteca de Programas</h2>
+          <h2 className="text-3xl font-black text-primary tracking-tighter uppercase">Biblioteca de treinos</h2>
           <p className="text-muted-foreground text-sm font-medium">Monte seus modelos base para agilizar a prescrição.</p>
         </div>
         {!showEditor && (
           <Button onClick={() => setShowEditor(true)} className="rounded-full px-8 h-12 font-bold shadow-lg bg-primary">
-            <Plus className="mr-2 h-5 w-5" /> Criar Novo Modelo
+            <Plus className="mr-2 h-5 w-5" /> Criar novo treino
           </Button>
         )}
       </div>

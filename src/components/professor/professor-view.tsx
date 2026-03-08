@@ -35,7 +35,7 @@ export function ProfessorView() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black tracking-tighter text-primary uppercase">Área do Personal</h2>
-          <p className="text-muted-foreground mt-1 font-medium">Gestão técnica de alunos e biblioteca de programas.</p>
+          <p className="text-muted-foreground mt-1 font-medium">Gestão técnica de alunos e biblioteca de treinos.</p>
         </div>
         <AddStudentDialog />
       </div>
@@ -46,7 +46,7 @@ export function ProfessorView() {
             <Users className="h-4 w-4" /> Alunos Ativos
           </TabsTrigger>
           <TabsTrigger value="library" className="rounded-xl py-3 px-8 text-xs font-bold uppercase gap-2">
-            <BookOpen className="h-4 w-4" /> Biblioteca Base
+            <BookOpen className="h-4 w-4" /> Biblioteca de treinos
           </TabsTrigger>
         </TabsList>
 
