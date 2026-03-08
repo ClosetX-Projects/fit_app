@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState } from "react"
@@ -6,21 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
-import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Calendar as CalendarIcon, Smile, Activity } from "lucide-react"
+import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Smile, Activity } from "lucide-react"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy, limit, doc } from "firebase/firestore"
-import { format, startOfMonth, endOfMonth, differenceInMinutes, isSameDay } from "date-fns"
+import { format, startOfMonth, endOfMonth, differenceInMinutes } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AICoach } from "./ai-coach"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
 import { useToast } from "@/hooks/use-toast"
-import { Calendar } from "@/components/ui/calendar"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
 
 export function Dashboard() {
   const { user } = useUser()
@@ -28,8 +24,6 @@ export function Dashboard() {
   const { toast } = useToast()
   const [pendingPseValue, setPendingPseValue] = useState(7)
   const [isPseDialogOpen, setIsPseDialogOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [isSessionDetailOpen, setIsSessionDetailOpen] = useState(false)
 
   // 1. Histórico de Peso
   const assessmentsRef = useMemoFirebase(() => 
@@ -49,27 +43,10 @@ export function Dashboard() {
   
   const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsRef)
 
-  // 3. Histórico de Exercícios (para detalhes no calendário)
-  const exercisesRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'exerciseHistory_flat') : null
-  , [firestore, user])
-  const { data: allExercises } = useCollection(exercisesRef)
-
   const sessions = useMemo(() => {
     if (!rawSessions) return [];
     return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [rawSessions]);
-
-  // Dias com treino para o calendário
-  const workoutDays = useMemo(() => {
-    return sessions.map(s => new Date(s.date))
-  }, [sessions])
-
-  // Sessões do dia selecionado
-  const selectedDaySessions = useMemo(() => {
-    if (!selectedDate || !sessions) return []
-    return sessions.filter(s => isSameDay(new Date(s.date), selectedDate))
-  }, [selectedDate, sessions])
 
   // Verificar PSE Pendente (Sessão recente sem PSE ou com PSE 0)
   const pendingPseSession = useMemo(() => {
@@ -161,7 +138,7 @@ export function Dashboard() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Percepção Subjetiva de Esforço</DialogTitle>
+                  <DialogTitle className="text-xl font-black">Percepção de Esforço</DialogTitle>
                 </DialogHeader>
                 <div className="py-8 space-y-6">
                    <div className="flex justify-between items-center mb-2">
@@ -208,7 +185,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="text-3xl font-black">{stats.avgLoad || '--'}</div>
-            <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">PSE x Duração (Média)</p>
+            <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Carga Interna Média</p>
           </CardContent>
         </Card>
 
@@ -235,143 +212,44 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Calendário de Assiduidade - Destaque Central */}
-        <div className="md:col-span-1">
-          <Card className="h-full border-primary/10 shadow-lg rounded-3xl overflow-hidden flex flex-col">
-            <CardHeader className="bg-primary/5 p-4 border-b">
-              <CardTitle className="text-sm font-black flex items-center gap-2 uppercase">
-                <CalendarIcon className="h-4 w-4 text-primary" /> Assiduidade
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 flex flex-col flex-1">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  setSelectedDate(date)
-                  if (date && workoutDays.some(wd => isSameDay(wd, date))) {
-                    setIsSessionDetailOpen(true)
-                  }
-                }}
-                locale={ptBR}
-                className="mx-auto"
-                modifiers={{
-                  workout: workoutDays
-                }}
-                modifiersStyles={{
-                  workout: { backgroundColor: 'hsl(var(--primary))', color: 'white', borderRadius: '50%' }
-                }}
-              />
-              <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase px-2">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <span>Dias com treino registrado</span>
+      <div className="grid gap-6">
+        <Card className="border-primary/10 shadow-lg rounded-3xl overflow-hidden">
+          <CardHeader className="bg-primary/5">
+            <CardTitle className="text-lg font-bold">Evolução de Peso</CardTitle>
+            <CardDescription>Acompanhamento histórico das suas avaliações.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {weightData.length > 0 ? (
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <LineChart data={weightData} margin={{ left: 12, right: 12, top: 20, bottom: 20 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
+                  <YAxis hide domain={['dataMin - 2', 'dataMax + 2']} />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                  <Line 
+                    dataKey="weight" 
+                    type="monotone" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={4} 
+                    dot={{ r: 6, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "white" }} 
+                    activeDot={{ r: 8 }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground border border-dashed rounded-3xl bg-muted/20">
+                <Dumbbell className="h-12 w-12 mb-4 opacity-20" />
+                <p className="font-medium">Nenhum dado de progresso disponível.</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="md:col-span-2">
-          <Card className="h-full border-primary/10 shadow-lg rounded-3xl overflow-hidden">
-            <CardHeader className="bg-primary/5">
-              <CardTitle className="text-lg font-bold">Evolução de Peso</CardTitle>
-              <CardDescription>Acompanhamento histórico das suas avaliações.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              {weightData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                  <LineChart data={weightData} margin={{ left: 12, right: 12, top: 20, bottom: 20 }}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
-                    <YAxis hide domain={['dataMin - 2', 'dataMax + 2']} />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                    <Line 
-                      dataKey="weight" 
-                      type="monotone" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={4} 
-                      dot={{ r: 6, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "white" }} 
-                      activeDot={{ r: 8 }}
-                    />
-                  </LineChart>
-                </ChartContainer>
-              ) : (
-                <div className="h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground border border-dashed rounded-3xl bg-muted/20">
-                  <Scale className="h-12 w-12 mb-4 opacity-20" />
-                  <p className="font-medium">Nenhum dado de progresso disponível.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="md:col-span-3">
-         <AICoach 
+        <AICoach 
           recentSessions={sessions.slice(0, 5)} 
           lastAssessment={assessments?.[assessments.length - 1]} 
         />
       </div>
-
-      {/* Detalhes do Treino no Calendário */}
-      <Dialog open={isSessionDetailOpen} onOpenChange={setIsSessionDetailOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-primary uppercase tracking-tighter flex items-center gap-2">
-              <Dumbbell className="h-6 w-6" /> Detalhes do Treino
-            </DialogTitle>
-            <DialogDescription className="font-bold">
-              {selectedDate && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh] pr-4">
-            <div className="space-y-6 py-4">
-              {selectedDaySessions.length > 0 ? selectedDaySessions.map((session) => (
-                <div key={session.id} className="space-y-4 pb-6 border-b last:border-0 border-primary/10">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
-                      <p className="text-[10px] font-black uppercase text-primary mb-1">Duração</p>
-                      <p className="text-lg font-black">{session.duration} min</p>
-                    </div>
-                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
-                      <p className="text-[10px] font-black uppercase text-primary mb-1">Carga Interna</p>
-                      <p className="text-lg font-black">{session.internalLoad || '--'}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
-                      <Activity className="h-3 w-3" /> Exercícios Realizados
-                    </h4>
-                    <div className="grid gap-2">
-                      {allExercises && allExercises.filter(ex => ex.workoutSessionId === session.id).map(ex => (
-                        <div key={ex.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border">
-                          <div>
-                            <p className="text-sm font-bold">{ex.name}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-black">{ex.sets}x {ex.reps} | {ex.weight}kg</p>
-                          </div>
-                          <Badge variant="outline" className="h-6 text-[10px] font-bold border-primary/20 text-primary">
-                            PSE {ex.pseExercise}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                    <Smile className="h-4 w-4 text-yellow-500" />
-                    <span>Sensação pós-treino: {session.pleasureScale}</span>
-                  </div>
-                </div>
-              )) : (
-                <div className="py-12 text-center text-muted-foreground italic">
-                  Nenhum registro detalhado para este dia.
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
