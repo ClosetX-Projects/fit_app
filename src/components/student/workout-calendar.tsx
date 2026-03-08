@@ -78,7 +78,7 @@ export function WorkoutCalendar() {
           <CardContent className="p-8">
             <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-center">
               {/* Container do Calendário Centralizado */}
-              <div className="w-full lg:w-auto p-8 bg-muted/20 rounded-[2rem] border-2 border-primary/5 flex flex-col items-center justify-center shadow-inner">
+              <div className="w-full lg:w-fit p-6 bg-muted/20 rounded-[2rem] border-2 border-primary/5 flex flex-col items-center justify-center shadow-inner">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -93,11 +93,11 @@ export function WorkoutCalendar() {
                   modifiers={{
                     workout: workoutDays
                   }}
-                  modifiersStyles={{
-                    workout: { backgroundColor: 'hsl(var(--primary))', color: 'white', borderRadius: '50%', fontWeight: 'bold' }
+                  modifiersClassNames={{
+                    workout: "bg-primary text-primary-foreground rounded-full font-bold"
                   }}
                 />
-                <div className="mt-8 flex items-center justify-center gap-3 text-[10px] font-black text-muted-foreground uppercase px-4 py-2 bg-background/50 rounded-full border border-primary/10">
+                <div className="mt-4 flex items-center justify-center gap-3 text-[10px] font-black text-muted-foreground uppercase px-4 py-2 bg-background/50 rounded-full border border-primary/10">
                   <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
                   <span>Treino Realizado</span>
                 </div>
