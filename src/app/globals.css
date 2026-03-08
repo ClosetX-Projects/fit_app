@@ -5,52 +5,52 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 280 40% 10%;
+    --foreground: 287 40% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 280 40% 10%;
+    --card-foreground: 287 40% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 280 40% 10%;
-    --primary: 281 95% 38%; /* Nubank Purple */
+    --popover-foreground: 287 40% 10%;
+    --primary: 287 39% 41%; /* Deep Purple da imagem */
     --primary-foreground: 0 0% 100%;
-    --secondary: 280 20% 96%;
-    --secondary-foreground: 281 95% 38%;
-    --muted: 280 10% 96%;
-    --muted-foreground: 280 10% 40%;
-    --accent: 281 60% 60%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 274 28% 96%;
+    --secondary-foreground: 287 39% 41%;
+    --muted: 246 17% 96%;
+    --muted-foreground: 246 17% 40%;
+    --accent: 74 100% 71%; /* Bright Lime da imagem */
+    --accent-foreground: 287 40% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 280 20% 90%;
-    --input: 280 20% 90%;
-    --ring: 281 95% 38%;
-    --radius: 1rem;
-    --chart-1: 281 95% 38%;
-    --chart-2: 231 39% 56%;
-    --chart-3: 173 58% 39%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 287 20% 90%;
+    --input: 287 20% 90%;
+    --ring: 287 39% 41%;
+    --radius: 1.25rem;
+    --chart-1: 287 39% 41%;
+    --chart-2: 74 100% 71%;
+    --chart-3: 274 28% 49%;
+    --chart-4: 107 73% 79%;
+    --chart-5: 246 17% 61%;
   }
  
   .dark {
-    --background: 280 40% 5%;
-    --foreground: 280 20% 95%;
-    --card: 280 40% 8%;
-    --card-foreground: 280 20% 95%;
-    --popover: 280 40% 5%;
-    --popover-foreground: 280 20% 95%;
-    --primary: 281 95% 50%;
-    --primary-foreground: 280 40% 10%;
-    --secondary: 280 30% 15%;
-    --secondary-foreground: 281 95% 70%;
-    --muted: 280 30% 15%;
-    --muted-foreground: 280 10% 65%;
-    --accent: 281 60% 60%;
-    --accent-foreground: 280 40% 10%;
+    --background: 287 40% 4%;
+    --foreground: 287 20% 98%;
+    --card: 287 40% 6%;
+    --card-foreground: 287 20% 98%;
+    --popover: 287 40% 4%;
+    --popover-foreground: 287 20% 98%;
+    --primary: 287 45% 55%;
+    --primary-foreground: 287 40% 5%;
+    --secondary: 287 30% 12%;
+    --secondary-foreground: 74 100% 71%;
+    --muted: 287 30% 12%;
+    --muted-foreground: 287 10% 65%;
+    --accent: 74 100% 71%;
+    --accent-foreground: 287 40% 10%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 280 40% 98%;
-    --border: 280 30% 20%;
-    --input: 280 30% 20%;
-    --ring: 281 95% 50%;
+    --destructive-foreground: 287 40% 98%;
+    --border: 287 30% 18%;
+    --input: 287 30% 18%;
+    --ring: 74 100% 71%;
   }
 }
  
@@ -64,9 +64,26 @@
 }
 
 .nubank-card {
-  @apply bg-card border border-border shadow-sm rounded-2xl p-6 transition-all hover:shadow-md;
+  @apply bg-card border border-border/50 shadow-sm rounded-[2rem] p-6 transition-all hover:shadow-md hover:border-primary/20;
 }
 
 .nubank-button {
-  @apply rounded-full px-6 py-3 font-semibold transition-all active:scale-95;
+  @apply rounded-full px-6 py-3 font-bold transition-all active:scale-95;
+}
+
+/* Custom Calendar Adjustments for V9 */
+.rdp-month_grid {
+  @apply w-full border-separate border-spacing-1;
+}
+
+.rdp-day_button {
+  @apply rounded-full font-bold transition-colors !important;
+}
+
+.rdp-selected .rdp-day_button {
+  @apply bg-primary text-primary-foreground !important;
+}
+
+.rdp-today .rdp-day_button {
+  @apply border-2 border-accent text-accent-foreground !important;
 }

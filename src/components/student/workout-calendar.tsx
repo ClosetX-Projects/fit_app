@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -58,27 +57,27 @@ export function WorkoutCalendar() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Histórico de Treinos</h2>
-          <p className="text-muted-foreground font-medium">Visualize sua constância e performance.</p>
+          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">Histórico</h2>
+          <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest">Sua constância e performance</p>
         </div>
-        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <CalendarIcon className="h-6 w-6 text-primary" />
+        <div className="h-14 w-14 rounded-[1.5rem] bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
+          <CalendarIcon className="h-6 w-6 text-accent-foreground" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <Card className="lg:col-span-12 border-primary/10 shadow-xl rounded-[2.5rem] overflow-hidden bg-card">
-          <CardHeader className="bg-primary/5 p-8 border-b">
-            <CardTitle className="text-lg font-black flex items-center gap-2 uppercase">
-              <CalendarIcon className="h-5 w-5 text-primary" /> Assiduidade Mensal
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <Card className="lg:col-span-12 border-primary/10 shadow-2xl rounded-[3rem] overflow-hidden bg-card">
+          <CardHeader className="bg-primary/5 p-8 border-b border-primary/10">
+            <CardTitle className="text-sm font-black flex items-center gap-2 uppercase tracking-widest text-primary">
+              <Activity className="h-4 w-4" /> Assiduidade Mensal
             </CardTitle>
           </CardHeader>
           <CardContent className="p-8">
-            <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-center">
+            <div className="flex flex-col lg:flex-row gap-12 items-center lg:items-start justify-center">
               {/* Container do Calendário Centralizado */}
-              <div className="w-full lg:w-fit p-6 bg-muted/20 rounded-[2rem] border-2 border-primary/5 flex flex-col items-center justify-center shadow-inner">
+              <div className="w-full lg:w-fit p-4 bg-secondary/20 rounded-[2.5rem] border border-primary/5 flex flex-col items-center justify-center shadow-inner">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -94,18 +93,24 @@ export function WorkoutCalendar() {
                     workout: workoutDays
                   }}
                   modifiersClassNames={{
-                    workout: "bg-primary text-primary-foreground rounded-full font-bold"
+                    workout: "bg-primary text-primary-foreground rounded-full font-black ring-4 ring-primary/10"
                   }}
                 />
-                <div className="mt-4 flex items-center justify-center gap-3 text-[10px] font-black text-muted-foreground uppercase px-4 py-2 bg-background/50 rounded-full border border-primary/10">
-                  <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
-                  <span>Treino Realizado</span>
+                <div className="mt-6 flex items-center justify-center gap-4 text-[10px] font-black text-muted-foreground uppercase px-6 py-3 bg-background/50 rounded-full border border-primary/10">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
+                    <span>Treino</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full border-2 border-accent shadow-sm" />
+                    <span>Hoje</span>
+                  </div>
                 </div>
               </div>
 
               {/* Lista Lateral de Sessões Recentes */}
-              <div className="flex-1 space-y-4 w-full max-w-md">
-                <h3 className="text-sm font-black uppercase text-primary tracking-widest border-b border-primary/10 pb-3 flex items-center gap-2">
+              <div className="flex-1 space-y-6 w-full max-w-md">
+                <h3 className="text-xs font-black uppercase text-primary tracking-widest border-b border-primary/10 pb-3 flex items-center gap-2">
                   <Activity className="h-4 w-4" /> Atividade Recente
                 </h3>
                 <ScrollArea className="h-[400px] pr-4">
@@ -118,24 +123,27 @@ export function WorkoutCalendar() {
                             setSelectedDate(new Date(session.date));
                             setIsSessionDetailOpen(true);
                           }}
-                          className={`nubank-card cursor-pointer group flex items-center justify-between py-5 px-6 hover:border-primary/40 transition-all ${isSameDay(new Date(session.date), selectedDate || new Date()) ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}
+                          className={`nubank-card cursor-pointer group flex items-center justify-between py-5 px-6 hover:border-accent/50 transition-all ${isSameDay(new Date(session.date), selectedDate || new Date()) ? 'border-accent bg-accent/5' : ''}`}
                         >
                           <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center border border-primary/5">
-                              <span className="text-sm font-black text-primary">{format(new Date(session.date), 'dd')}</span>
-                              <span className="text-[8px] font-bold text-primary uppercase">{format(new Date(session.date), 'MMM', { locale: ptBR })}</span>
+                            <div className="h-12 w-12 rounded-2xl bg-primary flex flex-col items-center justify-center shadow-md">
+                              <span className="text-sm font-black text-white">{format(new Date(session.date), 'dd')}</span>
+                              <span className="text-[8px] font-bold text-white uppercase">{format(new Date(session.date), 'MMM', { locale: ptBR })}</span>
                             </div>
                             <div>
                               <p className="font-black text-sm group-hover:text-primary transition-colors">Sessão de Treino</p>
                               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">{session.duration} min | PSE {session.pseSession || '--'}</p>
                             </div>
                           </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                          <div className="h-10 w-10 rounded-full flex items-center justify-center group-hover:bg-accent/20 transition-all">
+                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                          </div>
                         </div>
                       ))
                     ) : (
-                      <div className="py-16 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem] bg-muted/10">
-                        Nenhum treino registrado ainda.
+                      <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[3rem] bg-muted/10">
+                        <Dumbbell className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                        <p className="text-xs font-black uppercase tracking-widest">Nenhum treino registrado</p>
                       </div>
                     )}
                   </div>
@@ -148,46 +156,49 @@ export function WorkoutCalendar() {
 
       {/* Detalhes do Treino */}
       <Dialog open={isSessionDetailOpen} onOpenChange={setIsSessionDetailOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] border-primary/20 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-primary uppercase tracking-tighter flex items-center gap-2">
-              <Dumbbell className="h-6 w-6" /> Detalhes da Sessão
-            </DialogTitle>
-            <DialogDescription className="font-bold uppercase text-[10px] tracking-widest text-muted-foreground">
-              {selectedDate && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh] pr-4">
-            <div className="space-y-6 py-4">
+        <DialogContent className="sm:max-w-[500px] rounded-[3rem] border-primary/20 shadow-2xl p-0 overflow-hidden">
+          <div className="bg-primary p-8 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tighter flex items-center gap-3">
+                <Dumbbell className="h-8 w-8 text-accent" /> PERFORMANCE
+              </DialogTitle>
+              <DialogDescription className="font-black uppercase text-[11px] tracking-[0.2em] text-white/80">
+                {selectedDate && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          <ScrollArea className="max-h-[60vh] p-8">
+            <div className="space-y-8">
               {selectedDaySessions.length > 0 ? selectedDaySessions.map((session) => (
-                <div key={session.id} className="space-y-6 pb-6 border-b last:border-0 border-primary/10">
+                <div key={session.id} className="space-y-8">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-sm">
-                      <p className="text-[10px] font-black uppercase text-primary mb-1 flex items-center gap-1">
+                    <div className="bg-secondary/20 p-6 rounded-[2rem] border border-primary/5 shadow-sm text-center">
+                      <p className="text-[10px] font-black uppercase text-primary mb-2 flex items-center justify-center gap-1">
                         <Clock className="h-3 w-3" /> Duração
                       </p>
-                      <p className="text-xl font-black">{session.duration} min</p>
+                      <p className="text-3xl font-black">{session.duration}<span className="text-xs ml-1">min</span></p>
                     </div>
-                    <div className="bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-sm">
-                      <p className="text-[10px] font-black uppercase text-primary mb-1 flex items-center gap-1">
-                        <Activity className="h-3 w-3" /> Carga Interna
+                    <div className="bg-accent/10 p-6 rounded-[2rem] border border-accent/10 shadow-sm text-center">
+                      <p className="text-[10px] font-black uppercase text-accent mb-2 flex items-center justify-center gap-1">
+                        <Activity className="h-3 w-3" /> Carga
                       </p>
-                      <p className="text-xl font-black">{session.internalLoad || '--'}</p>
+                      <p className="text-3xl font-black">{session.internalLoad || '--'}</p>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2 mb-2">
-                      Exercícios Realizados
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary" /> Exercícios
                     </h4>
-                    <div className="grid gap-3">
+                    <div className="grid gap-4">
                       {allExercises && allExercises.filter(ex => ex.workoutSessionId === session.id).map(ex => (
-                        <div key={ex.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-primary/5">
+                        <div key={ex.id} className="flex items-center justify-between p-5 bg-card rounded-[1.5rem] border border-primary/5 shadow-sm hover:border-accent/30 transition-colors">
                           <div>
-                            <p className="text-sm font-bold">{ex.name}</p>
+                            <p className="text-sm font-black text-foreground">{ex.name}</p>
                             <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">{ex.sets}x {ex.reps} | {ex.weight}kg</p>
                           </div>
-                          <Badge variant="outline" className="h-7 text-[10px] font-black uppercase tracking-tighter border-primary/30 text-primary bg-primary/5 px-3">
+                          <Badge className="h-8 text-[11px] font-black uppercase tracking-tighter bg-accent text-accent-foreground border-none px-4 rounded-full">
                             PSE {ex.pseExercise}
                           </Badge>
                         </div>
@@ -195,15 +206,15 @@ export function WorkoutCalendar() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground italic bg-secondary/20 p-4 rounded-2xl border border-primary/5">
-                    <div className="h-8 w-8 rounded-full bg-white/50 flex items-center justify-center shadow-inner">
-                       <Smile className="h-5 w-5 text-yellow-500" />
+                  <div className="flex items-center gap-4 text-xs font-bold text-primary/80 bg-accent/5 p-6 rounded-[2rem] border border-accent/20">
+                    <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-md shrink-0">
+                       <Smile className="h-6 w-6 text-accent" />
                     </div>
-                    <span>Sensação pós-treino: <strong>{session.pleasureScale}</strong> (escala de -5 a +5)</span>
+                    <span>Sensação: <strong className="text-lg ml-1">{session.pleasureScale}</strong> <span className="text-[10px] uppercase block opacity-60">Escala de Bem-estar (-5 a +5)</span></span>
                   </div>
                 </div>
               )) : (
-                <div className="py-16 text-center text-muted-foreground italic bg-muted/10 rounded-3xl">
+                <div className="py-16 text-center text-muted-foreground italic bg-muted/10 rounded-[2rem]">
                   Nenhum registro detalhado para este dia.
                 </div>
               )}
