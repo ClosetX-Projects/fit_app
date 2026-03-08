@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
-import { Dumbbell, Scale, Target, Loader2, TrendingUp, CalendarDays, AlertCircle, Zap, Clock, Calendar as CalendarIcon, Info } from "lucide-react"
+import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Calendar as CalendarIcon, Smile, Activity } from "lucide-react"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy, limit, doc } from "firebase/firestore"
 import { format, startOfMonth, endOfMonth, differenceInMinutes, isSameDay } from "date-fns"
@@ -15,7 +15,7 @@ import { AICoach } from "./ai-coach"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar } from "@/components/ui/calendar"
@@ -162,9 +162,6 @@ export function Dashboard() {
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Percepção Subjetiva de Esforço</DialogTitle>
-                  <DialogDescription>
-                    Em uma escala de 1 a 10, quão intenso foi o treino de {format(new Date(pendingPseSession.date), 'dd/MM')}?
-                  </DialogDescription>
                 </DialogHeader>
                 <div className="py-8 space-y-6">
                    <div className="flex justify-between items-center mb-2">
@@ -183,9 +180,7 @@ export function Dashboard() {
                       <span>Máximo</span>
                    </div>
                 </div>
-                <DialogFooter>
-                  <Button onClick={handleSavePse} className="w-full rounded-full h-12">Salvar Resposta</Button>
-                </DialogFooter>
+                <Button onClick={handleSavePse} className="w-full rounded-full h-12">Salvar Resposta</Button>
               </DialogContent>
             </Dialog>
           </AlertDescription>
@@ -241,7 +236,7 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Calendário de Assiduidade */}
+        {/* Calendário de Assiduidade - Destaque Central */}
         <div className="md:col-span-1">
           <Card className="h-full border-primary/10 shadow-lg rounded-3xl overflow-hidden flex flex-col">
             <CardHeader className="bg-primary/5 p-4 border-b">
@@ -304,7 +299,6 @@ export function Dashboard() {
                 <div className="h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground border border-dashed rounded-3xl bg-muted/20">
                   <Scale className="h-12 w-12 mb-4 opacity-20" />
                   <p className="font-medium">Nenhum dado de progresso disponível.</p>
-                  <p className="text-xs max-w-xs">Registre avaliações físicas para visualizar seu gráfico.</p>
                 </div>
               )}
             </CardContent>
@@ -312,13 +306,11 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-3">
-           <AICoach 
-            recentSessions={sessions.slice(0, 5)} 
-            lastAssessment={assessments?.[assessments.length - 1]} 
-          />
-        </div>
+      <div className="md:col-span-3">
+         <AICoach 
+          recentSessions={sessions.slice(0, 5)} 
+          lastAssessment={assessments?.[assessments.length - 1]} 
+        />
       </div>
 
       {/* Detalhes do Treino no Calendário */}
@@ -334,7 +326,7 @@ export function Dashboard() {
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-6 py-4">
-              {selectedDaySessions.map((session) => (
+              {selectedDaySessions.length > 0 ? selectedDaySessions.map((session) => (
                 <div key={session.id} className="space-y-4 pb-6 border-b last:border-0 border-primary/10">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
@@ -368,10 +360,14 @@ export function Dashboard() {
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
                     <Smile className="h-4 w-4 text-yellow-500" />
-                    <span>Sensação pós-treino (Feeling): {session.pleasureScale}</span>
+                    <span>Sensação pós-treino: {session.pleasureScale}</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="py-12 text-center text-muted-foreground italic">
+                  Nenhum registro detalhado para este dia.
+                </div>
+              )}
             </div>
           </ScrollArea>
         </DialogContent>
