@@ -77,7 +77,7 @@ export function WorkoutCalendar() {
           </CardHeader>
           <CardContent className="p-8">
             <div className="flex flex-col md:flex-row gap-8 items-start">
-              <div className="w-full md:w-auto p-4 bg-muted/30 rounded-3xl border">
+              <div className="w-full md:w-auto p-6 bg-muted/30 rounded-3xl border flex flex-col items-center">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -88,7 +88,7 @@ export function WorkoutCalendar() {
                     }
                   }}
                   locale={ptBR}
-                  className="mx-auto"
+                  className="rounded-md border-none"
                   modifiers={{
                     workout: workoutDays
                   }}
@@ -144,7 +144,7 @@ export function WorkoutCalendar() {
         </Card>
       </div>
 
-      {/* Detalhes do Treino - Mantendo o Modal para UX Mobile-First */}
+      {/* Detalhes do Treino */}
       <Dialog open={isSessionDetailOpen} onOpenChange={setIsSessionDetailOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2rem]">
           <DialogHeader>
