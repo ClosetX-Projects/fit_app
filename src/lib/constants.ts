@@ -20,6 +20,27 @@ export const EXERCISE_LIST = [
   "Levantamento Terra"
 ];
 
+export const EXERCISE_METADATA: Record<string, { group: string }> = {
+  "Agachamento Livre": { group: "Quadríceps" },
+  "Leg Press 45º": { group: "Quadríceps" },
+  "Extensora": { group: "Quadríceps" },
+  "Flexora": { group: "Posterior" },
+  "Stiff": { group: "Posterior" },
+  "Supino Reto": { group: "Peito" },
+  "Supino Inclinado": { group: "Peito" },
+  "Crucifixo": { group: "Peito" },
+  "Desenvolvimento": { group: "Deltoide" },
+  "Elevação Lateral": { group: "Deltoide" },
+  "Puxada Alta": { group: "Costas" },
+  "Remada Curvada": { group: "Costas" },
+  "Rosca Direta": { group: "Biceps" },
+  "Tríceps Pulley": { group: "Triceps" },
+  "Prancha Abdominal": { group: "Core" },
+  "Cadeira Adutora": { group: "Adutores" },
+  "Cadeira Abdutora": { group: "Glúteo" },
+  "Levantamento Terra": { group: "Costas" }
+};
+
 export const RECOVERY_MESSAGES: Record<number, string> = {
   1: "Muito Mal: Risco de lesão. Considere repouso total.",
   2: "Mal: Recuperação insuficiente. Reduza drasticamente a carga.",

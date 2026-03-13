@@ -2,13 +2,15 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { Loader2, Gauge, Timer, Smile, TrendingUp, Zap, ShieldAlert } from 'lucide-react';
-import { format } from 'date-fns';
+import { Loader2, Zap, LayoutGrid, TrendingUp, Dumbbell, PieChart as PieIcon } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { EXERCISE_METADATA } from '@/lib/constants';
 
 interface StudentAnalyticsProps {
   studentId: string;
@@ -21,95 +23,176 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
     collection(firestore!, 'users', studentId, 'workoutHistory_flat')
   , [firestore, studentId]);
 
-  const { data: rawSessions, isLoading } = useCollection(sessionsRef);
+  const exercisesRef = useMemoFirebase(() => 
+    collection(firestore!, 'users', studentId, 'exerciseHistory_flat')
+  , [firestore, studentId]);
+
+  const { data: rawSessions, isLoading: loadingSessions } = useCollection(sessionsRef);
+  const { data: rawExercises, isLoading: loadingExercises } = useCollection(exercisesRef);
 
   const stats = useMemo(() => {
-    if (!rawSessions || rawSessions.length === 0) return { avgLoad: 0, monotony: 0, strain: 0 };
+    if (!rawSessions || rawSessions.length === 0) return { avgLoad: 0, totalSeries: 0, totalReps: 0 };
     
-    const loads = rawSessions.map(s => s.internalLoad || 0);
-    const avgLoad = loads.reduce((a, b) => a + b, 0) / loads.length;
-    
-    // Desvio Padrão
-    const variance = loads.reduce((a, b) => a + Math.pow(b - avgLoad, 2), 0) / loads.length;
-    const stdDev = Math.sqrt(variance) || 1; // Evita divisão por zero
-    
-    const monotony = avgLoad / stdDev;
-    const strain = avgLoad * monotony;
+    const totalSeries = rawExercises?.reduce((acc, ex) => acc + (Number(ex.sets) || 0), 0) || 0;
+    const totalReps = rawExercises?.reduce((acc, ex) => {
+      const reps = Number(ex.reps.toString().split(/[^0-9]/)[0]) || 0;
+      return acc + (reps * (Number(ex.sets) || 0));
+    }, 0) || 0;
 
-    return { 
-      avgLoad: Math.round(avgLoad), 
-      monotony: monotony.toFixed(2), 
-      strain: Math.round(strain) 
-    };
-  }, [rawSessions]);
+    return { totalSeries, totalReps };
+  }, [rawSessions, rawExercises]);
 
-  const chartData = useMemo(() => {
-    if (!rawSessions) return [];
-    return [...rawSessions]
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(s => ({
-        date: format(new Date(s.date), 'dd/MM'),
-        pse: s.pseSession || 0,
-        feeling: s.pleasureScale || 0,
-        load: s.internalLoad || 0,
-        duration: s.duration || 0,
+  const volumeData = useMemo(() => {
+    if (!rawExercises) return [];
+    const groups: Record<string, number> = {};
+    rawExercises.forEach(ex => {
+      const metadata = EXERCISE_METADATA[ex.name] || { group: "Outros" };
+      groups[metadata.group] = (groups[metadata.group] || 0) + (Number(ex.sets) || 0);
+    });
+    return Object.entries(groups).map(([name, value]) => ({ name, value }));
+  }, [rawExercises]);
+
+  const loadProgression = useMemo(() => {
+    if (!rawExercises) return [];
+    return [...rawExercises]
+      .sort((a, b) => new Date(a.createdAt?.toDate?.()).getTime() - new Date(b.createdAt?.toDate?.()).getTime())
+      .slice(-10)
+      .map(ex => ({
+        date: format(new Date(ex.createdAt?.toDate?.()), 'dd/MM'),
+        load: (Number(ex.weight) || 0) * (Number(ex.sets) || 0)
       }));
-  }, [rawSessions]);
+  }, [rawExercises]);
 
-  if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
+  const stimuliData = useMemo(() => {
+    if (!rawExercises) return [];
+    let força = 0, hipertrofia = 0, resistencia = 0;
+    rawExercises.forEach(ex => {
+      const reps = Number(ex.reps.toString().split(/[^0-9]/)[0]) || 0;
+      if (reps <= 6) força++;
+      else if (reps <= 12) hipertrofia++;
+      else resistencia++;
+    });
+    return [
+      { name: 'Força', value: força, color: '#DFFF6E' },
+      { name: 'Hipertrofia', value: hipertrofia, color: '#7E3F8F' },
+      { name: 'Resistência', value: resistencia, color: '#3b82f6' }
+    ];
+  }, [rawExercises]);
+
+  if (loadingSessions || loadingExercises) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="rounded-3xl border-primary/20 bg-primary/5 p-4 text-center">
-          <p className="text-[10px] uppercase font-black text-primary/60">Carga Média</p>
-          <p className="text-2xl font-black text-primary">{stats.avgLoad}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Volume por Grupo Muscular */}
+        <Card className="rounded-[2rem] border-primary/10 bg-card overflow-hidden shadow-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-primary flex items-center gap-2">
+              <Dumbbell className="h-4 w-4" /> Volume por grupo muscular
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[250px] pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={volumeData}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.05} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                <YAxis hide />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="value" fill="#7E3F8F" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
-        <Card className="rounded-3xl border-accent/20 bg-accent/5 p-4 text-center">
-          <p className="text-[10px] uppercase font-black text-accent/60">Monotonia</p>
-          <p className="text-2xl font-black text-accent">{stats.monotony}</p>
-          <p className="text-[8px] font-bold opacity-60">Ideal: &lt; 2.0</p>
+
+        {/* Carga Total por Semana */}
+        <Card className="rounded-[2rem] border-primary/10 bg-card overflow-hidden shadow-xl">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold text-primary flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Carga total levantada
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[250px] pt-4">
+            <div className="flex gap-8 mb-4">
+              <div>
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Nº total de séries</p>
+                <p className="text-2xl font-black">{stats.totalSeries}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Nº total de repetições</p>
+                <p className="text-2xl font-black">{stats.totalReps}</p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height="130">
+              <LineChart data={loadProgression}>
+                <Line type="monotone" dataKey="load" stroke="#DFFF6E" strokeWidth={3} dot={{ r: 4, fill: "#DFFF6E" }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
-        <Card className="rounded-3xl border-primary/20 bg-primary/5 p-4 text-center">
-          <p className="text-[10px] uppercase font-black text-primary/60">Strain (Tensão)</p>
-          <p className="text-2xl font-black text-primary">{stats.strain}</p>
+
+        {/* Distribuição dos Estímulos */}
+        <Card className="rounded-[2rem] border-primary/10 bg-card overflow-hidden shadow-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-primary flex items-center gap-2">
+              <PieIcon className="h-4 w-4" /> Distribuição dos estímulos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[250px] flex items-center">
+            <div className="flex-1 h-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={stimuliData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {stimuliData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                  </Pie>
+                  <ChartTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 space-y-3">
+              {stimuliData.map((s, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
+                  <p className="text-xs font-bold uppercase tracking-tighter">{s.name}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
         </Card>
-        <Card className="rounded-3xl border-destructive/20 bg-destructive/5 p-4 text-center">
-          <p className="text-[10px] uppercase font-black text-destructive/60">Risco</p>
-          <p className="text-2xl font-black text-destructive">{Number(stats.monotony) > 2 ? 'ALTO' : 'BAIXO'}</p>
+
+        {/* Análise Visual da Progressão */}
+        <Card className="rounded-[2rem] border-primary/10 bg-card overflow-hidden shadow-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-primary flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" /> Análise visual da progressão
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[250px] pt-4 relative">
+             <div className="absolute top-4 right-8 z-10">
+                <TrendingUp className="h-8 w-8 text-yellow-500 animate-bounce" />
+             </div>
+             <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={loadProgression}>
+                   <defs>
+                      <linearGradient id="colorLoad" x1="0" y1="0" x2="0" y2="1">
+                         <stop offset="5%" stopColor="#7E3F8F" stopOpacity={0.8}/>
+                         <stop offset="95%" stopColor="#7E3F8F" stopOpacity={0}/>
+                      </linearGradient>
+                   </defs>
+                   <Area type="monotone" dataKey="load" stroke="#7E3F8F" fillOpacity={1} fill="url(#colorLoad)" />
+                </AreaChart>
+             </ResponsiveContainer>
+          </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        <Card className="rounded-3xl overflow-hidden border-primary/10 shadow-lg">
-          <CardHeader className="bg-primary/5 border-b"><CardTitle className="text-xs font-black uppercase flex items-center gap-2 tracking-widest text-primary"><Zap className="h-4 w-4" /> Evolução de Carga Interna</CardTitle></CardHeader>
-          <CardContent className="h-[300px] p-6">
-             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
-                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                   <YAxis hide />
-                   <ChartTooltip />
-                   <Bar dataKey="load" fill="#7E3F8F" radius={[6, 6, 0, 0]} />
-                </BarChart>
-             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-3xl overflow-hidden border-accent/10 shadow-lg">
-          <CardHeader className="bg-accent/5 border-b"><CardTitle className="text-xs font-black uppercase flex items-center gap-2 tracking-widest text-accent"><Smile className="h-4 w-4" /> Bem-estar (Feeling)</CardTitle></CardHeader>
-          <CardContent className="h-[300px] p-6">
-             <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
-                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                   <YAxis hide domain={[-5, 5]} />
-                   <ChartTooltip />
-                   <Line type="monotone" dataKey="feeling" stroke="#DFFF6E" strokeWidth={4} dot={{ r: 4, fill: "#DFFF6E" }} />
-                </LineChart>
-             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      <div className="nubank-card bg-primary text-primary-foreground p-8 flex items-center justify-between">
+         <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center">
+               <Zap className="h-6 w-6" />
+            </div>
+            <p className="text-xl font-black uppercase tracking-tighter italic">RELATÓRIOS PRONTOS PARA MOSTRAR AO ALUNO</p>
+         </div>
+         <p className="text-4xl font-black opacity-30">APP</p>
       </div>
     </div>
   );
