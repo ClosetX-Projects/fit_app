@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { EXERCISE_METADATA } from "@/lib/constants"
 
 export function Dashboard() {
-  const { user } = userUser()
+  const { user } = useUser()
   const { firestore } = useFirebase()
   const { toast } = useToast()
   const [pendingPseValue, setPendingPseValue] = useState(7)
@@ -77,10 +77,14 @@ export function Dashboard() {
   const loadProgression = useMemo(() => {
     if (!rawExercises) return [];
     return [...rawExercises]
-      .sort((a, b) => new Date(a.createdAt?.toDate?.()).getTime() - new Date(b.createdAt?.toDate?.()).getTime())
+      .sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return dateA - dateB;
+      })
       .slice(-10)
       .map(ex => ({
-        date: format(new Date(ex.createdAt?.toDate?.()), 'dd/MM'),
+        date: ex.createdAt?.toDate ? format(ex.createdAt.toDate(), 'dd/MM') : '--',
         load: (Number(ex.weight) || 0) * (Number(ex.sets) || 0)
       }));
   }, [rawExercises]);
