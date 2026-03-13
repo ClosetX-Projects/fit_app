@@ -1,4 +1,3 @@
-
 export const EXERCISE_LIST = [
   "Agachamento Livre",
   "Leg Press 45º",
@@ -53,4 +52,32 @@ export const RECOVERY_MESSAGES: Record<number, string> = {
   8: "Recuperação Quase Completa",
   9: "Recuperação Superior",
   10: "Totalmente recuperado"
+};
+
+export const BORG_SCALE_MESSAGES: Record<number, string> = {
+  0: "Repouso",
+  1: "Demasiado Leve",
+  2: "Muito Leve",
+  3: "Muito Leve-Leve",
+  4: "Leve",
+  5: "Leve-Moderado",
+  6: "Moderado",
+  7: "Moderado-Intenso",
+  8: "Intenso",
+  9: "Muito Intenso",
+  10: "Exaustivo"
+};
+
+export const BORG_SCALE_COLORS: Record<number, string> = {
+  0: "bg-blue-500",
+  1: "bg-yellow-100",
+  2: "bg-yellow-200",
+  3: "bg-yellow-300",
+  4: "bg-yellow-400",
+  5: "bg-yellow-500",
+  6: "bg-orange-400",
+  7: "bg-orange-500",
+  8: "bg-red-500",
+  9: "bg-red-600",
+  10: "bg-red-700"
 };

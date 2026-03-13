@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -7,11 +6,13 @@ import { collection } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Loader2, History, Dumbbell, Sparkles, BrainCircuit } from 'lucide-react';
+import { Loader2, History, Dumbbell, Sparkles, BrainCircuit, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { generateTrainingInsights, type TrainingInsightsInput } from '@/ai/ai-training-insights';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { BORG_SCALE_MESSAGES, BORG_SCALE_COLORS } from '@/lib/constants';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface StudentHistoryViewProps {
   studentId: string;
@@ -101,7 +102,7 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
                   <TableHead className="text-center">Séries</TableHead>
                   <TableHead className="text-center">Reps</TableHead>
                   <TableHead className="text-center">Carga</TableHead>
-                  <TableHead className="text-center">PSE</TableHead>
+                  <TableHead className="text-center">PSE (Borg)</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -119,13 +120,21 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
                     <TableCell className="text-center">{ex.reps}</TableCell>
                     <TableCell className="text-center font-semibold text-primary">{ex.weight} kg</TableCell>
                     <TableCell className="text-center">
-                      <span className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-[10px] font-bold ${
-                        ex.pseExercise >= 8 ? 'bg-destructive/10 text-destructive' : 
-                        ex.pseExercise >= 5 ? 'bg-primary/10 text-primary' : 
-                        'bg-green-500/10 text-green-500'
-                      }`}>
-                        {ex.pseExercise}
-                      </span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight cursor-help ${
+                              BORG_SCALE_COLORS[ex.pseExercise] || 'bg-muted'
+                            } ${ex.pseExercise >= 8 ? 'text-white' : 'text-foreground'}`}>
+                              {ex.pseExercise} - {BORG_SCALE_MESSAGES[ex.pseExercise] || 'N/A'}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-card border-primary/20 p-2 shadow-xl">
+                            <p className="text-[10px] font-bold">Escala de Borg Adaptada</p>
+                            <p className="text-[9px] opacity-70">Nível {ex.pseExercise}: {BORG_SCALE_MESSAGES[ex.pseExercise]}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button 

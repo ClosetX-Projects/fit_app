@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,8 +13,9 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Timer, Smile, CheckCircle2, Loader2, Repeat, Play, Square } from 'lucide-react';
-import { RECOVERY_MESSAGES } from '@/lib/constants';
+import { Timer, Smile, CheckCircle2, Loader2, Repeat, Play, Square, Info } from 'lucide-react';
+import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface ExerciseLog {
   sets: number;
@@ -193,27 +193,36 @@ export function WorkoutSessionForm() {
       <div className="grid gap-4">
         {prescribedExercises?.map(ex => (
           <Card key={ex.id} className="rounded-2xl border-l-8 border-l-primary shadow-md hover:border-l-accent transition-all">
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="font-black text-xl text-primary">{ex.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Meta: {ex.sets}x {ex.reps}</span>
-                  {ex.weight > 0 && <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{ex.weight}kg</span>}
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row justify-between gap-6">
+                <div className="flex-1">
+                  <p className="font-black text-xl text-primary">{ex.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Meta: {ex.sets}x {ex.reps}</span>
+                    {ex.weight > 0 && <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{ex.weight}kg</span>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
+                  <div className="space-y-1">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Peso (kg)</Label>
+                    <Input type="number" className="h-12 font-black text-lg text-center rounded-xl" value={exerciseLogs[ex.id]?.weight ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">Séries</Label>
+                    <Input type="number" className="h-12 font-black text-lg text-center rounded-xl" value={exerciseLogs[ex.id]?.sets ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground">PSE (Borg)</Label>
+                    <Input type="number" min="0" max="10" className="h-12 font-black text-lg text-center rounded-xl text-primary" value={exerciseLogs[ex.id]?.pse ?? 7} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} />
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Peso (kg)</Label>
-                  <Input type="number" className="h-12 font-black text-lg text-center rounded-xl" value={exerciseLogs[ex.id]?.weight ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Séries</Label>
-                  <Input type="number" className="h-12 font-black text-lg text-center rounded-xl" value={exerciseLogs[ex.id]?.sets ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">PSE (1-10)</Label>
-                  <Input type="number" min="1" max="10" className="h-12 font-black text-lg text-center rounded-xl text-primary" value={exerciseLogs[ex.id]?.pse ?? 7} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} />
-                </div>
+              
+              <div className="mt-4 flex items-center gap-3">
+                 <div className={cn("h-8 px-4 rounded-full flex items-center justify-center text-[10px] font-black uppercase tracking-wider text-white shadow-sm transition-colors", BORG_SCALE_COLORS[exerciseLogs[ex.id]?.pse || 0])}>
+                    {BORG_SCALE_MESSAGES[exerciseLogs[ex.id]?.pse || 0]}
+                 </div>
+                 <p className="text-[10px] text-muted-foreground font-medium italic">Escala de Borg Adaptada</p>
               </div>
             </CardContent>
           </Card>
