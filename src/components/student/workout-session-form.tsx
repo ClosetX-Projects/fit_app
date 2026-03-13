@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Timer, Smile, CheckCircle2, Loader2, Repeat, Play, Square, Info } from 'lucide-react';
-import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS } from '@/lib/constants';
+import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 interface ExerciseLog {
@@ -235,13 +235,17 @@ export function WorkoutSessionForm() {
           <div className="space-y-10 py-6">
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Escala de Prazer (Feeling)</Label>
-                <span className="text-5xl font-black text-primary">{pleasure}</span>
+                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Escala de Feeling (Sensação)</Label>
+                <span className="text-5xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
               </div>
               <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-4" />
-              <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+              <div className="p-4 bg-primary text-primary-foreground rounded-2xl text-center shadow-lg">
+                <p className="text-xs font-black uppercase tracking-widest mb-1 opacity-70">Sensação Atual</p>
+                <p className="text-xl font-black uppercase italic">{FEELING_SCALE_MESSAGES[pleasure]}</p>
+              </div>
+              <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">
                 <span>Muito Ruim</span>
-                <span>Excelente</span>
+                <span>Muito Bom</span>
               </div>
             </div>
             

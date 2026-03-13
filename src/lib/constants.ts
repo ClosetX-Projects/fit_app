@@ -81,3 +81,17 @@ export const BORG_SCALE_COLORS: Record<number, string> = {
   9: "bg-red-600",
   10: "bg-red-700"
 };
+
+export const FEELING_SCALE_MESSAGES: Record<number, string> = {
+  5: "Muito Bom",
+  4: "Bom+",
+  3: "Bom",
+  2: "Relativamente Bom",
+  1: "Pouco Bom",
+  0: "Neutro",
+  "-1": "Pouco Ruim",
+  "-2": "Relativamente Ruim",
+  "-3": "Ruim",
+  "-4": "Muito Ruim-",
+  "-5": "Muito Ruim"
+};

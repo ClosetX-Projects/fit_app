@@ -11,6 +11,7 @@ import { collection } from 'firebase/firestore';
 import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock } from 'lucide-react';
+import { FEELING_SCALE_MESSAGES } from '@/lib/constants';
 
 export function WorkoutCalendar() {
   const { user } = useUser();
@@ -132,7 +133,7 @@ export function WorkoutCalendar() {
                             </div>
                             <div>
                               <p className="font-black text-sm group-hover:text-primary transition-colors">Sessão de Treino</p>
-                              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">{session.duration} min | PSE {session.pseSession || '--'}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">{session.duration} min | Feeling {session.pleasureScale > 0 ? `+${session.pleasureScale}` : session.pleasureScale}</p>
                             </div>
                           </div>
                           <div className="h-10 w-10 rounded-full flex items-center justify-center group-hover:bg-accent/20 transition-all">
@@ -181,9 +182,9 @@ export function WorkoutCalendar() {
                     </div>
                     <div className="bg-accent/10 p-6 rounded-[2rem] border border-accent/10 shadow-sm text-center">
                       <p className="text-[10px] font-black uppercase text-accent mb-2 flex items-center justify-center gap-1">
-                        <Activity className="h-3 w-3" /> Carga
+                        <Activity className="h-3 w-3" /> Carga Interna
                       </p>
-                      <p className="text-3xl font-black">{session.internalLoad || '--'}</p>
+                      <p className="text-3xl font-black">{session.duration * (session.pseSession || 7)}</p>
                     </div>
                   </div>
 
@@ -206,11 +207,16 @@ export function WorkoutCalendar() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs font-bold text-primary/80 bg-accent/5 p-6 rounded-[2rem] border border-accent/20">
-                    <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-md shrink-0">
-                       <Smile className="h-6 w-6 text-accent" />
+                  <div className="flex flex-col gap-2 text-xs font-bold text-primary/80 bg-accent/5 p-6 rounded-[2rem] border border-accent/20">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-md shrink-0">
+                         <Smile className="h-6 w-6 text-accent" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase block opacity-60">Escala de Feeling (Sensação)</span>
+                        <span className="text-xl font-black uppercase italic text-primary">{FEELING_SCALE_MESSAGES[session.pleasureScale || 0]}</span>
+                      </div>
                     </div>
-                    <span>Sensação: <strong className="text-lg ml-1">{session.pleasureScale}</strong> <span className="text-[10px] uppercase block opacity-60">Escala de Bem-estar (-5 a +5)</span></span>
                   </div>
                 </div>
               )) : (
