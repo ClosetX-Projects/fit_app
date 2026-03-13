@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Timer, Smile, CheckCircle2, Loader2, Repeat, Activity } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Timer, Smile, CheckCircle2, Loader2, Repeat, Play, Square } from 'lucide-react';
 import { RECOVERY_MESSAGES } from '@/lib/constants';
 
 interface ExerciseLog {
@@ -30,6 +31,8 @@ export function WorkoutSessionForm() {
   const [loading, setLoading] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [showPleasureDialog, setShowPleasureDialog] = useState(false);
 
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [recovery, setRecovery] = useState(7);
@@ -42,6 +45,16 @@ export function WorkoutSessionForm() {
 
   const prescribedExercisesRef = useMemoFirebase(() => (user && selectedProgramId) ? collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'prescribedExercises') : null, [firestore, user, selectedProgramId]);
   const { data: prescribedExercises } = useCollection(prescribedExercisesRef);
+
+  useEffect(() => {
+    let interval: any;
+    if (isStarted) {
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - (startTime || Date.now())) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isStarted, startTime]);
 
   useEffect(() => {
     if (prescribedExercises) {
@@ -57,14 +70,17 @@ export function WorkoutSessionForm() {
     if (!selectedProgramId) return toast({ variant: "destructive", title: "Selecione um programa" });
     setIsStarted(true);
     setStartTime(Date.now());
+    setElapsedTime(0);
+  };
+
+  const handleOpenFinish = () => {
+    setShowPleasureDialog(true);
   };
 
   const handleSubmit = async () => {
     if (!user || !firestore || !startTime) return;
     setLoading(true);
-
-    const endTime = Date.now();
-    const durationMin = Math.round((endTime - startTime) / 60000);
+    const durationMin = Math.round(elapsedTime / 60);
 
     try {
       const sessionId = doc(collection(firestore, 'dummy')).id;
@@ -86,9 +102,8 @@ export function WorkoutSessionForm() {
       Object.entries(exerciseLogs).forEach(([exId, log]) => {
         const prescribedEx = prescribedExercises?.find(p => p.id === exId);
         const exerciseId = doc(collection(firestore, 'dummy')).id;
-        const volumeLoad = Number(log.sets) * Number(log.reps.split(/[^0-9]/)[0] || 0) * Number(log.weight);
-        
-        const exerciseData = {
+        const flatExRef = doc(firestore, 'users', user.uid, 'exerciseHistory_flat', exerciseId);
+        setDocumentNonBlocking(flatExRef, {
           id: exerciseId,
           userId: user.uid,
           workoutSessionId: sessionId,
@@ -97,42 +112,48 @@ export function WorkoutSessionForm() {
           reps: log.reps,
           weight: Number(log.weight),
           pseExercise: log.pse,
-          volumeLoad,
           createdAt: serverTimestamp(),
-        };
-        const flatExRef = doc(firestore, 'users', user.uid, 'exerciseHistory_flat', exerciseId);
-        setDocumentNonBlocking(flatExRef, exerciseData, { merge: true });
+        }, { merge: true });
       });
 
-      toast({ title: "Treino Finalizado!", description: "Dados registrados com sucesso." });
+      toast({ title: "Treino Finalizado!", description: "Dados registrados." });
       setIsStarted(false);
       setStartTime(null);
+      setShowPleasureDialog(false);
     } finally {
       setLoading(false);
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   if (!isStarted) {
     return (
-      <Card className="rounded-3xl border-primary/20 bg-primary/5 shadow-xl p-8 max-w-2xl mx-auto">
+      <Card className="rounded-3xl border-primary/20 bg-primary/5 p-8 max-w-2xl mx-auto shadow-xl">
         <CardHeader className="p-0 mb-8">
-          <CardTitle className="text-3xl font-black text-primary">Iniciar Sessão</CardTitle>
-          <CardDescription>Avalie sua recuperação antes de começar.</CardDescription>
+          <CardTitle className="text-3xl font-black text-primary uppercase">INICIAR TREINO</CardTitle>
+          <CardDescription>Escolha seu plano e avalie sua recuperação.</CardDescription>
         </CardHeader>
         <div className="space-y-8">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase text-primary">Programa</Label>
+            <Label className="text-[10px] font-black uppercase text-primary">Selecione o Plano</Label>
             <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
-              <SelectTrigger className="h-14 rounded-2xl"><SelectValue placeholder="Escolha o plano..." /></SelectTrigger>
+              <SelectTrigger className="h-14 rounded-2xl shadow-sm"><SelectValue placeholder="Escolha..." /></SelectTrigger>
               <SelectContent>{programs?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-6">
             <div className="flex justify-between items-center"><Label className="font-bold">Recuperação (ESR)</Label><span className="text-2xl font-black text-primary">{recovery}</span></div>
             <Slider value={[recovery]} onValueChange={v => setRecovery(v[0])} min={1} max={10} step={1} />
-            <p className="text-xs text-center font-medium p-4 bg-primary/10 rounded-2xl">"{RECOVERY_MESSAGES[recovery]}"</p>
+            <p className="text-[10px] text-center font-bold p-4 bg-primary/10 rounded-2xl uppercase">"{RECOVERY_MESSAGES[recovery]}"</p>
           </div>
-          <Button onClick={handleStartWorkout} className="w-full h-16 rounded-full text-xl font-black bg-primary">COMEÇAR AGORA</Button>
+          <Button onClick={handleStartWorkout} className="w-full h-16 rounded-full text-xl font-black bg-primary gap-3 shadow-lg">
+            <Play className="h-6 w-6" /> COMEÇAR SESSÃO
+          </Button>
         </div>
       </Card>
     );
@@ -140,44 +161,50 @@ export function WorkoutSessionForm() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-24">
-      <div className="bg-primary p-6 rounded-3xl text-white flex justify-between items-center">
-        <div><h2 className="text-xl font-black">Treino em Andamento</h2><p className="text-xs opacity-80">Finalize ao terminar todos os exercícios.</p></div>
-        <Timer className="h-8 w-8 animate-pulse" />
+      <div className="bg-primary p-6 rounded-3xl text-white flex justify-between items-center shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-full bg-white/20 flex items-center justify-center animate-pulse"><Timer className="h-6 w-6" /></div>
+          <div><h2 className="text-2xl font-black">{formatTime(elapsedTime)}</h2><p className="text-[10px] font-bold uppercase opacity-80">Tempo Decorrido</p></div>
+        </div>
+        <Button onClick={handleOpenFinish} className="rounded-full bg-accent text-accent-foreground font-black px-8 h-12 shadow-lg hover:bg-accent/90">
+          <Square className="h-4 w-4 mr-2" /> FINALIZAR
+        </Button>
       </div>
 
       <div className="grid gap-4">
         {prescribedExercises?.map(ex => (
-          <Card key={ex.id} className="rounded-2xl border-l-4 border-l-primary">
+          <Card key={ex.id} className="rounded-2xl border-l-4 border-l-primary shadow-md">
             <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="font-bold text-lg">{ex.name}</p>
-                <p className="text-xs text-muted-foreground">Prescrito: {ex.sets}x {ex.reps} | {ex.weight}kg</p>
-              </div>
+              <div><p className="font-black text-lg text-primary">{ex.name}</p><p className="text-[10px] uppercase font-bold text-muted-foreground">{ex.sets}x {ex.reps} | {ex.weight}kg</p></div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1"><Label className="text-[10px]">Peso</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.weight ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} /></div>
-                <div className="space-y-1"><Label className="text-[10px]">Séries</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.sets ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} /></div>
-                <div className="space-y-1"><Label className="text-[10px]">PSE</Label><Input type="number" className="h-8" value={exerciseLogs[ex.id]?.pse ?? 7} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} /></div>
+                <div className="space-y-1"><Label className="text-[10px]">Peso</Label><Input type="number" className="h-10 font-bold" value={exerciseLogs[ex.id]?.weight ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} /></div>
+                <div className="space-y-1"><Label className="text-[10px]">Séries</Label><Input type="number" className="h-10 font-bold" value={exerciseLogs[ex.id]?.sets ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} /></div>
+                <div className="space-y-1"><Label className="text-[10px]">PSE</Label><Input type="number" className="h-10 font-bold" value={exerciseLogs[ex.id]?.pse ?? 7} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} /></div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Card className="rounded-[2.5rem] bg-secondary/30 p-8 space-y-8">
-        <h3 className="text-center text-xl font-black text-primary">Finalizar Treino</h3>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center"><Label className="font-bold">Como se sente? (Feeling)</Label><span className="text-2xl font-black">{pleasure}</span></div>
-          <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} />
-        </div>
-        <div className="flex items-center gap-3 p-4 bg-background rounded-2xl">
-          <Switch checked={intentionToRepeat} onCheckedChange={setIntentionToRepeat} />
-          <Label className="flex items-center gap-2"><Repeat className="h-4 w-4" /> Intenção de repetir o treino</Label>
-        </div>
-        <div className="flex gap-4">
-          <Button variant="outline" onClick={() => setIsStarted(false)} className="flex-1 rounded-full h-14">DESCARTAR</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="flex-[2] rounded-full h-14 text-lg font-black bg-primary">FINALIZAR</Button>
-        </div>
-      </Card>
+      <Dialog open={showPleasureDialog} onOpenChange={setShowPleasureDialog}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-10 text-center">
+          <DialogHeader><DialogTitle className="text-3xl font-black text-primary mb-2 uppercase">Como foi o treino?</DialogTitle></DialogHeader>
+          <div className="space-y-10 py-6">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center"><Label className="font-black uppercase text-xs">Escala de Prazer (Feeling)</Label><span className="text-4xl font-black text-primary">{pleasure}</span></div>
+              <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} />
+              <div className="flex justify-between text-[10px] font-bold text-muted-foreground"><span>MUITO RUIM</span><span>EXCELENTE</span></div>
+            </div>
+            <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-2xl border border-primary/5">
+              <Switch checked={intentionToRepeat} onCheckedChange={setIntentionToRepeat} />
+              <Label className="flex items-center gap-2 font-bold text-xs"><Repeat className="h-4 w-4" /> PRETENDO REPETIR NA PRÓXIMA</Label>
+            </div>
+            <Button onClick={handleSubmit} disabled={loading} className="w-full h-16 rounded-full text-xl font-black bg-primary shadow-xl">
+              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-2 h-6 w-6" />} FINALIZAR AGORA
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

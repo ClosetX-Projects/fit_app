@@ -4,10 +4,10 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from 'recharts';
+import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { Loader2, Gauge, Timer, Smile, TrendingUp, Zap } from 'lucide-react';
+import { Loader2, Gauge, Timer, Smile, TrendingUp, Zap, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface StudentAnalyticsProps {
@@ -23,6 +23,26 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
 
   const { data: rawSessions, isLoading } = useCollection(sessionsRef);
 
+  const stats = useMemo(() => {
+    if (!rawSessions || rawSessions.length === 0) return { avgLoad: 0, monotony: 0, strain: 0 };
+    
+    const loads = rawSessions.map(s => s.internalLoad || 0);
+    const avgLoad = loads.reduce((a, b) => a + b, 0) / loads.length;
+    
+    // Desvio Padrão
+    const variance = loads.reduce((a, b) => a + Math.pow(b - avgLoad, 2), 0) / loads.length;
+    const stdDev = Math.sqrt(variance) || 1; // Evita divisão por zero
+    
+    const monotony = avgLoad / stdDev;
+    const strain = avgLoad * monotony;
+
+    return { 
+      avgLoad: Math.round(avgLoad), 
+      monotony: monotony.toFixed(2), 
+      strain: Math.round(strain) 
+    };
+  }, [rawSessions]);
+
   const chartData = useMemo(() => {
     if (!rawSessions) return [];
     return [...rawSessions]
@@ -36,79 +56,56 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
       }));
   }, [rawSessions]);
 
-  const config = {
-    pse: { label: 'PSE', color: '#8A05BE' },
-    feeling: { label: 'Prazer (Feeling)', color: '#BA4DE3' },
-    load: { label: 'Carga Interna', color: '#4B0082' },
-  };
-
   if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="rounded-3xl border-primary/20 bg-primary/5">
-          <CardHeader className="p-4 pb-0"><CardDescription className="text-xs uppercase font-bold">Carga Interna Média</CardDescription></CardHeader>
-          <CardContent className="p-4 pt-1"><p className="text-2xl font-black text-primary">
-            {chartData.length ? (chartData.reduce((acc, curr) => acc + curr.load, 0) / chartData.length).toFixed(0) : '0'}
-          </p></CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="rounded-3xl border-primary/20 bg-primary/5 p-4 text-center">
+          <p className="text-[10px] uppercase font-black text-primary/60">Carga Média</p>
+          <p className="text-2xl font-black text-primary">{stats.avgLoad}</p>
         </Card>
-        <Card className="rounded-3xl border-accent/20 bg-accent/5">
-          <CardHeader className="p-4 pb-0"><CardDescription className="text-xs uppercase font-bold">Feeling Médio</CardDescription></CardHeader>
-          <CardContent className="p-4 pt-1"><p className="text-2xl font-black text-accent">
-            {chartData.length ? (chartData.reduce((acc, curr) => acc + curr.feeling, 0) / chartData.length).toFixed(1) : '0'}
-          </p></CardContent>
+        <Card className="rounded-3xl border-accent/20 bg-accent/5 p-4 text-center">
+          <p className="text-[10px] uppercase font-black text-accent/60">Monotonia</p>
+          <p className="text-2xl font-black text-accent">{stats.monotony}</p>
+          <p className="text-[8px] font-bold opacity-60">Ideal: &lt; 2.0</p>
         </Card>
-        <Card className="rounded-3xl border-muted-foreground/20 bg-muted/30">
-          <CardHeader className="p-4 pb-0"><CardDescription className="text-xs uppercase font-bold">PSE Média</CardDescription></CardHeader>
-          <CardContent className="p-4 pt-1"><p className="text-2xl font-black text-muted-foreground">
-            {chartData.length ? (chartData.reduce((acc, curr) => acc + curr.pse, 0) / chartData.length).toFixed(1) : '0'}
-          </p></CardContent>
+        <Card className="rounded-3xl border-primary/20 bg-primary/5 p-4 text-center">
+          <p className="text-[10px] uppercase font-black text-primary/60">Strain (Tensão)</p>
+          <p className="text-2xl font-black text-primary">{stats.strain}</p>
+        </Card>
+        <Card className="rounded-3xl border-destructive/20 bg-destructive/5 p-4 text-center">
+          <p className="text-[10px] uppercase font-black text-destructive/60">Risco</p>
+          <p className="text-2xl font-black text-destructive">{Number(stats.monotony) > 2 ? 'ALTO' : 'BAIXO'}</p>
         </Card>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <Card className="rounded-3xl lg:col-span-1">
-          <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Gauge className="h-4 w-4" /> PSE vs Feeling</CardTitle></CardHeader>
-          <CardContent className="h-[250px] p-0">
-             <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                   <XAxis dataKey="date" hide />
-                   <YAxis hide domain={[-5, 10]} />
-                   <ChartTooltip />
-                   <Line type="monotone" dataKey="pse" stroke="#8A05BE" strokeWidth={3} dot />
-                   <Line type="monotone" dataKey="feeling" stroke="#BA4DE3" strokeWidth={3} dot />
-                </LineChart>
-             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-3xl lg:col-span-1">
-          <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Zap className="h-4 w-4" /> Carga Interna (PSE x Dur)</CardTitle></CardHeader>
-          <CardContent className="h-[250px] p-0">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+        <Card className="rounded-3xl overflow-hidden border-primary/10 shadow-lg">
+          <CardHeader className="bg-primary/5 border-b"><CardTitle className="text-xs font-black uppercase flex items-center gap-2 tracking-widest text-primary"><Zap className="h-4 w-4" /> Evolução de Carga Interna</CardTitle></CardHeader>
+          <CardContent className="h-[300px] p-6">
              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                   <XAxis dataKey="date" hide />
+                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
+                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                    <YAxis hide />
                    <ChartTooltip />
-                   <Bar dataKey="load" fill="#8A05BE" radius={[4, 4, 0, 0]} />
+                   <Bar dataKey="load" fill="#7E3F8F" radius={[6, 6, 0, 0]} />
                 </BarChart>
              </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl lg:col-span-1">
-          <CardHeader><CardTitle className="text-sm font-bold flex items-center gap-2"><Timer className="h-4 w-4" /> Duração da Sessão</CardTitle></CardHeader>
-          <CardContent className="h-[250px] p-0">
+        <Card className="rounded-3xl overflow-hidden border-accent/10 shadow-lg">
+          <CardHeader className="bg-accent/5 border-b"><CardTitle className="text-xs font-black uppercase flex items-center gap-2 tracking-widest text-accent"><Smile className="h-4 w-4" /> Bem-estar (Feeling)</CardTitle></CardHeader>
+          <CardContent className="h-[300px] p-6">
              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                   <XAxis dataKey="date" hide />
-                   <YAxis hide />
+                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
+                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                   <YAxis hide domain={[-5, 5]} />
                    <ChartTooltip />
-                   <Line type="step" dataKey="duration" stroke="#BA4DE3" strokeWidth={3} />
+                   <Line type="monotone" dataKey="feeling" stroke="#DFFF6E" strokeWidth={4} dot={{ r: 4, fill: "#DFFF6E" }} />
                 </LineChart>
              </ResponsiveContainer>
           </CardContent>
