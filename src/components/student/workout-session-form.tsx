@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Timer, Smile, CheckCircle2, Loader2, Repeat, Play, Square, Info } from 'lucide-react';
+import { Timer, Smile, CheckCircle2, Loader2, Repeat, Play, Square, Activity } from 'lucide-react';
 import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ export function WorkoutSessionForm() {
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [recovery, setRecovery] = useState(10);
   const [pleasure, setPleasure] = useState(0);
+  const [sessionPse, setSessionPse] = useState(7);
   const [intentionToRepeat, setIntentionToRepeat] = useState(false);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>({});
 
@@ -84,6 +86,8 @@ export function WorkoutSessionForm() {
 
     try {
       const sessionId = doc(collection(firestore, 'dummy')).id;
+      const internalLoad = durationMin * sessionPse;
+      
       const sessionData = {
         id: sessionId,
         userId: user.uid,
@@ -91,6 +95,8 @@ export function WorkoutSessionForm() {
         date: new Date().toISOString(),
         recoveryPerception: recovery,
         pleasureScale: pleasure,
+        pseSession: sessionPse,
+        internalLoad: internalLoad,
         intentionToRepeat: intentionToRepeat ? 1 : 0,
         duration: durationMin,
         createdAt: serverTimestamp(),
@@ -232,32 +238,41 @@ export function WorkoutSessionForm() {
       <Dialog open={showPleasureDialog} onOpenChange={setShowPleasureDialog}>
         <DialogContent className="sm:max-w-md rounded-[3rem] p-10 text-center border-none shadow-2xl">
           <DialogHeader><DialogTitle className="text-3xl font-black text-primary mb-2 uppercase tracking-tighter">Missão Cumprida!</DialogTitle></DialogHeader>
-          <div className="space-y-10 py-6">
-            <div className="space-y-6">
+          <div className="space-y-8 py-4">
+            {/* Escala de Feeling */}
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Escala de Feeling (Sensação)</Label>
-                <span className="text-5xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
+                <span className="text-4xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
               </div>
-              <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-4" />
-              <div className="p-4 bg-primary text-primary-foreground rounded-2xl text-center shadow-lg">
-                <p className="text-xs font-black uppercase tracking-widest mb-1 opacity-70">Sensação Atual</p>
+              <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-2" />
+              <div className="p-3 bg-primary text-primary-foreground rounded-2xl text-center shadow-lg">
                 <p className="text-xl font-black uppercase italic">{FEELING_SCALE_MESSAGES[pleasure]}</p>
               </div>
-              <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">
-                <span>Muito Ruim</span>
-                <span>Muito Bom</span>
+            </div>
+
+            {/* Escala de PSE da Sessão (Borg) */}
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex justify-between items-center">
+                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Esforço Total (PSE da Sessão)</Label>
+                <span className="text-4xl font-black text-primary">{sessionPse}</span>
               </div>
+              <Slider value={[sessionPse]} onValueChange={v => setSessionPse(v[0])} min={0} max={10} step={1} className="py-2" />
+              <div className={cn("p-3 rounded-2xl text-center shadow-lg text-white font-black uppercase", BORG_SCALE_COLORS[sessionPse])}>
+                {BORG_SCALE_MESSAGES[sessionPse]}
+              </div>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">Responda como foi o treino como um todo.</p>
             </div>
             
-            <div className="flex items-center gap-4 p-5 bg-primary/5 rounded-[2rem] border border-primary/10">
+            <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-[2rem] border border-primary/10">
               <Switch checked={intentionToRepeat} onCheckedChange={setIntentionToRepeat} />
               <Label className="flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-left leading-tight">
-                <Repeat className="h-4 w-4 text-primary shrink-0" /> Pretendo repetir este treino na próxima sessão
+                 Pretendo repetir este treino
               </Label>
             </div>
 
-            <Button onClick={handleSubmit} disabled={loading} className="w-full h-20 rounded-full text-2xl font-black bg-primary shadow-2xl shadow-primary/30 hover:scale-[1.02] transition-transform">
-              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-3 h-8 w-8" />} FINALIZAR AGORA
+            <Button onClick={handleSubmit} disabled={loading} className="w-full h-16 rounded-full text-xl font-black bg-primary shadow-2xl hover:scale-[1.02] transition-transform">
+              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-3 h-6 w-6" />} FINALIZAR
             </Button>
           </div>
         </DialogContent>
