@@ -42,14 +42,15 @@ export const EXERCISE_METADATA: Record<string, { group: string }> = {
 };
 
 export const RECOVERY_MESSAGES: Record<number, string> = {
-  1: "Muito Mal: Risco de lesão. Considere repouso total.",
-  2: "Mal: Recuperação insuficiente. Reduza drasticamente a carga.",
-  3: "Regular: Ainda fadigado. Treine com moderação.",
-  4: "Regular/Bom: Fadiga leve. Treino normal possível.",
-  5: "Bom: Recuperação estável.",
-  6: "Muito Bom: Praticamente recuperado.",
-  7: "Excelente: Pronto para alta performance.",
-  8: "Superior: Máxima capacidade física.",
-  9: "Imbatível: Sem qualquer sinal de fadiga.",
-  10: "Perfeito: Estado físico e mental ideal."
+  0: "Nenhuma recuperação",
+  1: "Muito pouca recuperação",
+  2: "Pouca recuperação",
+  3: "Recuperação Moderada",
+  4: "Boa Recuperação",
+  5: "Muito boa recuperação",
+  6: "Recuperação Elevada",
+  7: "Muito, muito boa recuperação",
+  8: "Recuperação Quase Completa",
+  9: "Recuperação Superior",
+  10: "Totalmente recuperado"
 };
