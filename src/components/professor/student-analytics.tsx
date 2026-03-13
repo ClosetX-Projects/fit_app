@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
+import type { ChartConfig } from '@/components/ui/chart';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { Loader2, Zap, LayoutGrid, TrendingUp, Dumbbell, PieChart as PieIcon } from 'lucide-react';
@@ -15,6 +16,14 @@ import { EXERCISE_METADATA } from '@/lib/constants';
 interface StudentAnalyticsProps {
   studentId: string;
 }
+
+const chartConfig = {
+  value: { label: "Volume", color: "hsl(var(--primary))" },
+  load: { label: "Carga", color: "hsl(var(--accent))" },
+  força: { label: "Força", color: "#DFFF6E" },
+  hipertrofia: { label: "Hipertrofia", color: "#7E3F8F" },
+  resistencia: { label: "Resistência", color: "#3b82f6" },
+} satisfies ChartConfig;
 
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   const { firestore } = useFirebase();
@@ -92,15 +101,15 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[250px] pt-4">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={chartConfig}>
               <BarChart data={volumeData}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.05} />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                 <YAxis hide />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value" fill="#7E3F8F" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -122,11 +131,13 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
                 <p className="text-2xl font-black">{stats.totalReps}</p>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height="130">
+            <ChartContainer config={chartConfig}>
               <LineChart data={loadProgression}>
+                <XAxis dataKey="date" hide />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Line type="monotone" dataKey="load" stroke="#DFFF6E" strokeWidth={3} dot={{ r: 4, fill: "#DFFF6E" }} />
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -139,14 +150,14 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
           </CardHeader>
           <CardContent className="h-[250px] flex items-center">
             <div className="flex-1 h-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer config={chartConfig}>
                 <PieChart>
                   <Pie data={stimuliData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                     {stimuliData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                   </Pie>
-                  <ChartTooltip />
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
             <div className="flex-1 space-y-3">
               {stimuliData.map((s, i) => (
@@ -170,7 +181,7 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
              <div className="absolute top-4 right-8 z-10">
                 <TrendingUp className="h-8 w-8 text-yellow-500 animate-bounce" />
              </div>
-             <ResponsiveContainer width="100%" height="100%">
+             <ChartContainer config={chartConfig}>
                 <AreaChart data={loadProgression}>
                    <defs>
                       <linearGradient id="colorLoad" x1="0" y1="0" x2="0" y2="1">
@@ -178,9 +189,11 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
                          <stop offset="95%" stopColor="#7E3F8F" stopOpacity={0}/>
                       </linearGradient>
                    </defs>
+                   <XAxis dataKey="date" hide />
+                   <ChartTooltip content={<ChartTooltipContent />} />
                    <Area type="monotone" dataKey="load" stroke="#7E3F8F" fillOpacity={1} fill="url(#colorLoad)" />
                 </AreaChart>
-             </ResponsiveContainer>
+             </ChartContainer>
           </CardContent>
         </Card>
       </div>

@@ -20,6 +20,17 @@ import { Slider } from "@/components/ui/slider"
 import { useToast } from "@/hooks/use-toast"
 import { EXERCISE_METADATA } from "@/lib/constants"
 
+const chartConfig = {
+  value: {
+    label: "Volume",
+    color: "hsl(var(--primary))",
+  },
+  load: {
+    label: "Carga",
+    color: "hsl(var(--accent))",
+  },
+} satisfies ChartConfig
+
 export function Dashboard() {
   const { user } = useUser()
   const { firestore } = useFirebase()
@@ -156,13 +167,14 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={chartConfig}>
               <BarChart data={volumeByGroup}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
-                <Bar dataKey="value" fill="#7E3F8F" radius={[6, 6, 0, 0]} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="value" fill="var(--color-value)" radius={[6, 6, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -174,7 +186,7 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={chartConfig}>
               <AreaChart data={loadProgression}>
                 <defs>
                   <linearGradient id="colorLoadUser" x1="0" y1="0" x2="0" y2="1">
@@ -182,9 +194,11 @@ export function Dashboard() {
                     <stop offset="95%" stopColor="#DFFF6E" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
+                <XAxis dataKey="date" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Area type="monotone" dataKey="load" stroke="#DFFF6E" strokeWidth={4} fill="url(#colorLoadUser)" />
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
