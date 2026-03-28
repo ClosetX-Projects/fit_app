@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,10 +14,11 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert, Zap, Battery, AlertTriangle, RefreshCw, ClipboardCheck } from 'lucide-react';
-import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES } from '@/lib/constants';
+import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES, getBloodPressureClassification } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 interface ExerciseLog {
   sets: number;
@@ -244,6 +244,16 @@ export function WorkoutSessionForm() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Helper para mostrar classificação em tempo real no dialog médico
+  const getCurrentPAMetrics = () => {
+    if (medicalMoment === 'start') return paStart;
+    if (medicalMoment === 'mid') return paMid;
+    return paEnd;
+  };
+
+  const currentPA = getCurrentPAMetrics();
+  const bpClassification = getBloodPressureClassification(Number(currentPA.sys), Number(currentPA.dia));
+
   if (!psrAnswered && !isStarted) {
     return (
       <Card className="rounded-[3rem] border-primary/20 bg-background p-8 md:p-12 max-w-2xl mx-auto shadow-2xl animate-in zoom-in-95 duration-500">
@@ -375,6 +385,11 @@ export function WorkoutSessionForm() {
                       }} />
                     </div>
                   </div>
+                  {bpClassification && (
+                    <div className={cn("p-3 rounded-xl text-center font-black uppercase text-[10px] transition-all", bpClassification.color, bpClassification.textColor)}>
+                      {bpClassification.label}
+                    </div>
+                  )}
                 </div>
               )}
               {isDiabetic && (medicalMoment === 'start' || medicalMoment === 'end') && (
@@ -527,6 +542,11 @@ export function WorkoutSessionForm() {
                       }} />
                     </div>
                   </div>
+                  {bpClassification && (
+                    <div className={cn("p-3 rounded-xl text-center font-black uppercase text-[10px] transition-all", bpClassification.color, bpClassification.textColor)}>
+                      {bpClassification.label}
+                    </div>
+                  )}
                 </div>
               )}
               {isDiabetic && (medicalMoment === 'start' || medicalMoment === 'end') && (

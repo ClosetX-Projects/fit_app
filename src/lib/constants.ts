@@ -113,3 +113,28 @@ export const PROGRESSION_TYPES = [
   "Linear",
   "Ondulatória"
 ];
+
+/**
+ * Classificação de Pressão Arterial - Diretrizes Brasileiras de Hipertensão (BHG)
+ */
+export function getBloodPressureClassification(sbp: number, dbp: number) {
+  if (!sbp || !dbp) return null;
+
+  if (sbp >= 180 || dbp >= 110) {
+    return { label: "Hipertensão Estágio 3", color: "bg-red-600", textColor: "text-white" };
+  }
+  if (sbp >= 160 || dbp >= 100) {
+    return { label: "Hipertensão Estágio 2", color: "bg-red-500", textColor: "text-white" };
+  }
+  if (sbp >= 140 || dbp >= 90) {
+    return { label: "Hipertensão Estágio 1", color: "bg-red-400", textColor: "text-white" };
+  }
+  if (sbp >= 120 || dbp >= 80) {
+    return { label: "Pré-hipertensão", color: "bg-yellow-400", textColor: "text-yellow-950" };
+  }
+  if (sbp < 120 && dbp < 80) {
+    return { label: "PA Normal", color: "bg-green-500", textColor: "text-white" };
+  }
+
+  return { label: "Não Classificado", color: "bg-muted", textColor: "text-muted-foreground" };
+}

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef } from "react"
@@ -20,6 +19,8 @@ import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { getBloodPressureClassification } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
 const assessmentSchema = z.object({
   weight: z.coerce.number().min(0).default(0),
@@ -139,7 +140,8 @@ export function AssessmentForm() {
       weight: w, height: h, waist, hip, tenRmWeight, tenRmReps, cooperDistance, yoYoDistance, bruceTime, wellsDistance,
       subscapular: sub, triceps: tri, biceps: bic, midAxillary: max, pectoral: pec,
       suprailiac: sup, abdominal: abd, thigh: t, midLeg: mlg, bioBodyFat,
-      chairStandReps, armCurlReps, sixMinWalkDist, tugTime, chairSitAndReach, backScratch
+      chairStandReps, armCurlReps, sixMinWalkDist, tugTime, chairSitAndReach, backScratch,
+      systolic, diastolic
     } = watchedValues
 
     // IMC
@@ -206,20 +208,8 @@ export function AssessmentForm() {
 
     const finalFatPerc = bioBodyFat > 0 ? bioBodyFat : Math.max(0, fatPerc)
 
-    // Classificação Sênior (Simplificada baseada em Rikli & Jones 2013)
-    const seniorClassify = (val: number, norms: Record<string, [number, number]>) => {
-      let group = "60-64"
-      if (age >= 65 && age < 70) group = "65-69"
-      else if (age >= 70 && age < 75) group = "70-74"
-      else if (age >= 75 && age < 80) group = "75-79"
-      else if (age >= 80 && age < 85) group = "80-84"
-      else if (age >= 85) group = "85-89"
-
-      const [min, max] = norms[group] || [0, 0]
-      if (val < min) return "Abaixo do Normal"
-      if (val > max) return "Acima do Normal"
-      return "Normal"
-    }
+    // Pressão Arterial Classification
+    const bpClassification = getBloodPressureClassification(Number(systolic), Number(diastolic))
 
     return {
       imc: imcValue.toFixed(1),
@@ -234,7 +224,8 @@ export function AssessmentForm() {
       wellsClass,
       fatPerc: finalFatPerc.toFixed(1),
       isElderly,
-      age
+      age,
+      bpClassification
     }
   }, [watchedValues, gender, age])
 
@@ -351,6 +342,11 @@ export function AssessmentForm() {
                       <div className="space-y-2"><Label>Sistólica</Label><Input type="number" {...form.register("systolic")} /></div>
                       <div className="space-y-2"><Label>Diastólica</Label><Input type="number" {...form.register("diastolic")} /></div>
                     </div>
+                    {results.bpClassification && (
+                      <div className={cn("p-4 rounded-2xl text-center font-black uppercase text-xs", results.bpClassification.color, results.bpClassification.textColor)}>
+                        {results.bpClassification.label}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-6">
                     <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Triagem de Risco</h4>
@@ -594,6 +590,14 @@ export function AssessmentForm() {
                     <Input type="number" step="0.1" {...form.register(d as any)} />
                   </div>
                 ))}
+              </TabsContent>
+
+              <TabsContent value="bioimpedancia" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2"><Label>TMB (kcal)</Label><Input type="number" {...form.register("bmr")} /></div>
+                  <div className="space-y-2"><Label>Hidratação (%)</Label><Input type="number" step="0.1" {...form.register("hydration")} /></div>
+                  <div className="space-y-2"><Label>% Gordura Bio</Label><Input type="number" step="0.1" {...form.register("bioBodyFat")} /></div>
+                </div>
               </TabsContent>
 
               <TabsContent value="escaneamento" className="space-y-6">

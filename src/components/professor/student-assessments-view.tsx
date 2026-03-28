@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,11 +21,14 @@ import {
   ClipboardCheck,
   Activity,
   Timer,
-  Ruler
+  Ruler,
+  HeartPulse
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { getBloodPressureClassification } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface StudentAssessmentsViewProps {
   studentId: string;
@@ -92,7 +94,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   }, [assessment, student]);
 
   const assessmentInsights = useMemo(() => {
-    const { weight: w, height: h, waist, hip, tenRmWeight, tenRmReps, cooperDistance, yoYoDistance, bruceTime, wellsDistance, gender, birthDate, subscapular, triceps, pectoral, suprailiac, abdominal, thigh, midLeg } = formData;
+    const { weight: w, height: h, waist, hip, tenRmWeight, tenRmReps, cooperDistance, yoYoDistance, bruceTime, wellsDistance, gender, birthDate, subscapular, triceps, pectoral, suprailiac, abdominal, thigh, midLeg, systolic, diastolic } = formData;
     const age = birthDate ? differenceInYears(new Date(), new Date(birthDate)) : 30;
     
     // IMC
@@ -108,15 +110,18 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     let vo2Bruce = 0;
     if (bruceTime > 0) vo2Bruce = gender === 'male' ? (14.8 - (1.379 * bruceTime) + (0.451 * (bruceTime ** 2)) - (0.012 * (bruceTime ** 3))) : (4.38 * bruceTime - 3.9);
 
-    // Gordura (J&P 7 dobras simplificado aqui para brevidade do CDATA)
+    // Gordura (J&P 7 dobras simplificado)
     const sum7 = Number(subscapular) + Number(triceps) + Number(pectoral) + Number(suprailiac) + Number(abdominal) + Number(thigh) + Number(midLeg);
-    let dc = 1.1; // Default
+    let dc = 1.1; 
     if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age);
     else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age);
     const fatPerc = ((4.95 / dc) - 4.50) * 100;
 
+    // Blood Pressure
+    const bpClassification = getBloodPressureClassification(Number(systolic), Number(diastolic));
+
     return { 
-      imc: imc.toFixed(1), oneRm: oneRm.toFixed(1), oneRmTable, vo2Cooper: vo2Cooper.toFixed(1), vo2Bruce: vo2Bruce.toFixed(1), fatPerc: Math.max(0, fatPerc).toFixed(1)
+      imc: imc.toFixed(1), oneRm: oneRm.toFixed(1), oneRmTable, vo2Cooper: vo2Cooper.toFixed(1), vo2Bruce: vo2Bruce.toFixed(1), fatPerc: Math.max(0, fatPerc).toFixed(1), bpClassification
     };
   }, [formData]);
 
@@ -145,6 +150,12 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           <Card className="p-4 bg-muted/50 text-center"><p className="text-[10px] font-black uppercase">% Gordura</p><p className="text-xl font-black">{assessmentInsights.fatPerc}%</p></Card>
           <Card className="p-4 bg-primary/5 text-center"><p className="text-[10px] font-black uppercase">IMC</p><p className="text-xl font-black">{assessmentInsights.imc}</p></Card>
         </div>
+
+        {assessmentInsights.bpClassification && (
+          <div className={cn("p-4 rounded-2xl text-center font-black uppercase text-xs flex items-center justify-center gap-2", assessmentInsights.bpClassification.color, assessmentInsights.bpClassification.textColor)}>
+            <HeartPulse className="h-4 w-4" /> {assessmentInsights.bpClassification.label} ({formData.systolic}/{formData.diastolic} mmHg)
+          </div>
+        )}
 
         <Tabs defaultValue="testes">
           <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-8">
@@ -192,6 +203,13 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               <div key={f} className="space-y-1"><Label className="text-[10px]">{f}</Label><Input type="number" value={formData[f]} onChange={e => setFormData({...formData, [f]: e.target.value})} /></div>
             ))}
           </TabsContent>
+
+          <TabsContent value="funcional" className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1"><Label>Sistólica (mmHg)</Label><Input type="number" value={formData.systolic} onChange={e => setFormData({...formData, systolic: e.target.value})} /></div>
+              <div className="space-y-1"><Label>Diastólica (mmHg)</Label><Input type="number" value={formData.diastolic} onChange={e => setFormData({...formData, diastolic: e.target.value})} /></div>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     );
@@ -206,7 +224,17 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       <div className="grid gap-4">
         {assessments?.map(a => (
           <Card key={a.id} className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50" onClick={() => setSelectedAssessmentId(a.id)}>
-            <div><p className="font-bold">{format(new Date(a.date), 'dd/MM/yyyy')}</p><p className="text-xs opacity-60">% Gord: {a.calculatedResults?.fatPerc}% | 1RM: {a.calculatedResults?.oneRm}kg</p></div>
+            <div>
+              <p className="font-bold">{format(new Date(a.date), 'dd/MM/yyyy')}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-[10px] opacity-60 uppercase font-black">% Gord: {a.calculatedResults?.fatPerc}%</p>
+                {a.calculatedResults?.bpClassification && (
+                  <Badge variant="outline" className={cn("text-[8px] font-black uppercase border-none", a.calculatedResults.bpClassification.color, a.calculatedResults.bpClassification.textColor)}>
+                    {a.calculatedResults.bpClassification.label}
+                  </Badge>
+                )}
+              </div>
+            </div>
             <ChevronRight className="h-4 w-4" />
           </Card>
         ))}
