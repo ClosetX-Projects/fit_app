@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useMemo, useEffect, useRef } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -10,93 +10,60 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase"
+import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Dumbbell, History, PlusCircle, ChevronRight, Info, Scale, Camera, HeartPulse, Timer, Ruler, PlayCircle, UserRound, Zap, Footprints, Accessibility } from "lucide-react"
+import { Loader2, Save, Activity, Scale, Ruler, UserCircle, ChevronRight, Calculator, PieChart, HeartPulse } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { getBloodPressureClassification } from "@/lib/constants"
-import { getIAFG } from "@/lib/sft-scoring"
 import { cn } from "@/lib/utils"
 
 const assessmentSchema = z.object({
+  fullName: z.string().min(2, "Nome obrigatório"),
+  birthDate: z.string().min(1, "Data de nascimento obrigatória"),
+  gender: z.enum(["male", "female"]),
   weight: z.coerce.number().min(0).default(0),
   height: z.coerce.number().min(0).default(0),
-  birthDate: z.string().optional(),
-  gender: z.string().default("male"),
-  isHypertensive: z.boolean().default(false),
-  isDiabetic: z.boolean().default(false),
-  systolic: z.coerce.number().default(0),
-  diastolic: z.coerce.number().default(0),
-  // Bioimpedancia
-  bmr: z.coerce.number().default(0),
-  hydration: z.coerce.number().default(0),
-  bioBodyFat: z.coerce.number().default(0),
-  // Perimetros
+  // Circunferências
   neck: z.coerce.number().default(0),
   shoulder: z.coerce.number().default(0),
   chest: z.coerce.number().default(0),
   waist: z.coerce.number().default(0),
   abdomen: z.coerce.number().default(0),
   hip: z.coerce.number().default(0),
+  thighR: z.coerce.number().default(0),
+  thighL: z.coerce.number().default(0),
+  legR: z.coerce.number().default(0),
+  legL: z.coerce.number().default(0),
   armRelaxedR: z.coerce.number().default(0),
   armRelaxedL: z.coerce.number().default(0),
   armContractedR: z.coerce.number().default(0),
   armContractedL: z.coerce.number().default(0),
   forearmR: z.coerce.number().default(0),
   forearmL: z.coerce.number().default(0),
-  thighR: z.coerce.number().default(0),
-  thighL: z.coerce.number().default(0),
-  legR: z.coerce.number().default(0),
-  legL: z.coerce.number().default(0),
   // Dobras
   subscapular: z.coerce.number().default(0),
   triceps: z.coerce.number().default(0),
   biceps: z.coerce.number().default(0),
   midAxillary: z.coerce.number().default(0),
   pectoral: z.coerce.number().default(0),
+  abdominal: z.coerce.number().default(0),
   suprailiac: z.coerce.number().default(0),
   thigh: z.coerce.number().default(0),
-  abdominal: z.coerce.number().default(0),
   midLeg: z.coerce.number().default(0),
-  // Testes Físicos Gerais
-  tenRmExercise: z.string().default("Supino Reto"),
-  tenRmWeight: z.coerce.number().default(0),
-  tenRmReps: z.coerce.number().default(0),
-  cooperDistance: z.coerce.number().default(0),
-  yoYoDistance: z.coerce.number().default(0),
-  bruceTime: z.coerce.number().default(0),
-  wellsDistance: z.coerce.number().default(0),
-  verticalJump: z.coerce.number().default(0),
-  horizontalJump: z.coerce.number().default(0),
-  absOneMin: z.coerce.number().default(0),
-  pushUps: z.coerce.number().default(0),
-  // Senior Fitness Test (SFT)
-  chairStandReps: z.coerce.number().default(0),
-  armCurlReps: z.coerce.number().default(0),
-  chairSitAndReach: z.coerce.number().default(0),
-  backScratch: z.coerce.number().default(0),
-  tugTime: z.coerce.number().default(0),
-  sixMinWalkDist: z.coerce.number().default(0),
 })
+
+type AssessmentValues = z.infer<typeof assessmentSchema>
 
 export function AssessmentForm() {
   const { toast } = useToast()
   const { firestore } = useFirebase()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState("antropometria")
+  const [step, setStep] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null)
-
-  const profileRef = useMemoFirebase(() => user ? doc(firestore, "users", user.uid) : null, [firestore, user])
-  const { data: profile } = useDoc(profileRef)
 
   const historyQuery = useMemoFirebase(() =>
     user ? query(collection(firestore, "users", user.uid, "physicalAssessments"), orderBy("date", "desc")) : null
@@ -104,203 +71,122 @@ export function AssessmentForm() {
 
   const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
 
-  const form = useForm<z.infer<typeof assessmentSchema>>({
+  const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
-    defaultValues: { weight: 0, height: 0, isHypertensive: false, isDiabetic: false, tenRmExercise: "Supino Reto" }
-  })
-
-  useEffect(() => {
-    if (activeTab === "escaneamento") {
-      const getCameraPermission = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({video: true});
-          setHasCameraPermission(true);
-          if (videoRef.current) videoRef.current.srcObject = stream;
-        } catch (error) {
-          setHasCameraPermission(false);
-        }
-      };
-      getCameraPermission();
+    defaultValues: { 
+      fullName: "", 
+      birthDate: "", 
+      gender: "male",
+      weight: 0, 
+      height: 0 
     }
-  }, [activeTab]);
+  })
 
   useEffect(() => {
     if (selectedId && history) {
       const a = history.find(item => item.id === selectedId)
-      if (a) form.reset({ ...a })
+      if (a) {
+        form.reset({ ...a })
+        setStep(2)
+      }
     }
   }, [selectedId, history, form])
 
-  const watchedValues = form.watch()
-  const gender = watchedValues.gender || profile?.gender || "male"
-  const birthDate = watchedValues.birthDate || profile?.birthDate || ''
-  const age = birthDate ? differenceInYears(new Date(), new Date(birthDate)) : 30
-  const isElderly = age >= 60
+  const watched = form.watch()
+  const age = watched.birthDate ? differenceInYears(new Date(), new Date(watched.birthDate)) : 0
+  const protocol = age < 18 ? "Adolescente" : age < 60 ? "Adulto" : "Idoso"
 
   const results = useMemo(() => {
-    const {
-      weight: w, height: h, waist, hip, tenRmWeight, tenRmReps, cooperDistance, yoYoDistance, bruceTime, wellsDistance,
+    const { 
+      weight: w, height: h, waist, hip, gender,
       subscapular: sub, triceps: tri, biceps: bic, midAxillary: max, pectoral: pec,
-      suprailiac: sup, abdominal: abd, thigh: t, midLeg: mlg, bioBodyFat,
-      chairStandReps, armCurlReps, sixMinWalkDist, tugTime, chairSitAndReach, backScratch,
-      systolic, diastolic
-    } = watchedValues
+      abdominal: abd, suprailiac: sup, thigh: t, midLeg: mlg
+    } = watched
 
-    // IMC
+    // 1. IMC
     const imcValue = h > 0 ? (w / ((h / 100) ** 2)) : 0
-    let imcClassification = ""
-    if (imcValue < 18.5) imcClassification = "Abaixo do peso"
-    else if (imcValue < 25) imcClassification = "Peso normal"
-    else if (imcValue < 30) imcClassification = "Sobrepeso"
-    else if (imcValue < 35) imcClassification = "Obesidade I"
-    else if (imcValue < 40) imcClassification = "Obesidade II"
-    else imcClassification = "Obesidade III"
+    let imcClass = "--"
+    if (imcValue > 0) {
+      if (imcValue < 18.5) imcClass = "Abaixo do peso"
+      else if (imcValue < 25) imcClass = "Saudável"
+      else if (imcValue < 30) imcClass = "Sobrepeso"
+      else if (imcValue < 35) imcClass = "Obesidade I"
+      else if (imcValue < 40) imcClass = "Obesidade II"
+      else imcClass = "Obesidade III"
+    }
 
-    // RCQ
+    // 2. RCQ
     const rcqValue = hip > 0 ? (waist / hip) : 0
     let rcqRisk = "--"
-    if (gender === 'male') {
-      if (rcqValue < 0.90) rcqRisk = "Baixo"
-      else if (rcqValue < 1.00) rcqRisk = "Moderado"
-      else rcqRisk = "Alto"
-    } else {
-      if (rcqValue < 0.80) rcqRisk = "Baixo"
-      else if (rcqValue < 0.85) rcqRisk = "Moderado"
-      else rcqRisk = "Alto"
-    }
-
-    // 1RM (Brzycki)
-    const oneRm = tenRmReps > 0 ? (tenRmWeight / (1.0278 - (0.0278 * tenRmReps))) : 0
-    const oneRmTable = [95, 90, 85, 80, 75, 70, 60, 50].map(p => ({
-      perc: p,
-      val: (oneRm * (p / 100)).toFixed(1)
-    }))
-
-    // VO2 Max Estimativas
-    const vo2Cooper = cooperDistance > 0 ? (cooperDistance - 504.9) / 44.73 : 0
-    const vo2YoYo = yoYoDistance > 0 ? (yoYoDistance * 0.0084) + 36.4 : 0
-    let vo2Bruce = 0
-    if (bruceTime > 0) {
-      if (gender === 'male') vo2Bruce = 14.8 - (1.379 * bruceTime) + (0.451 * (bruceTime ** 2)) - (0.012 * (bruceTime ** 3))
-      else vo2Bruce = (4.38 * bruceTime) - 3.9
-    }
-
-    // Wells Flexibilidade
-    let wellsClass = "--"
-    if (wellsDistance > 0) {
+    if (rcqValue > 0) {
       if (gender === 'male') {
-        if (wellsDistance > 38) wellsClass = "Excelente"; else if (wellsDistance >= 28) wellsClass = "Bom"; else if (wellsDistance >= 19) wellsClass = "Regular"; else wellsClass = "Fraco"
+        if (rcqValue < 0.90) rcqRisk = "Baixo"
+        else if (rcqValue < 1.00) rcqRisk = "Moderado"
+        else rcqRisk = "Alto"
       } else {
-        if (wellsDistance > 41) wellsClass = "Excelente"; else if (wellsDistance >= 33) wellsClass = "Bom"; else if (wellsDistance >= 23) wellsClass = "Regular"; else wellsClass = "Fraco"
+        if (rcqValue < 0.80) rcqRisk = "Baixo"
+        else if (rcqValue < 0.85) rcqRisk = "Moderado"
+        else rcqRisk = "Alto"
       }
     }
 
-    // Composição Corporal (Petroski para idosos)
+    // 3. Composição Corporal
     let fatPerc = 0
-    let fatClassification = ""
     const sum7 = Number(sub) + Number(tri) + Number(max) + Number(pec) + Number(abd) + Number(sup) + Number(t)
     const sum4Idoso = Number(sub) + Number(tri) + Number(sup) + Number(mlg)
 
-    if (age < 18) {
-      if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
-      else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
-    } else if (age >= 60) {
-      let dc = 0
-      if (gender === 'male') {
-        dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
+    if (age > 0) {
+      if (age < 18) {
+        // Slaughter
+        if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
+        else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
+      } else if (age >= 60) {
+        // Petroski 1995
+        let dc = 0
+        if (gender === 'male') {
+          dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
+        } else {
+          dc = 1.02902361 - (0.00067159 * sum4Idoso) + (0.00000242 * (sum4Idoso ** 2)) - (0.0002073 * age) - (0.00056009 * w) + (0.00054649 * h)
+        }
+        fatPerc = ((4.95 / dc) - 4.50) * 100
       } else {
-        dc = 1.02902361 - (0.00067159 * sum4Idoso) + (0.00000242 * (sum4Idoso ** 2)) - (0.0002073 * age) - (0.00056009 * w) + (0.00054649 * h)
+        // Jackson & Pollock 7
+        let dc = 0
+        if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
+        else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
+        fatPerc = ((4.95 / dc) - 4.50) * 100
       }
-      fatPerc = ((4.95 / dc) - 4.50) * 100
-    } else {
-      let dc = 0
-      if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
-      else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
-      fatPerc = ((4.95 / dc) - 4.50) * 100
     }
 
-    const finalFatPerc = bioBodyFat > 0 ? bioBodyFat : Math.max(0, fatPerc)
+    const finalFatPerc = Math.max(0, fatPerc)
+    const fatMass = w * (finalFatPerc / 100)
+    const leanMass = w - fatMass
 
-    // Classificação de Gordura Idosos (Petroski)
-    if (age >= 60) {
-      if (gender === 'female') {
-        if (age < 70) {
-          if (finalFatPerc < 17.0) fatClassification = "Abaixo";
-          else if (finalFatPerc <= 20.7) fatClassification = "Regular";
-          else if (finalFatPerc <= 24.6) fatClassification = "Acima";
-          else fatClassification = "Muito Acima";
-        } else {
-          if (finalFatPerc < 14.9) fatClassification = "Abaixo";
-          else if (finalFatPerc <= 18.7) fatClassification = "Regular";
-          else if (finalFatPerc <= 23.2) fatClassification = "Acima";
-          else fatClassification = "Muito Acima";
-        }
-      } else {
-        if (age < 70) {
-          if (finalFatPerc < 15.0) fatClassification = "Abaixo";
-          else if (finalFatPerc <= 19.5) fatClassification = "Regular";
-          else if (finalFatPerc <= 23.0) fatClassification = "Acima";
-          else fatClassification = "Muito Acima";
-        } else {
-          if (finalFatPerc < 13.5) fatClassification = "Abaixo";
-          else if (finalFatPerc <= 18.0) fatClassification = "Regular";
-          else if (finalFatPerc <= 22.0) fatClassification = "Acima";
-          else fatClassification = "Muito Acima";
-        }
-      }
-    } else if (age >= 18) {
+    // Classificação Gordura
+    let fatClass = "--"
+    if (age >= 18) {
       if (gender === 'male') {
-        if (finalFatPerc < 5) fatClassification = "Essencial";
-        else if (finalFatPerc <= 13) fatClassification = "Atleta";
-        else if (finalFatPerc <= 17) fatClassification = "Boa Forma";
-        else if (finalFatPerc <= 24) fatClassification = "Aceitável";
-        else fatClassification = "Obesidade";
+        if (finalFatPerc < 5) fatClass = "Essencial"; else if (finalFatPerc <= 13) fatClass = "Atleta"; else if (finalFatPerc <= 17) fatClass = "Boa Forma"; else if (finalFatPerc <= 24) fatClass = "Aceitável"; else fatClass = "Obesidade"
       } else {
-        if (finalFatPerc < 14) fatClassification = "Essencial";
-        else if (finalFatPerc <= 20) fatClassification = "Atleta";
-        else if (finalFatPerc <= 24) fatClassification = "Boa Forma";
-        else if (finalFatPerc <= 31) fatClassification = "Aceitável";
-        else fatClassification = "Obesidade";
+        if (finalFatPerc < 14) fatClass = "Essencial"; else if (finalFatPerc <= 20) fatClass = "Atleta"; else if (finalFatPerc <= 24) fatClass = "Boa Forma"; else if (finalFatPerc <= 31) fatClass = "Aceitável"; else fatClass = "Obesidade"
       }
-    } else {
-      fatClassification = "Padrão Infanto-Juvenil";
-    }
-
-    // Cálculo Completo IAFG (0 a 100) baseado em Rikli & Jones
-    let iafgResults = { total: 0, classification: "--" };
-    if (isElderly) {
-      iafgResults = getIAFG(gender, age, {
-        chairStandReps: Number(chairStandReps),
-        armCurlReps: Number(armCurlReps),
-        sixMinWalkDist: Number(sixMinWalkDist),
-        chairSitAndReach: Number(chairSitAndReach),
-        backScratch: Number(backScratch),
-        tugTime: Number(tugTime),
-      });
     }
 
     return {
       imc: imcValue.toFixed(1),
-      imcClassification,
+      imcClass,
       rcq: rcqValue.toFixed(2),
       rcqRisk,
-      oneRm: oneRm.toFixed(1),
-      oneRmTable,
-      vo2Cooper: vo2Cooper.toFixed(1),
-      vo2YoYo: vo2YoYo.toFixed(1),
-      vo2Bruce: vo2Bruce.toFixed(1),
-      wellsClass,
       fatPerc: finalFatPerc.toFixed(1),
-      fatClassification,
-      isElderly,
-      age,
-      bpClassification: getBloodPressureClassification(Number(systolic), Number(diastolic)),
-      iafg: iafgResults.total,
-      iafgClassification: iafgResults.classification
+      fatClass,
+      fatMass: fatMass.toFixed(1),
+      leanMass: leanMass.toFixed(1),
+      protocol,
+      age
     }
-  }, [watchedValues, gender, age, isElderly])
+  }, [watched, age, protocol])
 
-  const onSubmit = async (values: any) => {
+  const onSubmit = async (values: AssessmentValues) => {
     if (!user || !firestore) return
     setLoading(true)
     const assessmentRef = selectedId
@@ -311,43 +197,47 @@ export function AssessmentForm() {
       ...values,
       id: assessmentRef.id,
       userId: user.uid,
-      date: selectedId ? history?.find(h => h.id === selectedId)?.date : new Date().toISOString(),
+      date: new Date().toISOString(),
       updatedAt: serverTimestamp(),
       calculatedResults: results,
-      gender,
-      age
     }, { merge: true })
 
     toast({ title: "Avaliação salva com sucesso!" })
-    if (!selectedId) setSelectedId(assessmentRef.id)
+    setSelectedId(assessmentRef.id)
     setLoading(false)
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-20">
-      <Card className="lg:col-span-3 h-fit border-primary/10 rounded-3xl overflow-hidden shadow-lg bg-card">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-24">
+      {/* Sidebar Histórico */}
+      <Card className="lg:col-span-3 border-primary/10 rounded-3xl overflow-hidden shadow-lg bg-card h-fit">
         <CardHeader className="bg-primary/5 p-6 border-b">
-          <CardTitle className="text-sm font-black flex items-center gap-2 uppercase">
-            <History className="h-4 w-4 text-primary" /> Histórico
+          <CardTitle className="text-xs font-black flex items-center gap-2 uppercase tracking-widest">
+            <Activity className="h-4 w-4 text-primary" /> Histórico
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => { setSelectedId(null); form.reset(); }} className="w-full justify-start mt-2 h-10 rounded-xl hover:bg-primary/10 text-primary font-bold">
-            <PlusCircle className="mr-2 h-4 w-4" /> Novo Registro
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => { setSelectedId(null); form.reset(); setStep(1); }} 
+            className="w-full justify-start mt-2 h-10 rounded-xl hover:bg-primary/10 text-primary font-bold"
+          >
+            + Novo Registro
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[500px]">
+          <ScrollArea className="h-[400px]">
             {isHistoryLoading ? (
               <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>
             ) : history?.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setSelectedId(item.id)}
-                className={`w-full text-left p-4 transition-all hover:bg-primary/5 flex items-center justify-between group ${selectedId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+                className={`w-full text-left p-4 transition-all hover:bg-primary/5 flex items-center justify-between group border-b border-primary/5 ${selectedId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
               >
                 <div>
-                  <p className="text-sm font-bold">{format(new Date(item.date), "dd/MM/yyyy")}</p>
+                  <p className="text-xs font-bold">{format(new Date(item.date), "dd/MM/yyyy")}</p>
                   <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">
-                    {item.weight}kg | {item.calculatedResults?.fatPerc}% Gordura
+                    {item.calculatedResults?.imc} IMC | {item.calculatedResults?.fatPerc}% Gordura
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -357,336 +247,168 @@ export function AssessmentForm() {
         </CardContent>
       </Card>
 
+      {/* Formulário Principal */}
       <Card className="lg:col-span-9 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden bg-background">
         <CardHeader className="bg-primary/5 p-8 border-b border-primary/10">
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">AVALIAÇÃO MULTIDISCIPLINAR</CardTitle>
-              <CardDescription>Protocolos científicos, performance e triagem clínica.</CardDescription>
+              <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">Avaliação Antropométrica</CardTitle>
+              <CardDescription>Protocolos científicos Jackson & Pollock, Slaughter e Petroski.</CardDescription>
             </div>
-            {isElderly && <Badge className="bg-accent text-accent-foreground font-black px-4 py-1">SENIOR FITNESS TEST (SFT)</Badge>}
+            {step === 2 && (
+              <div className="bg-accent/20 text-accent-foreground px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest border border-accent/30">
+                Protocolo: {results.protocol}
+              </div>
+            )}
           </div>
         </CardHeader>
 
         <CardContent className="p-8">
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-muted/50 p-4 rounded-3xl text-center border">
-                <p className="text-[10px] font-black uppercase text-muted-foreground">IMC</p>
-                <p className="text-sm font-black">{results.imc} ({results.imcClassification})</p>
-              </div>
-              <div className="bg-primary/10 p-4 rounded-3xl text-center border border-primary/20">
-                <p className="text-[10px] font-black uppercase text-primary">RCQ Risco</p>
-                <p className="text-sm font-black">{results.rcqRisk}</p>
-              </div>
-              <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20">
-                <p className="text-[10px] font-black uppercase text-accent-foreground">Idade Atual</p>
-                <p className="text-sm font-black">{results.age} Anos</p>
-              </div>
-              {isElderly ? (
-                <div className="bg-primary/20 p-4 rounded-3xl text-center border border-primary/30">
-                  <p className="text-[10px] font-black uppercase text-primary">IAFG ({results.iafgClassification})</p>
-                  <p className="text-sm font-black">{results.iafg} pts</p>
-                </div>
-              ) : (
-                <div className="bg-muted/50 p-4 rounded-3xl text-center border">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">% Gordura</p>
-                  <p className="text-sm font-black">{results.fatPerc}% ({results.fatClassification})</p>
-                </div>
-              )}
-            </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 h-auto p-1 bg-muted rounded-2xl mb-8">
-                <TabsTrigger value="antropometria" className="rounded-xl py-3 text-[9px] font-black uppercase">Clínica</TabsTrigger>
-                <TabsTrigger value="perimetros" className="rounded-xl py-3 text-[9px] font-black uppercase">Perímetros</TabsTrigger>
-                <TabsTrigger value="dobras" className="rounded-xl py-3 text-[9px] font-black uppercase">Dobras</TabsTrigger>
-                <TabsTrigger value="bioimpedancia" className="rounded-xl py-3 text-[9px] font-black uppercase">Bioimp.</TabsTrigger>
-                <TabsTrigger value="testes" className="rounded-xl py-3 text-[9px] font-black uppercase">Testes</TabsTrigger>
-                {isElderly && <TabsTrigger value="senior" className="rounded-xl py-3 text-[9px] font-black uppercase bg-accent/20 text-accent-foreground">Sênior</TabsTrigger>}
-                <TabsTrigger value="escaneamento" className="rounded-xl py-3 text-[9px] font-black uppercase">Scan</TabsTrigger>
-                <TabsTrigger value="funcional" className="rounded-xl py-3 text-[9px] font-black uppercase">Func.</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="antropometria" className="space-y-8">
+            {step === 1 ? (
+              <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Identificação & Vital</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Peso (kg)</Label><Input type="number" step="0.1" {...form.register("weight")} /></div>
-                      <div className="space-y-2"><Label>Altura (cm)</Label><Input type="number" {...form.register("height")} /></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Sistólica</Label><Input type="number" {...form.register("systolic")} /></div>
-                      <div className="space-y-2"><Label>Diastólica</Label><Input type="number" {...form.register("diastolic")} /></div>
-                    </div>
-                    {results.bpClassification && (
-                      <div className={cn("p-4 rounded-2xl text-center font-black uppercase text-xs", results.bpClassification.color, results.bpClassification.textColor)}>
-                        {results.bpClassification.label}
-                      </div>
-                    )}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase text-primary tracking-widest">Nome Completo do Aluno</Label>
+                    <Input {...form.register("fullName")} placeholder="Digite o nome..." className="h-12 rounded-xl" />
                   </div>
-                  <div className="space-y-6">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Triagem de Risco</h4>
-                    <div className="p-6 bg-destructive/5 border border-destructive/10 rounded-3xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="font-bold">Hipertenso</Label>
-                        <Switch checked={watchedValues.isHypertensive} onCheckedChange={v => form.setValue('isHypertensive', v)} />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label className="font-bold">Diabético</Label>
-                        <Switch checked={watchedValues.isDiabetic} onCheckedChange={v => form.setValue('isDiabetic', v)} />
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-black uppercase text-primary tracking-widest">Nascimento</Label>
+                      <Input type="date" {...form.register("birthDate")} className="h-12 rounded-xl" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-black uppercase text-primary tracking-widest">Gênero</Label>
+                      <Select value={watched.gender} onValueChange={(v: any) => form.setValue("gender", v)}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Masculino</SelectItem>
+                          <SelectItem value="female">Feminino</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="senior" className="space-y-10">
-                <Alert className="bg-accent/10 border-accent/30 rounded-2xl">
-                  <UserRound className="h-4 w-4 text-accent-foreground" />
-                  <AlertTitle className="text-xs font-black uppercase">Senior Fitness Test (SFT) - Rikli & Jones</AlertTitle>
-                  <AlertDescription className="text-[10px]">Bateria técnica para avaliação da aptidão funcional em idosos (Cálculo IAFG ativo).</AlertDescription>
-                </Alert>
-
-                <div className="grid md:grid-cols-2 gap-8">
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Zap className="h-4 w-4" /> 1. Levantar e Sentar</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        <strong>Objetivo:</strong> Força e resistência de membros inferiores.<br/>
-                        <strong>Procedimento:</strong> Sentado com braços cruzados, ao sinal levantar totalmente e sentar. Contar repetições em 30 segundos.
-                      </p>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase">Repetições em 30s</Label>
-                        <Input type="number" {...form.register("chairStandReps")} className="h-12 text-lg font-black" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Dumbbell className="h-4 w-4" /> 2. Flexão de Antebraço</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        <strong>Objetivo:</strong> Força e resistência de membros superiores. (2kg F / 4kg M).<br/>
-                        <strong>Procedimento:</strong> Braço dominante estendido. Flexionar completamente e retornar. Contar repetições em 30s.
-                      </p>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase">Repetições em 30s</Label>
-                        <Input type="number" {...form.register("armCurlReps")} className="h-12 text-lg font-black" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Ruler className="h-4 w-4" /> 3. Sentado e Alcançar</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        <strong>Objetivo:</strong> Flexibilidade de membros inferiores.<br/>
-                        <strong>Procedimento:</strong> Ponta da cadeira, perna estendida. Inclinar tentando tocar o pé. Registrar cm (negativo se não toca, positivo se ultrapassa).
-                      </p>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase">Distância (cm +/-)</Label>
-                        <Input type="number" step="0.1" {...form.register("chairSitAndReach")} className="h-12 text-lg font-black" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Timer className="h-4 w-4" /> 4. Agilidade/TUG (2,44m)</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        <strong>Objetivo:</strong> Mobilidade física, agilidade e equilíbrio.<br/>
-                        <strong>Procedimento:</strong> Levantar, caminhar 2,44m, contornar cone e voltar a sentar o mais rápido possível.
-                      </p>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase">Menor Tempo (segundos)</Label>
-                        <Input type="number" step="0.01" {...form.register("tugTime")} className="h-12 text-lg font-black" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Accessibility className="h-4 w-4" /> 5. Alcançar Costas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        <strong>Objetivo:</strong> Flexibilidade de ombros.<br/>
-                        <strong>Procedimento:</strong> Tentar tocar os dedos médios atrás das costas. Registrar cm (+ sobreposição, - distância entre dedos).
-                      </p>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase">Distância (cm +/-)</Label>
-                        <Input type="number" step="0.1" {...form.register("backScratch")} className="h-12 text-lg font-black" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Footprints className="h-4 w-4" /> 6. Caminhada 6 Min</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        <strong>Objetivo:</strong> Resistência aeróbica funcional.<br/>
-                        <strong>Procedimento:</strong> Caminhar o mais rápido possível por 6 minutos em percurso plano. Registrar distância total.
-                      </p>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase">Distância (metros)</Label>
-                        <Input type="number" {...form.register("sixMinWalkDist")} className="h-12 text-lg font-black" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="perimetros" className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {["neck", "waist", "hip", "armContractedR", "armContractedL", "thighR", "thighL", "legR", "legL"].map(f => (
-                  <div key={f} className="space-y-1">
-                    <Label className="text-[10px] uppercase font-bold">{f}</Label>
-                    <Input type="number" step="0.1" {...form.register(f as any)} />
+                <Button 
+                  type="button" 
+                  onClick={() => setStep(2)} 
+                  disabled={!watched.fullName || !watched.birthDate}
+                  className="w-full h-16 rounded-full text-lg font-black bg-primary gap-2 shadow-xl hover:scale-[1.01] transition-transform"
+                >
+                  INICIAR MEDIDAS <ChevronRight className="h-6 w-6" />
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-muted/50 p-4 rounded-3xl text-center border">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">IMC</p>
+                    <p className="text-lg font-black text-primary">{results.imc}</p>
+                    <p className="text-[8px] font-bold uppercase opacity-60">{results.imcClass}</p>
                   </div>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="dobras" className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {["triceps", "subscapular", "abdominal", "suprailiac", "pectoral", "thigh", "midLeg"].map(d => (
-                  <div key={d} className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase text-primary">{d}</Label>
-                    <Input type="number" step="0.1" {...form.register(d as any)} />
+                  <div className="bg-primary/10 p-4 rounded-3xl text-center border border-primary/20">
+                    <p className="text-[9px] font-black uppercase text-primary tracking-widest mb-1">Risco RCQ</p>
+                    <p className="text-lg font-black">{results.rcq}</p>
+                    <p className="text-[8px] font-bold uppercase text-primary">{results.rcqRisk}</p>
                   </div>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="bioimpedancia" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2"><Label>TMB (kcal)</Label><Input type="number" {...form.register("bmr")} /></div>
-                  <div className="space-y-2"><Label>Hidratação (%)</Label><Input type="number" step="0.1" {...form.register("hydration")} /></div>
-                  <div className="space-y-2"><Label>% Gordura Bio</Label><Input type="number" step="0.1" {...form.register("bioBodyFat")} /></div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="testes" className="space-y-10">
-                <div className="grid gap-8">
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5 flex flex-row items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Dumbbell className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-sm font-black uppercase">Predição de 1RM (Brzycki)</CardTitle>
-                          <CardDescription className="text-[10px]">Cálculo da força máxima dinâmica.</CardDescription>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="rounded-full">Protocolo Força</Badge>
-                    </CardHeader>
-                    <CardContent className="p-6 grid md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase">Exercício Base</Label>
-                          <Input {...form.register("tenRmExercise")} placeholder="Ex: Supino Reto" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase">Carga (kg)</Label>
-                            <Input type="number" {...form.register("tenRmWeight")} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase">Reps Realizadas</Label>
-                            <Input type="number" {...form.register("tenRmReps")} />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-muted/30 rounded-2xl p-4">
-                        <p className="text-[10px] font-black uppercase mb-3 text-center">Tabela de Percentuais</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {results.oneRmTable.map(row => (
-                            <div key={row.perc} className="flex justify-between p-2 bg-background rounded-lg border text-[11px]">
-                              <span className="font-bold">{row.perc}%</span>
-                              <span className="font-black text-primary">{row.val} kg</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <Card className="rounded-[2rem] border-primary/10">
-                      <CardHeader className="bg-primary/5">
-                        <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Activity className="h-4 w-4" /> Cooper 12 Min</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4">
-                        <div className="space-y-2">
-                          <Label>Distância Total (metros)</Label>
-                          <Input type="number" {...form.register("cooperDistance")} />
-                        </div>
-                        <div className="p-3 bg-primary/10 rounded-xl text-center">
-                          <p className="text-[10px] font-black uppercase opacity-60">VO2 Máx Estimado</p>
-                          <p className="text-xl font-black text-primary">{results.vo2Cooper} ml/kg/min</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="rounded-[2rem] border-primary/10">
-                      <CardHeader className="bg-primary/5">
-                        <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Timer className="h-4 w-4" /> Teste de Bruce</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4">
-                        <div className="space-y-2">
-                          <Label>Tempo Total (minutos)</Label>
-                          <Input type="number" step="0.01" {...form.register("bruceTime")} />
-                        </div>
-                        <div className="p-3 bg-primary/10 rounded-xl text-center">
-                          <p className="text-[10px] font-black uppercase opacity-60">VO2 Máx Bruce</p>
-                          <p className="text-xl font-black text-primary">{results.vo2Bruce} ml/kg/min</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                  <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20">
+                    <p className="text-[9px] font-black uppercase text-accent-foreground tracking-widest mb-1">% Gordura</p>
+                    <p className="text-lg font-black">{results.fatPerc}%</p>
+                    <p className="text-[8px] font-bold uppercase text-accent-foreground">{results.fatClass}</p>
+                  </div>
+                  <div className="bg-muted/50 p-4 rounded-3xl text-center border">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Massa Magra</p>
+                    <p className="text-lg font-black">{results.leanMass} kg</p>
+                    <p className="text-[8px] font-bold uppercase opacity-60">Peso da Gordura: {results.fatMass}kg</p>
                   </div>
                 </div>
-              </TabsContent>
 
-              <TabsContent value="escaneamento" className="space-y-6">
-                <div className="relative aspect-video bg-black rounded-[2rem] overflow-hidden">
-                  <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                  {!hasCameraPermission && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white font-black uppercase text-xs">Aguardando Câmera...</div>
-                  )}
+                <Tabs defaultValue="medidas" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted rounded-2xl mb-8">
+                    <TabsTrigger value="medidas" className="rounded-xl py-3 text-[10px] font-black uppercase gap-2">
+                      <Scale className="h-4 w-4" /> Peso & Altura
+                    </TabsTrigger>
+                    <TabsTrigger value="perimetros" className="rounded-xl py-3 text-[10px] font-black uppercase gap-2">
+                      <Ruler className="h-4 w-4" /> Circunferências
+                    </TabsTrigger>
+                    <TabsTrigger value="dobras" className="rounded-xl py-3 text-[10px] font-black uppercase gap-2">
+                      <Calculator className="h-4 w-4" /> Dobras Cutâneas
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="medidas" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <Label>Peso Corporal (kg)</Label>
+                        <Input type="number" step="0.1" {...form.register("weight")} className="h-14 text-xl font-bold rounded-2xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Estatura (cm)</Label>
+                        <Input type="number" {...form.register("height")} className="h-14 text-xl font-bold rounded-2xl" />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="perimetros" className="space-y-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      {[
+                        { id: "neck", label: "Pescoço" },
+                        { id: "shoulder", label: "Ombro" },
+                        { id: "chest", label: "Tórax" },
+                        { id: "waist", label: "Cintura" },
+                        { id: "abdomen", label: "Abdômen" },
+                        { id: "hip", label: "Quadril" },
+                        { id: "armRelaxedR", label: "Br. Relax. D" },
+                        { id: "armRelaxedL", label: "Br. Relax. E" },
+                        { id: "armContractedR", label: "Br. Contr. D" },
+                        { id: "armContractedL", label: "Br. Contr. E" },
+                        { id: "forearmR", label: "Ant.braço D" },
+                        { id: "forearmL", label: "Ant.braço E" },
+                        { id: "thighR", label: "Coxa D" },
+                        { id: "thighL", label: "Coxa E" },
+                        { id: "legR", label: "Perna D" },
+                        { id: "legL", label: "Perna E" },
+                      ].map((f) => (
+                        <div key={f.id} className="space-y-1">
+                          <Label className="text-[10px] font-black uppercase text-muted-foreground">{f.label}</Label>
+                          <Input type="number" step="0.1" {...form.register(f.id as any)} className="h-10 rounded-xl" />
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="dobras" className="space-y-8">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                      {[
+                        { id: "subscapular", label: "Subescapular" },
+                        { id: "triceps", label: "Tricipital" },
+                        { id: "biceps", label: "Bicipital" },
+                        { id: "midAxillary", label: "Axilar Média" },
+                        { id: "pectoral", label: "Peitoral" },
+                        { id: "abdominal", label: "Abdominal" },
+                        { id: "suprailiac", label: "Supra-ilíaca" },
+                        { id: "thigh", label: "Coxa" },
+                        { id: "midLeg", label: "Perna Medial" },
+                      ].map((d) => (
+                        <div key={d.id} className="space-y-1">
+                          <Label className="text-[10px] font-black uppercase text-primary">{d.label} (mm)</Label>
+                          <Input type="number" step="0.1" {...form.register(d.id as any)} className="h-10 rounded-xl border-primary/20" />
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                <div className="flex gap-4">
+                  <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1 h-16 rounded-full font-bold">VOLTAR</Button>
+                  <Button type="submit" disabled={loading} className="flex-[2] h-16 rounded-full text-xl font-black bg-primary gap-2 shadow-xl">
+                    {loading ? <Loader2 className="animate-spin" /> : <Save className="h-6 w-6" />} SALVAR AVALIAÇÃO
+                  </Button>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="funcional" className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="rounded-3xl p-6 border-primary/10 bg-primary/5">
-                  <h4 className="font-bold flex items-center gap-2 mb-4 text-primary"><Timer className="h-5 w-5" /> Resistência 1 Min</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-2"><Label>Abdominais (Reps)</Label><Input type="number" {...form.register("absOneMin")} /></div>
-                    <div className="space-y-2"><Label>Flexões de Braço (Reps)</Label><Input type="number" {...form.register("pushUps")} /></div>
-                  </div>
-                </Card>
-                <Card className="rounded-3xl p-6 border-accent/10 bg-accent/5">
-                  <h4 className="font-bold flex items-center gap-2 mb-4 text-accent"><Scale className="h-5 w-5" /> Impulsão</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-2"><Label>Vertical (cm)</Label><Input type="number" {...form.register("verticalJump")} /></div>
-                    <div className="space-y-2"><Label>Horizontal (cm)</Label><Input type="number" {...form.register("horizontalJump")} /></div>
-                  </div>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-            <Button type="submit" className="w-full h-20 rounded-full text-2xl font-black bg-primary shadow-xl hover:scale-[1.01] transition-transform" disabled={loading}>
-              {loading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-3 h-8 w-8" />}
-              SALVAR AVALIAÇÃO
-            </Button>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>
