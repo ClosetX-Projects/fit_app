@@ -14,10 +14,11 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert, Zap, Battery, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert, Zap, Battery, AlertTriangle, RefreshCw, ClipboardCheck } from 'lucide-react';
 import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ExerciseLog {
   sets: number;
@@ -25,6 +26,13 @@ interface ExerciseLog {
   weight: number;
   pse: number;
 }
+
+const INTENTION_QUESTIONS = [
+  { id: 'muscWeek', label: 'Eu vou tentar realizar exercício de musculação ao menos 3x na próxima semana.' },
+  { id: 'muscMonth', label: 'Eu vou tentar realizar exercício de musculação ao menos 3x no próximo mês.' },
+  { id: 'aeroWeek', label: 'Eu vou tentar realizar exercício aeróbico ao menos 3x na próxima semana.' },
+  { id: 'aeroMonth', label: 'Eu vou tentar realizar exercício aeróbico ao menos 3x no próximo mês.' },
+];
 
 export function WorkoutSessionForm() {
   const { firestore } = useFirebase();
@@ -48,11 +56,16 @@ export function WorkoutSessionForm() {
   const [recovery, setRecovery] = useState(10); // PSR
   const [pleasure, setPleasure] = useState(0); // Feeling Scale
   const [sessionPse, setSessionPse] = useState(7); // PSE Borg
-  const [intentionToRepeat, setIntentionToRepeat] = useState(true);
+  const [intentionAnswers, setIntentionAnswers] = useState<Record<string, number>>({
+    muscWeek: 4,
+    muscMonth: 4,
+    aeroWeek: 4,
+    aeroMonth: 4
+  });
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>({});
 
   // Cálculo de Ajuste de Carga
-  const loadAdjustmentFactor = recovery / 10; // PSR 10 = 1.0, PSR 9 = 0.9, etc.
+  const loadAdjustmentFactor = recovery / 10; 
 
   // Dados Médicos
   const [paStart, setPaStart] = useState({ sys: '', dia: '' });
@@ -87,7 +100,6 @@ export function WorkoutSessionForm() {
     if (prescribedExercises) {
       const initialLogs: Record<string, ExerciseLog> = {};
       prescribedExercises.forEach(ex => {
-        // Aplicar o fator de ajuste na carga sugerida
         const adjustedWeight = ex.weight ? Math.round(ex.weight * loadAdjustmentFactor) : 0;
         initialLogs[ex.id] = { 
           sets: ex.sets || 0, 
@@ -155,7 +167,6 @@ export function WorkoutSessionForm() {
       const sessionId = doc(collection(firestore, 'dummy')).id;
       const internalLoad = durationMin * sessionPse;
       
-      // Cálculo de Gasto Calórico (Musculação)
       const numExercises = Object.keys(exerciseLogs).length;
       let totalRepsVolume = 0;
       let totalLoadSum = 0;
@@ -178,11 +189,11 @@ export function WorkoutSessionForm() {
         userId: user.uid,
         trainingProgramId: selectedProgramId,
         date: new Date().toISOString(),
-        recoveryPerception: recovery, // PSR
-        pleasureScale: pleasure, // Feeling
-        pseSession: sessionPse, // Borg
+        recoveryPerception: recovery,
+        pleasureScale: pleasure,
+        pseSession: sessionPse,
         internalLoad: internalLoad,
-        intentionToRepeat: intentionToRepeat ? 1 : 0,
+        intentionToRepeat: intentionAnswers,
         duration: durationMin,
         caloriesBurned: finalKcal,
         loadAdjustmentFactor,
@@ -233,7 +244,6 @@ export function WorkoutSessionForm() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // TELA 1: PSR (Percepção Subjetiva de Recuperação) - Bloqueante
   if (!psrAnswered && !isStarted) {
     return (
       <Card className="rounded-[3rem] border-primary/20 bg-background p-8 md:p-12 max-w-2xl mx-auto shadow-2xl animate-in zoom-in-95 duration-500">
@@ -277,7 +287,6 @@ export function WorkoutSessionForm() {
     );
   }
 
-  // TELA 2: Seleção de Programa e Start
   if (!isStarted) {
     return (
       <Card className="rounded-[3rem] border-primary/20 bg-primary/5 p-8 max-w-2xl mx-auto shadow-xl">
@@ -400,7 +409,6 @@ export function WorkoutSessionForm() {
     );
   }
 
-  // TELA 3: Workout Ativo
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
       <div className="bg-primary p-6 rounded-3xl text-white flex justify-between items-center shadow-xl sticky top-20 z-30">
@@ -551,43 +559,76 @@ export function WorkoutSessionForm() {
         </Dialog>
 
       <Dialog open={showPleasureDialog} onOpenChange={setShowPleasureDialog}>
-        <DialogContent className="sm:max-w-md rounded-[3rem] p-10 text-center border-none shadow-2xl">
-          <DialogHeader><DialogTitle className="text-3xl font-black text-primary mb-2 uppercase tracking-tighter">TREINO CONCLUÍDO!</DialogTitle></DialogHeader>
-          <div className="space-y-8 py-4">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Feeling Scale (Bem-estar)</Label>
-                <span className="text-4xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
-              </div>
-              <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-2" />
-              <div className="p-3 bg-primary text-primary-foreground rounded-2xl text-center">
-                <p className="text-xl font-black uppercase italic">{FEELING_SCALE_MESSAGES[pleasure]}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex justify-between items-center">
-                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Esforço Total (PSE Borg)</Label>
-                <span className="text-4xl font-black text-primary">{sessionPse}</span>
-              </div>
-              <Slider value={[sessionPse]} onValueChange={v => setSessionPse(v[0])} min={0} max={10} step={1} className="py-2" />
-              <div className={cn("p-3 rounded-2xl text-center text-white font-black uppercase", BORG_SCALE_COLORS[sessionPse])}>
-                {BORG_SCALE_MESSAGES[sessionPse]}
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4 p-5 bg-primary/5 rounded-[2rem] border border-primary/10">
-              <Switch checked={intentionToRepeat} onCheckedChange={setIntentionToRepeat} />
-              <div className="text-left">
-                 <Label className="font-black text-[10px] uppercase tracking-widest leading-tight block">Aderência</Label>
-                 <span className="text-[11px] font-bold opacity-60">Pretendo repetir esta sessão</span>
-              </div>
-            </div>
-
-            <Button onClick={handleSubmit} disabled={loading} className="w-full h-20 rounded-full text-xl font-black bg-primary shadow-2xl">
-              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-3 h-6 w-6" />} SALVAR PRONTUÁRIO
-            </Button>
+        <DialogContent className="sm:max-w-xl rounded-[3rem] p-0 text-center border-none shadow-2xl overflow-hidden">
+          <div className="bg-primary p-8 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tighter">TREINO CONCLUÍDO!</DialogTitle>
+              <DialogDescription className="text-white/80 font-bold uppercase text-[10px] tracking-widest">Prontuário de Feedback Psicológico</DialogDescription>
+            </DialogHeader>
           </div>
+          
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8 space-y-10">
+              {/* Escala de Feeling */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Feeling Scale (Bem-estar)</Label>
+                  <span className="text-4xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
+                </div>
+                <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-2" />
+                <div className="p-3 bg-primary text-primary-foreground rounded-2xl text-center">
+                  <p className="text-xl font-black uppercase italic">{FEELING_SCALE_MESSAGES[pleasure]}</p>
+                </div>
+              </div>
+
+              {/* Esforço Total (Borg) */}
+              <div className="space-y-4 pt-6 border-t">
+                <div className="flex justify-between items-center">
+                  <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Esforço Total (PSE Borg)</Label>
+                  <span className="text-4xl font-black text-primary">{sessionPse}</span>
+                </div>
+                <Slider value={[sessionPse]} onValueChange={v => setSessionPse(v[0])} min={0} max={10} step={1} className="py-2" />
+                <div className={cn("p-3 rounded-2xl text-center text-white font-black uppercase transition-colors", BORG_SCALE_COLORS[sessionPse])}>
+                  {BORG_SCALE_MESSAGES[sessionPse]}
+                </div>
+              </div>
+              
+              {/* Intenção de Repetir (Questionário Likert 1-7) */}
+              <div className="space-y-8 pt-8 border-t">
+                <div className="flex items-center gap-2 mb-4">
+                  <ClipboardCheck className="h-5 w-5 text-primary" />
+                  <h4 className="text-sm font-black uppercase text-primary tracking-widest text-left">Intenção de Prática</h4>
+                </div>
+                
+                <div className="grid gap-8">
+                  {INTENTION_QUESTIONS.map((q) => (
+                    <div key={q.id} className="space-y-4 bg-muted/30 p-5 rounded-[2rem] border border-primary/5">
+                      <p className="text-[11px] font-bold text-left leading-relaxed text-foreground uppercase tracking-tight">{q.label}</p>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[8px] font-black uppercase text-muted-foreground w-12 text-center leading-none">Falso</span>
+                        <Slider 
+                          value={[intentionAnswers[q.id]]} 
+                          onValueChange={v => setIntentionAnswers(p => ({...p, [q.id]: v[0]}))} 
+                          min={1} max={7} step={1} 
+                          className="flex-1"
+                        />
+                        <span className="text-[8px] font-black uppercase text-primary w-12 text-center leading-none">Verdade</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-lg font-black text-primary border-2 border-primary/20">
+                          {intentionAnswers[q.id]}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={handleSubmit} disabled={loading} className="w-full h-24 rounded-full text-2xl font-black bg-primary shadow-2xl hover:scale-[1.01] transition-transform">
+                {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-3 h-8 w-8" />} SALVAR PRONTUÁRIO
+              </Button>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
