@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -10,7 +11,7 @@ import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase
 import { collection } from 'firebase/firestore';
 import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock, Zap } from 'lucide-react';
 import { FEELING_SCALE_MESSAGES } from '@/lib/constants';
 
 export function WorkoutCalendar() {
@@ -133,7 +134,7 @@ export function WorkoutCalendar() {
                             </div>
                             <div>
                               <p className="font-black text-sm group-hover:text-primary transition-colors">Sessão de Treino</p>
-                              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">{session.duration} min | Feeling {session.pleasureScale > 0 ? `+${session.pleasureScale}` : session.pleasureScale}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">{session.duration} min | {session.caloriesBurned || 0} kcal</p>
                             </div>
                           </div>
                           <div className="h-10 w-10 rounded-full flex items-center justify-center group-hover:bg-accent/20 transition-all">
@@ -182,15 +183,15 @@ export function WorkoutCalendar() {
                     </div>
                     <div className="bg-accent/10 p-6 rounded-[2rem] border border-accent/10 shadow-sm text-center">
                       <p className="text-[10px] font-black uppercase text-accent mb-2 flex items-center justify-center gap-1">
-                        <Activity className="h-3 w-3" /> Carga Interna
+                        <Zap className="h-3 w-3" /> Gasto Calórico
                       </p>
-                      <p className="text-3xl font-black">{session.duration * (session.pseSession || 7)}</p>
+                      <p className="text-3xl font-black">{session.caloriesBurned || 0}<span className="text-xs ml-1">kcal</span></p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-primary" /> Exercícios
+                      <Activity className="h-4 w-4 text-primary" /> Exercícios Realizados
                     </h4>
                     <div className="grid gap-4">
                       {allExercises && allExercises.filter(ex => ex.workoutSessionId === session.id).map(ex => (

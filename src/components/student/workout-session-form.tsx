@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert } from 'lucide-react';
+import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert, Zap } from 'lucide-react';
 import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -134,6 +134,32 @@ export function WorkoutSessionForm() {
       const sessionId = doc(collection(firestore, 'dummy')).id;
       const internalLoad = durationMin * sessionPse;
       
+      // Cálculo de Gasto Calórico (Musculação)
+      // Kcal = 38,8837 – 1,5848 × x1 + 0,003177 × x2 + 103,467 × x3
+      // x1 = volume total (séries × repetições × número de exercícios)
+      // x2 = soma de todas as cargas utilizadas em kg
+      // x3 = duração da sessão em minutos
+      
+      const numExercises = Object.keys(exerciseLogs).length;
+      let totalRepsVolume = 0;
+      let totalLoadSum = 0;
+      
+      Object.values(exerciseLogs).forEach(log => {
+        const reps = Number(log.reps.toString().split(/[^0-9]/)[0]) || 0;
+        totalRepsVolume += (Number(log.sets) * reps);
+        totalLoadSum += Number(log.weight);
+      });
+
+      const x1 = totalRepsVolume * numExercises;
+      const x2 = totalLoadSum;
+      const x3 = durationMin;
+      
+      // Nota técnica: O coeficiente 103.467 por minuto gera valores extremamente altos. 
+      // Em fórmulas de literatura como de Reis et al., o fator de tempo costuma ser por hora (ex: 1.03 x min).
+      // Seguiremos a instrução literal do usuário para fins de protótipo.
+      const kcal = 38.8837 - (1.5848 * x1) + (0.003177 * x2) + (103.467 * x3);
+      const finalKcal = Math.round(Math.max(0, kcal));
+
       const sessionData = {
         id: sessionId,
         userId: user.uid,
@@ -145,6 +171,7 @@ export function WorkoutSessionForm() {
         internalLoad: internalLoad,
         intentionToRepeat: intentionToRepeat ? 1 : 0,
         duration: durationMin,
+        caloriesBurned: finalKcal,
         // Dados Medicos
         medical: {
           isHypertensive,
@@ -175,11 +202,10 @@ export function WorkoutSessionForm() {
         }, { merge: true });
       });
 
-      toast({ title: "Treino Finalizado!", description: "Dados registrados com sucesso." });
+      toast({ title: "Treino Finalizado!", description: `Registrado com sucesso. Gasto: ${finalKcal} kcal.` });
       setIsStarted(false);
       setStartTime(null);
       setShowPleasureDialog(false);
-      // Resetar estados médicos
       setPaStart({ sys: '', dia: '' }); setPaMid({ sys: '', dia: '' }); setPaEnd({ sys: '', dia: '' });
       setGlycemiaPre(''); setGlycemiaPost('');
     } finally {
@@ -358,7 +384,6 @@ export function WorkoutSessionForm() {
         ))}
       </div>
 
-      {/* Reutilizando Dialog Medical Check para os 3 momentos */}
       <Dialog open={showMedicalCheck} onOpenChange={setShowMedicalCheck}>
           <DialogContent className="sm:max-w-md rounded-[3rem] p-10 border-none">
             <DialogHeader>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Bar, BarChart, Area, AreaChart } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
-import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Activity, LayoutGrid } from "lucide-react"
+import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Activity, LayoutGrid, Flame } from "lucide-react"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy, limit, doc } from "firebase/firestore"
 import { format, startOfMonth, endOfMonth, differenceInMinutes } from "date-fns"
@@ -54,10 +54,12 @@ export function Dashboard() {
   const { data: rawExercises, isLoading: isExercisesLoading } = useCollection(exercisesRef);
 
   const stats = useMemo(() => {
-    if (!rawSessions || rawSessions.length === 0) return { total: 0, frequency: 0, lastSession: 'Nenhum', avgLoad: 0, totalReps: 0, totalSeries: 0 }
+    if (!rawSessions || rawSessions.length === 0) return { total: 0, frequency: 0, lastSession: 'Nenhum', avgLoad: 0, totalReps: 0, totalSeries: 0, totalKcal: 0 }
     const now = new Date()
-    const thisMonth = rawSessions.filter(s => new Date(s.date) >= startOfMonth(now))
+    const startOfCurrentMonth = startOfMonth(now)
+    const thisMonth = rawSessions.filter(s => new Date(s.date) >= startOfCurrentMonth)
     const totalLoad = rawSessions.reduce((acc, curr) => acc + (curr.internalLoad || 0), 0)
+    const totalKcal = thisMonth.reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0)
     
     const totalSeries = rawExercises?.reduce((acc, ex) => acc + (Number(ex.sets) || 0), 0) || 0;
     const totalReps = rawExercises?.reduce((acc, ex) => {
@@ -71,7 +73,8 @@ export function Dashboard() {
       lastSession: rawSessions[0] ? format(new Date(rawSessions[0].date), 'dd/MM') : 'Nenhum',
       avgLoad: Math.round(totalLoad / rawSessions.length),
       totalSeries,
-      totalReps
+      totalReps,
+      totalKcal
     }
   }, [rawSessions, rawExercises])
 
@@ -126,12 +129,12 @@ export function Dashboard() {
         
         <Card className="nubank-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0 mb-2">
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Frequência Mensal</CardTitle>
-            <CalendarDays className="h-4 w-4 text-primary" />
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Queima Mensal</CardTitle>
+            <Flame className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent className="p-0">
-            <div className="text-3xl font-black">{stats.frequency}</div>
-            <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Treinos em {format(new Date(), 'MMMM', { locale: ptBR })}</p>
+            <div className="text-3xl font-black">{stats.totalKcal} <span className="text-xs">kcal</span></div>
+            <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase">Gasto total em {format(new Date(), 'MMMM', { locale: ptBR })}</p>
           </CardContent>
         </Card>
 
@@ -159,7 +162,6 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Volume por Grupo */}
         <Card className="rounded-[2.5rem] border-primary/10 shadow-lg overflow-hidden bg-card">
           <CardHeader className="bg-primary/5">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -178,7 +180,6 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Progressão de Carga */}
         <Card className="rounded-[2.5rem] border-primary/10 shadow-lg overflow-hidden bg-card">
           <CardHeader className="bg-primary/5">
             <CardTitle className="text-sm font-bold flex items-center gap-2">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -6,13 +7,14 @@ import { collection } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Loader2, History, Dumbbell, Sparkles, BrainCircuit, Info } from 'lucide-react';
+import { Loader2, History, Dumbbell, Sparkles, BrainCircuit, Info, Flame, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { generateTrainingInsights, type TrainingInsightsInput } from '@/ai/ai-training-insights';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { BORG_SCALE_MESSAGES, BORG_SCALE_COLORS } from '@/lib/constants';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface StudentHistoryViewProps {
   studentId: string;
@@ -23,14 +25,19 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
   const [insightLoading, setInsightLoading] = useState<string | null>(null);
   const [currentInsight, setCurrentInsight] = useState<{ id: string, text: string } | null>(null);
 
-  // Buscar exercícios da COLEÇÃO PLANA para evitar erros de índice de collectionGroup
+  // Buscar exercícios e sessões para exibir resumo completo
   const rawExercisesRef = useMemoFirebase(() => 
     collection(firestore!, 'users', studentId, 'exerciseHistory_flat')
   , [firestore, studentId]);
 
-  const { data: rawExercises, isLoading } = useCollection(rawExercisesRef);
+  const rawSessionsRef = useMemoFirebase(() => 
+    collection(firestore!, 'users', studentId, 'workoutHistory_flat')
+  , [firestore, studentId]);
 
-  // Ordenar exercícios em memória (mais recentes primeiro)
+  const { data: rawExercises, isLoading: loadingExercises } = useCollection(rawExercisesRef);
+  const { data: rawSessions, isLoading: loadingSessions } = useCollection(rawSessionsRef);
+
+  // Ordenar exercícios e sessões
   const exercises = useMemo(() => {
     if (!rawExercises) return null;
     return [...rawExercises].sort((a, b) => {
@@ -39,6 +46,11 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
       return timeB - timeA;
     });
   }, [rawExercises]);
+
+  const sessions = useMemo(() => {
+    if (!rawSessions) return [];
+    return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [rawSessions]);
 
   const handleGetAIInsight = async (ex: any) => {
     setInsightLoading(ex.id);
@@ -64,7 +76,7 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
     }
   };
 
-  if (isLoading) {
+  if (loadingExercises || loadingSessions) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -72,88 +84,106 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
     );
   }
 
-  if (!exercises || exercises.length === 0) {
-    return (
-      <div className="text-center py-24 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
-        <History className="h-12 w-12 mx-auto mb-4 opacity-20" />
-        <h3 className="text-lg font-bold">Nenhum histórico disponível</h3>
-        <p className="text-sm max-w-xs mx-auto">O aluno ainda não registrou a execução de exercícios em suas sessões de treino.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
-            Histórico de Performance
-          </CardTitle>
-          <CardDescription>Lista de todos os exercícios realizados e registrados pelo aluno.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-[120px]">Data</TableHead>
-                  <TableHead>Exercício</TableHead>
-                  <TableHead className="text-center">Séries</TableHead>
-                  <TableHead className="text-center">Reps</TableHead>
-                  <TableHead className="text-center">Carga</TableHead>
-                  <TableHead className="text-center">PSE (Borg)</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {exercises.map((ex) => (
-                  <TableRow key={ex.id}>
-                    <TableCell className="text-xs font-medium">
-                      {ex.createdAt ? format(ex.createdAt.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '--'}
-                    </TableCell>
-                    <TableCell className="font-bold flex items-center gap-2">
-                      <Dumbbell className="h-3 w-3 text-primary" />
-                      {ex.name}
-                    </TableCell>
-                    <TableCell className="text-center">{ex.sets}</TableCell>
-                    <TableCell className="text-center">{ex.reps}</TableCell>
-                    <TableCell className="text-center font-semibold text-primary">{ex.weight} kg</TableCell>
-                    <TableCell className="text-center">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight cursor-help ${
-                              BORG_SCALE_COLORS[ex.pseExercise] || 'bg-muted'
-                            } ${ex.pseExercise >= 8 ? 'text-white' : 'text-foreground'}`}>
-                              {ex.pseExercise} - {BORG_SCALE_MESSAGES[ex.pseExercise] || 'N/A'}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-card border-primary/20 p-2 shadow-xl">
-                            <p className="text-[10px] font-bold">Escala de Borg Adaptada</p>
-                            <p className="text-[9px] opacity-70">Nível {ex.pseExercise}: {BORG_SCALE_MESSAGES[ex.pseExercise]}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleGetAIInsight(ex)}
-                        disabled={insightLoading === ex.id}
-                        className="text-primary hover:text-primary hover:bg-primary/10"
-                      >
-                        {insightLoading === ex.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
-                      </Button>
-                    </TableCell>
+    <div className="space-y-8">
+      {/* Resumo de Sessões com Gasto Calórico */}
+      <section className="space-y-4">
+        <h3 className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+          <History className="h-4 w-4" /> Histórico de Sessões Completas
+        </h3>
+        <div className="grid gap-4">
+          {sessions.slice(0, 10).map((session) => (
+            <Card key={session.id} className="nubank-card py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{format(new Date(session.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">{session.duration} minutos de treino</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <Flame className="h-3 w-3 text-orange-500" />
+                      <span className="text-sm font-black">{session.caloriesBurned || 0} kcal</span>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Gasto Estimado</p>
+                  </div>
+                  <Badge variant="outline" className="border-primary/20 text-primary font-black uppercase text-[9px]">
+                    Carga: {session.internalLoad || (session.duration * (session.pseSession || 7))}
+                  </Badge>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+          <Dumbbell className="h-4 w-4" /> Performance por Exercício
+        </h3>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-bold">Registro de Execuções</CardTitle>
+            <CardDescription>Analise a evolução de cargas e percepção de esforço por movimento.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead className="w-[120px]">Data</TableHead>
+                    <TableHead>Exercício</TableHead>
+                    <TableHead className="text-center">Séries</TableHead>
+                    <TableHead className="text-center">Reps</TableHead>
+                    <TableHead className="text-center">Carga</TableHead>
+                    <TableHead className="text-center">PSE</TableHead>
+                    <TableHead className="text-right">IA</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {exercises?.map((ex) => (
+                    <TableRow key={ex.id}>
+                      <TableCell className="text-[10px] font-medium">
+                        {ex.createdAt ? format(ex.createdAt.toDate(), 'dd/MM/yy', { locale: ptBR }) : '--'}
+                      </TableCell>
+                      <TableCell className="font-bold flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-primary/40" />
+                        <span className="text-xs">{ex.name}</span>
+                      </TableCell>
+                      <TableCell className="text-center text-xs">{ex.sets}</TableCell>
+                      <TableCell className="text-center text-xs">{ex.reps}</TableCell>
+                      <TableCell className="text-center font-semibold text-primary text-xs">{ex.weight} kg</TableCell>
+                      <TableCell className="text-center">
+                        <div className={`inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                          BORG_SCALE_COLORS[ex.pseExercise] || 'bg-muted'
+                        } ${ex.pseExercise >= 8 ? 'text-white' : 'text-foreground'}`}>
+                          {ex.pseExercise}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleGetAIInsight(ex)}
+                          disabled={insightLoading === ex.id}
+                          className="h-7 w-7 text-primary"
+                        >
+                          {insightLoading === ex.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <BrainCircuit className="h-3 w-3" />}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       {currentInsight && (
         <Alert className="border-primary/50 bg-primary/5 animate-in fade-in slide-in-from-top-4">
