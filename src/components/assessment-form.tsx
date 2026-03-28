@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Dumbbell, History, PlusCircle, ChevronRight, Info, Scale, Camera, HeartPulse, ScanFace, Timer, Ruler, PlayCircle } from "lucide-react"
+import { Loader2, Save, Activity, Dumbbell, History, PlusCircle, ChevronRight, Info, Scale, Camera, HeartPulse, ScanFace, Timer, Ruler, PlayCircle, UserRound, Zap } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -61,7 +61,7 @@ const assessmentSchema = z.object({
   thigh: z.coerce.number().default(0),
   abdominal: z.coerce.number().default(0),
   midLeg: z.coerce.number().default(0),
-  // Testes Físicos
+  // Testes Físicos Gerais
   tenRmExercise: z.string().default("Supino Reto"),
   tenRmWeight: z.coerce.number().default(0),
   tenRmReps: z.coerce.number().default(0),
@@ -73,7 +73,13 @@ const assessmentSchema = z.object({
   horizontalJump: z.coerce.number().default(0),
   absOneMin: z.coerce.number().default(0),
   pushUps: z.coerce.number().default(0),
-  conconiData: z.string().default(""), // JSON string para simplificar
+  // Testes Sênior (Rikli & Jones)
+  chairStandReps: z.coerce.number().default(0),
+  armCurlReps: z.coerce.number().default(0),
+  chairSitAndReach: z.coerce.number().default(0),
+  backScratch: z.coerce.number().default(0),
+  sixMinWalkDist: z.coerce.number().default(0),
+  tugTime: z.coerce.number().default(0),
 })
 
 export function AssessmentForm() {
@@ -89,10 +95,10 @@ export function AssessmentForm() {
   const profileRef = useMemoFirebase(() => user ? doc(firestore, "users", user.uid) : null, [firestore, user])
   const { data: profile } = useDoc(profileRef)
 
-  const historyQuery = useMemoFirebase(() => 
+  const historyQuery = useMemoFirebase(() =>
     user ? query(collection(firestore, "users", user.uid, "physicalAssessments"), orderBy("date", "desc")) : null
   , [firestore, user])
-  
+
   const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
 
   const form = useForm<z.infer<typeof assessmentSchema>>({
@@ -126,14 +132,16 @@ export function AssessmentForm() {
   const gender = watchedValues.gender || profile?.gender || "male"
   const birthDate = watchedValues.birthDate || profile?.birthDate || ''
   const age = birthDate ? differenceInYears(new Date(), new Date(birthDate)) : 30
+  const isElderly = age >= 60
 
   const results = useMemo(() => {
-    const { 
+    const {
       weight: w, height: h, waist, hip, tenRmWeight, tenRmReps, cooperDistance, yoYoDistance, bruceTime, wellsDistance,
-      subscapular: sub, triceps: tri, biceps: bic, midAxillary: max, pectoral: pec, 
-      suprailiac: sup, abdominal: abd, thigh: t, midLeg: mlg, bioBodyFat
+      subscapular: sub, triceps: tri, biceps: bic, midAxillary: max, pectoral: pec,
+      suprailiac: sup, abdominal: abd, thigh: t, midLeg: mlg, bioBodyFat,
+      chairStandReps, armCurlReps, sixMinWalkDist, tugTime, chairSitAndReach, backScratch
     } = watchedValues
-    
+
     // IMC
     const imcValue = h > 0 ? (w / ((h / 100) ** 2)) : 0
     let imcClassification = ""
@@ -197,9 +205,24 @@ export function AssessmentForm() {
     }
 
     const finalFatPerc = bioBodyFat > 0 ? bioBodyFat : Math.max(0, fatPerc)
-    
-    return { 
-      imc: imcValue.toFixed(1), 
+
+    // Classificação Sênior (Simplificada baseada em Rikli & Jones 2013)
+    const seniorClassify = (val: number, norms: Record<string, [number, number]>) => {
+      let group = "60-64"
+      if (age >= 65 && age < 70) group = "65-69"
+      else if (age >= 70 && age < 75) group = "70-74"
+      else if (age >= 75 && age < 80) group = "75-79"
+      else if (age >= 80 && age < 85) group = "80-84"
+      else if (age >= 85) group = "85-89"
+
+      const [min, max] = norms[group] || [0, 0]
+      if (val < min) return "Abaixo do Normal"
+      if (val > max) return "Acima do Normal"
+      return "Normal"
+    }
+
+    return {
+      imc: imcValue.toFixed(1),
       imcClassification,
       rcq: rcqValue.toFixed(2),
       rcqRisk,
@@ -209,17 +232,19 @@ export function AssessmentForm() {
       vo2YoYo: vo2YoYo.toFixed(1),
       vo2Bruce: vo2Bruce.toFixed(1),
       wellsClass,
-      fatPerc: finalFatPerc.toFixed(1)
+      fatPerc: finalFatPerc.toFixed(1),
+      isElderly,
+      age
     }
   }, [watchedValues, gender, age])
 
   const onSubmit = async (values: any) => {
     if (!user || !firestore) return
     setLoading(true)
-    const assessmentRef = selectedId 
+    const assessmentRef = selectedId
       ? doc(firestore, "users", user.uid, "physicalAssessments", selectedId)
       : doc(collection(firestore, "users", user.uid, "physicalAssessments"))
-    
+
     setDocumentNonBlocking(assessmentRef, {
       ...values,
       id: assessmentRef.id,
@@ -272,10 +297,15 @@ export function AssessmentForm() {
 
       <Card className="lg:col-span-9 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden bg-background">
         <CardHeader className="bg-primary/5 p-8 border-b border-primary/10">
-          <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">AVALIAÇÃO MULTIDISCIPLINAR</CardTitle>
-          <CardDescription>Protocolos científicos, performance e triagem clínica.</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">AVALIAÇÃO MULTIDISCIPLINAR</CardTitle>
+              <CardDescription>Protocolos científicos, performance e triagem clínica.</CardDescription>
+            </div>
+            {isElderly && <Badge className="bg-accent text-accent-foreground font-black px-4 py-1">PROTOCOLO SÊNIOR ATIVO</Badge>}
+          </div>
         </CardHeader>
-        
+
         <CardContent className="p-8">
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -288,8 +318,8 @@ export function AssessmentForm() {
                 <p className="text-sm font-black">{results.rcqRisk}</p>
               </div>
               <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20">
-                <p className="text-[10px] font-black uppercase text-accent-foreground">1RM Est.</p>
-                <p className="text-sm font-black">{results.oneRm} kg</p>
+                <p className="text-[10px] font-black uppercase text-accent-foreground">Idade Atual</p>
+                <p className="text-sm font-black">{results.age} Anos</p>
               </div>
               <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                 <p className="text-[10px] font-black uppercase text-muted-foreground">% Gordura</p>
@@ -298,12 +328,13 @@ export function AssessmentForm() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 h-auto p-1 bg-muted rounded-2xl mb-8">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 h-auto p-1 bg-muted rounded-2xl mb-8">
                 <TabsTrigger value="antropometria" className="rounded-xl py-3 text-[9px] font-black uppercase">Clínica</TabsTrigger>
                 <TabsTrigger value="perimetros" className="rounded-xl py-3 text-[9px] font-black uppercase">Perímetros</TabsTrigger>
                 <TabsTrigger value="dobras" className="rounded-xl py-3 text-[9px] font-black uppercase">Dobras</TabsTrigger>
                 <TabsTrigger value="bioimpedancia" className="rounded-xl py-3 text-[9px] font-black uppercase">Bioimp.</TabsTrigger>
                 <TabsTrigger value="testes" className="rounded-xl py-3 text-[9px] font-black uppercase">Testes</TabsTrigger>
+                {isElderly && <TabsTrigger value="senior" className="rounded-xl py-3 text-[9px] font-black uppercase bg-accent/20 text-accent-foreground">Sênior</TabsTrigger>}
                 <TabsTrigger value="escaneamento" className="rounded-xl py-3 text-[9px] font-black uppercase">Scan</TabsTrigger>
                 <TabsTrigger value="funcional" className="rounded-xl py-3 text-[9px] font-black uppercase">Func.</TabsTrigger>
               </TabsList>
@@ -334,6 +365,101 @@ export function AssessmentForm() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="senior" className="space-y-8">
+                <Alert className="bg-accent/10 border-accent/30 rounded-2xl">
+                  <UserRound className="h-4 w-4 text-accent-foreground" />
+                  <AlertTitle className="text-xs font-black uppercase">Normativos Rikli &amp; Jones (2013)</AlertTitle>
+                  <AlertDescription className="text-[10px]">Testes focados em autonomia, equilíbrio e força para a melhor idade.</AlertDescription>
+                </Alert>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Força de MMII */}
+                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                    <CardHeader className="bg-primary/5 py-4">
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Levantar e Sentar (30s)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Repetições completas</Label>
+                        <Input type="number" {...form.register("chairStandReps")} />
+                      </div>
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
+                        <Info className="h-3 w-3" />
+                        Avalia a força funcional dos membros inferiores.
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Força de MMSS */}
+                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                    <CardHeader className="bg-primary/5 py-4">
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Dumbbell className="h-4 w-4 text-primary" /> Rosca Direta (30s)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Repetições (Peso: 2.3kg F / 3.6kg M)</Label>
+                        <Input type="number" {...form.register("armCurlReps")} />
+                      </div>
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
+                        <Info className="h-3 w-3" />
+                        Avalia a força funcional dos membros superiores.
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Mobilidade TUG */}
+                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                    <CardHeader className="bg-primary/5 py-4">
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Timer className="h-4 w-4 text-primary" /> TUG (Time Up and Go)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Tempo total (segundos)</Label>
+                        <Input type="number" step="0.01" {...form.register("tugTime")} />
+                      </div>
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
+                        <Info className="h-3 w-3" />
+                        Agilidade e equilíbrio dinâmico (3 metros).
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Flexibilidade */}
+                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                    <CardHeader className="bg-primary/5 py-4">
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Ruler className="h-4 w-4 text-primary" /> Sentar e Alcançar</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Distância (+ ou - cm)</Label>
+                        <Input type="number" {...form.register("chairSitAndReach")} />
+                      </div>
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
+                        <Info className="h-3 w-3" />
+                        Flexibilidade da cadeia posterior em cadeira.
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Resistência Aeróbia */}
+                  <Card className="rounded-3xl border-primary/10 overflow-hidden md:col-span-2">
+                    <CardHeader className="bg-primary/5 py-4">
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> Caminhada de 6 Minutos</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 grid md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <Label>Distância total percorrida (metros)</Label>
+                        <Input type="number" {...form.register("sixMinWalkDist")} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Alcançar atrás das costas (cm)</Label>
+                        <Input type="number" {...form.register("backScratch")} />
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
@@ -452,7 +578,6 @@ export function AssessmentForm() {
                 </div>
               </TabsContent>
 
-              {/* ... Outros TabsContents mantidos ... */}
               <TabsContent value="perimetros" className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {["neck", "waist", "hip", "armContractedR", "armContractedL", "thighR", "thighL", "legR", "legL"].map(f => (
                   <div key={f} className="space-y-1">
