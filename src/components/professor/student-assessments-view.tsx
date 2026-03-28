@@ -110,18 +110,83 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     let vo2Bruce = 0;
     if (bruceTime > 0) vo2Bruce = gender === 'male' ? (14.8 - (1.379 * bruceTime) + (0.451 * (bruceTime ** 2)) - (0.012 * (bruceTime ** 3))) : (4.38 * bruceTime - 3.9);
 
-    // Gordura (J&P 7 dobras simplificado)
-    const sum7 = Number(subscapular) + Number(triceps) + Number(pectoral) + Number(suprailiac) + Number(abdominal) + Number(thigh) + Number(midLeg);
-    let dc = 1.1; 
-    if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age);
-    else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age);
-    const fatPerc = ((4.95 / dc) - 4.50) * 100;
+    // Gordura Corporal (Protocolos por idade)
+    let fatPerc = 0;
+    let fatClassification = "";
+    const sum7 = Number(subscapular) + Number(triceps) + Number(formData.midAxillary || 0) + Number(pectoral) + Number(abdominal) + Number(suprailiac) + Number(thigh);
+    const sum4Idoso = Number(subscapular) + Number(triceps) + Number(suprailiac) + Number(midLeg);
+
+    if (age < 18) {
+      // Slaughter
+      if (gender === 'male') fatPerc = 0.735 * (Number(triceps) + Number(midLeg)) + 1.0;
+      else fatPerc = 0.610 * (Number(triceps) + Number(midLeg)) + 5.1;
+    } else if (age >= 60) {
+      // Petroski (1995)
+      let dc = 0;
+      if (gender === 'male') {
+        dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * Math.pow(sum4Idoso, 2)) - (0.00041761 * age);
+      } else {
+        dc = 1.02902361 - (0.00067159 * sum4Idoso) + (0.00000242 * Math.pow(sum4Idoso, 2)) - (0.0002073 * age) - (0.00056009 * w) + (0.00054649 * h);
+      }
+      fatPerc = ((4.95 / dc) - 4.50) * 100;
+    } else {
+      // Jackson & Pollock 7
+      let dc = 0;
+      if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * Math.pow(sum7, 2)) - (0.00028826 * age);
+      else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * Math.pow(sum7, 2)) - (0.00012828 * age);
+      fatPerc = ((4.95 / dc) - 4.50) * 100;
+    }
+
+    const finalFatPerc = Math.max(0, fatPerc);
+
+    // Classificações Idoso Petroski
+    if (age >= 60) {
+      if (gender === 'female') {
+        if (age < 70) {
+          if (finalFatPerc < 17.0) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 20.7) fatClassification = "Regular";
+          else if (finalFatPerc <= 24.6) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        } else {
+          if (finalFatPerc < 14.9) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 18.7) fatClassification = "Regular";
+          else if (finalFatPerc <= 23.2) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        }
+      } else { // male
+        if (age < 70) {
+          if (finalFatPerc < 15.0) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 19.5) fatClassification = "Regular";
+          else if (finalFatPerc <= 23.0) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        } else {
+          if (finalFatPerc < 13.5) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 18.0) fatClassification = "Regular";
+          else if (finalFatPerc <= 22.0) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        }
+      }
+    } else if (age >= 18) {
+      if (gender === 'male') {
+        if (finalFatPerc < 5) fatClassification = "Essencial";
+        else if (finalFatPerc <= 13) fatClassification = "Atleta";
+        else if (finalFatPerc <= 17) fatClassification = "Boa Forma";
+        else if (finalFatPerc <= 24) fatClassification = "Aceitável";
+        else fatClassification = "Obesidade";
+      } else {
+        if (finalFatPerc < 14) fatClassification = "Essencial";
+        else if (finalFatPerc <= 20) fatClassification = "Atleta";
+        else if (finalFatPerc <= 24) fatClassification = "Boa Forma";
+        else if (finalFatPerc <= 31) fatClassification = "Aceitável";
+        else fatClassification = "Obesidade";
+      }
+    }
 
     // Blood Pressure
     const bpClassification = getBloodPressureClassification(Number(systolic), Number(diastolic));
 
     return { 
-      imc: imc.toFixed(1), oneRm: oneRm.toFixed(1), oneRmTable, vo2Cooper: vo2Cooper.toFixed(1), vo2Bruce: vo2Bruce.toFixed(1), fatPerc: Math.max(0, fatPerc).toFixed(1), bpClassification
+      imc: imc.toFixed(1), oneRm: oneRm.toFixed(1), oneRmTable, vo2Cooper: vo2Cooper.toFixed(1), vo2Bruce: vo2Bruce.toFixed(1), fatPerc: finalFatPerc.toFixed(1), fatClassification, bpClassification
     };
   }, [formData]);
 
@@ -147,7 +212,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4 bg-primary/10 text-center"><p className="text-[10px] font-black uppercase text-primary">1RM Est.</p><p className="text-xl font-black">{assessmentInsights.oneRm}kg</p></Card>
           <Card className="p-4 bg-accent/10 text-center"><p className="text-[10px] font-black uppercase text-accent-foreground">VO2 Cooper</p><p className="text-xl font-black">{assessmentInsights.vo2Cooper}</p></Card>
-          <Card className="p-4 bg-muted/50 text-center"><p className="text-[10px] font-black uppercase">% Gordura</p><p className="text-xl font-black">{assessmentInsights.fatPerc}%</p></Card>
+          <Card className="p-4 bg-muted/50 text-center"><p className="text-[10px] font-black uppercase">% Gordura</p><p className="text-xl font-black">{assessmentInsights.fatPerc}% ({assessmentInsights.fatClassification})</p></Card>
           <Card className="p-4 bg-primary/5 text-center"><p className="text-[10px] font-black uppercase">IMC</p><p className="text-xl font-black">{assessmentInsights.imc}</p></Card>
         </div>
 
@@ -204,6 +269,12 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             ))}
           </TabsContent>
 
+          <TabsContent value="dobras" className="grid grid-cols-3 md:grid-cols-5 gap-4">
+            {["triceps", "subscapular", "suprailiac", "midLeg", "abdominal", "pectoral", "thigh"].map(f => (
+              <div key={f} className="space-y-1"><Label className="text-[10px] uppercase">{f}</Label><Input type="number" step="0.1" value={formData[f]} onChange={e => setFormData({...formData, [f]: e.target.value})} /></div>
+            ))}
+          </TabsContent>
+
           <TabsContent value="funcional" className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1"><Label>Sistólica (mmHg)</Label><Input type="number" value={formData.systolic} onChange={e => setFormData({...formData, systolic: e.target.value})} /></div>
@@ -227,7 +298,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             <div>
               <p className="font-bold">{format(new Date(a.date), 'dd/MM/yyyy')}</p>
               <div className="flex items-center gap-3 mt-1">
-                <p className="text-[10px] opacity-60 uppercase font-black">% Gord: {a.calculatedResults?.fatPerc}%</p>
+                <p className="text-[10px] opacity-60 uppercase font-black">% Gord: {a.calculatedResults?.fatPerc}% ({a.calculatedResults?.fatClassification})</p>
                 {a.calculatedResults?.bpClassification && (
                   <Badge variant="outline" className={cn("text-[8px] font-black uppercase border-none", a.calculatedResults.bpClassification.color, a.calculatedResults.bpClassification.textColor)}>
                     {a.calculatedResults.bpClassification.label}

@@ -195,11 +195,25 @@ export function AssessmentForm() {
 
     // Composição Corporal
     let fatPerc = 0
+    let fatClassification = ""
     const sum7 = Number(sub) + Number(tri) + Number(max) + Number(pec) + Number(abd) + Number(sup) + Number(t)
+    const sum4Idoso = Number(sub) + Number(tri) + Number(sup) + Number(mlg)
+
     if (age < 18) {
+      // Adolescente (Slaughter)
       if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
       else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
+    } else if (age >= 60) {
+      // Idoso (Petroski 1995)
+      let dc = 0
+      if (gender === 'male') {
+        dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
+      } else {
+        dc = 1.02902361 - (0.00067159 * sum4Idoso) + (0.00000242 * (sum4Idoso ** 2)) - (0.0002073 * age) - (0.00056009 * w) + (0.00054649 * h)
+      }
+      fatPerc = ((4.95 / dc) - 4.50) * 100
     } else {
+      // Adulto (Jackson & Pollock 7 dobras)
       let dc = 0
       if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
       else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
@@ -207,6 +221,51 @@ export function AssessmentForm() {
     }
 
     const finalFatPerc = bioBodyFat > 0 ? bioBodyFat : Math.max(0, fatPerc)
+
+    // Classificação de Gordura
+    if (age >= 60) {
+      if (gender === 'female') {
+        if (age < 70) {
+          if (finalFatPerc < 17.0) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 20.7) fatClassification = "Regular";
+          else if (finalFatPerc <= 24.6) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        } else {
+          if (finalFatPerc < 14.9) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 18.7) fatClassification = "Regular";
+          else if (finalFatPerc <= 23.2) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        }
+      } else { // male
+        if (age < 70) {
+          if (finalFatPerc < 15.0) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 19.5) fatClassification = "Regular";
+          else if (finalFatPerc <= 23.0) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        } else {
+          if (finalFatPerc < 13.5) fatClassification = "Abaixo";
+          else if (finalFatPerc <= 18.0) fatClassification = "Regular";
+          else if (finalFatPerc <= 22.0) fatClassification = "Acima";
+          else fatClassification = "Muito Acima";
+        }
+      }
+    } else if (age >= 18) {
+      if (gender === 'male') {
+        if (finalFatPerc < 5) fatClassification = "Essencial";
+        else if (finalFatPerc <= 13) fatClassification = "Atleta";
+        else if (finalFatPerc <= 17) fatClassification = "Boa Forma";
+        else if (finalFatPerc <= 24) fatClassification = "Aceitável";
+        else fatClassification = "Obesidade";
+      } else {
+        if (finalFatPerc < 14) fatClassification = "Essencial";
+        else if (finalFatPerc <= 20) fatClassification = "Atleta";
+        else if (finalFatPerc <= 24) fatClassification = "Boa Forma";
+        else if (finalFatPerc <= 31) fatClassification = "Aceitável";
+        else fatClassification = "Obesidade";
+      }
+    } else {
+      fatClassification = "Padrão Infanto-Juvenil";
+    }
 
     // Pressão Arterial Classification
     const bpClassification = getBloodPressureClassification(Number(systolic), Number(diastolic))
@@ -223,6 +282,7 @@ export function AssessmentForm() {
       vo2Bruce: vo2Bruce.toFixed(1),
       wellsClass,
       fatPerc: finalFatPerc.toFixed(1),
+      fatClassification,
       isElderly,
       age,
       bpClassification
@@ -293,7 +353,7 @@ export function AssessmentForm() {
               <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">AVALIAÇÃO MULTIDISCIPLINAR</CardTitle>
               <CardDescription>Protocolos científicos, performance e triagem clínica.</CardDescription>
             </div>
-            {isElderly && <Badge className="bg-accent text-accent-foreground font-black px-4 py-1">PROTOCOLO SÊNIOR ATIVO</Badge>}
+            {isElderly && <Badge className="bg-accent text-accent-foreground font-black px-4 py-1">PROTOCOLO PETROSKI (1995)</Badge>}
           </div>
         </CardHeader>
 
@@ -314,7 +374,7 @@ export function AssessmentForm() {
               </div>
               <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                 <p className="text-[10px] font-black uppercase text-muted-foreground">% Gordura</p>
-                <p className="text-sm font-black">{results.fatPerc}%</p>
+                <p className="text-sm font-black">{results.fatPerc}% ({results.fatClassification})</p>
               </div>
             </div>
 
@@ -372,7 +432,6 @@ export function AssessmentForm() {
                 </Alert>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* Força de MMII */}
                   <Card className="rounded-3xl border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Levantar e Sentar (30s)</CardTitle>
@@ -389,7 +448,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* Força de MMSS */}
                   <Card className="rounded-3xl border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Dumbbell className="h-4 w-4 text-primary" /> Rosca Direta (30s)</CardTitle>
@@ -406,7 +464,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* Mobilidade TUG */}
                   <Card className="rounded-3xl border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Timer className="h-4 w-4 text-primary" /> TUG (Time Up and Go)</CardTitle>
@@ -423,7 +480,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* Flexibilidade */}
                   <Card className="rounded-3xl border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Ruler className="h-4 w-4 text-primary" /> Sentar e Alcançar</CardTitle>
@@ -440,7 +496,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* Resistência Aeróbia */}
                   <Card className="rounded-3xl border-primary/10 overflow-hidden md:col-span-2">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> Caminhada de 6 Minutos</CardTitle>
@@ -461,7 +516,6 @@ export function AssessmentForm() {
 
               <TabsContent value="testes" className="space-y-10">
                 <div className="grid gap-8">
-                  {/* Teste 1RM */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 flex flex-row items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -510,7 +564,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* Testes VO2 */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <Card className="rounded-[2rem] border-primary/10">
                       <CardHeader className="bg-primary/5">
@@ -545,7 +598,6 @@ export function AssessmentForm() {
                     </Card>
                   </div>
 
-                  {/* Flexibilidade Wells */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Ruler className="h-4 w-4" /> Banco de Wells</CardTitle>
