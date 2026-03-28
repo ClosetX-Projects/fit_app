@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Dumbbell, Loader2, ArrowLeft, ChevronRight, BookOpen, Search } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Loader2, ArrowLeft, ChevronRight, BookOpen, Search, Timer, TrendingUp, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EXERCISE_LIST } from "@/lib/constants";
+import { EXERCISE_LIST, TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
 
 export function ProgramLibrary() {
   const { firestore } = useFirebase();
@@ -24,13 +24,17 @@ export function ProgramLibrary() {
   
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
+  const [newMethod, setNewMethod] = useState('Múltiplas Séries');
+  const [newProgression, setNewProgression] = useState('Linear');
+  const [newDuration, setNewDuration] = useState('4');
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   // Estados para novo exercício no template
   const [exName, setExName] = useState('');
   const [exSets, setExSets] = useState('');
   const [exReps, setExReps] = useState('');
-  const [exWeight, setExWeight] = useState('');
+  const [exRm, setExRm] = useState('');
 
   const templatesRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'programTemplates') : null
@@ -55,6 +59,9 @@ export function ProgramLibrary() {
       id: templateRef.id,
       name: newTemplateName,
       description: newTemplateDesc,
+      method: newMethod,
+      progressionType: newProgression,
+      durationWeeks: Number(newDuration),
       createdAt: serverTimestamp(),
     }, { merge: true });
 
@@ -75,7 +82,7 @@ export function ProgramLibrary() {
       name: exName,
       sets: Number(exSets),
       reps: exReps,
-      weight: Number(exWeight),
+      oneRmPercentage: Number(exRm),
       createdAt: serverTimestamp(),
     }, { merge: true });
 
@@ -83,7 +90,7 @@ export function ProgramLibrary() {
     setExName('');
     setExSets('');
     setExReps('');
-    setExWeight('');
+    setExRm('');
     setLoading(false);
   };
 
@@ -109,15 +116,19 @@ export function ProgramLibrary() {
           <Button variant="ghost" size="icon" onClick={() => setSelectedTemplateId(null)} className="rounded-full">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h3 className="text-xl font-black text-primary uppercase tracking-tighter">{selectedTemplate.name}</h3>
-            <p className="text-xs text-muted-foreground font-medium uppercase">{selectedTemplate.description || "Sem descrição"}</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+               <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedTemplate.method}</span>
+               <span className="text-[9px] font-black uppercase bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">Progresso {selectedTemplate.progressionType}</span>
+               <span className="text-[9px] font-black uppercase bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{selectedTemplate.durationWeeks} Semanas</span>
+            </div>
           </div>
         </div>
 
         <Card className="rounded-3xl border-primary/20 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase tracking-wider">Novo Exercício Padrão</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-wider">Novo Exercício no Modelo</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -142,9 +153,13 @@ export function ProgramLibrary() {
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Reps/Tempo</Label>
                 <Input placeholder="Ex: 12" value={exReps} onChange={(e) => setExReps(e.target.value)} className="rounded-xl h-12" />
               </div>
-              <Button onClick={handleAddExercise} disabled={loading || !exName} className="h-12 rounded-xl font-bold bg-primary shadow-md">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">% 1RM</Label>
+                <Input type="number" placeholder="Ex: 75" value={exRm} onChange={(e) => setExRm(e.target.value)} className="rounded-xl h-12" />
+              </div>
+              <Button onClick={handleAddExercise} disabled={loading || !exName} className="h-12 rounded-xl font-bold bg-primary shadow-md md:col-start-4">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                Adicionar ao Modelo
+                Adicionar
               </Button>
             </div>
           </CardContent>
@@ -166,7 +181,9 @@ export function ProgramLibrary() {
                     </div>
                     <div>
                       <p className="font-bold text-lg">{ex.name}</p>
-                      <p className="text-xs text-muted-foreground font-black uppercase tracking-tight">{ex.reps} reps | {ex.weight}kg sugerido</p>
+                      <p className="text-xs text-muted-foreground font-black uppercase tracking-tight">
+                        {ex.reps} reps | {ex.oneRmPercentage}% do 1RM
+                      </p>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-destructive/10" onClick={() => handleDeleteExercise(ex.id)}>
@@ -210,10 +227,41 @@ export function ProgramLibrary() {
               <Label className="text-xs font-black uppercase tracking-widest text-primary">Nome do Programa</Label>
               <Input placeholder="Ex: Hipertrofia A/B (Foco em Quadríceps)" value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} className="rounded-2xl h-14 text-lg font-bold" />
             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-primary flex items-center gap-1"><Layers className="h-3 w-3" /> Método</Label>
+                  <Select value={newMethod} onValueChange={setNewMethod}>
+                    <SelectTrigger className="rounded-xl h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                       {TRAINING_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+               </div>
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-primary flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Progressão</Label>
+                  <Select value={newProgression} onValueChange={setNewProgression}>
+                    <SelectTrigger className="rounded-xl h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                       {PROGRESSION_TYPES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+               </div>
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-primary flex items-center gap-1"><Timer className="h-3 w-3" /> Semanas</Label>
+                  <Input type="number" value={newDuration} onChange={e => setNewDuration(e.target.value)} className="rounded-xl h-12" />
+               </div>
+            </div>
+
             <div className="grid gap-2">
               <Label className="text-xs font-black uppercase tracking-widest text-primary">Objetivo / Descrição</Label>
               <Textarea placeholder="Descreva brevemente para quem este treino é indicado..." value={newTemplateDesc} onChange={(e) => setNewTemplateDesc(e.target.value)} className="rounded-2xl min-h-[100px]" />
             </div>
+
             <div className="flex gap-4">
               <Button variant="ghost" onClick={() => setShowEditor(false)} className="flex-1 rounded-full h-14 font-bold">Cancelar</Button>
               <Button onClick={handleCreateTemplate} disabled={loading || !newTemplateName} className="flex-[2] rounded-full h-14 text-lg font-black bg-primary">
@@ -242,10 +290,14 @@ export function ProgramLibrary() {
                     </Button>
                   </div>
                   <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors">{template.name}</h3>
+                  <div className="flex gap-2 flex-wrap">
+                     <span className="text-[8px] font-black uppercase bg-primary/10 text-primary px-2 rounded-full">{template.method}</span>
+                     <span className="text-[8px] font-black uppercase bg-accent/20 text-accent-foreground px-2 rounded-full">{template.durationWeeks} Sem.</span>
+                  </div>
                   <p className="text-xs text-muted-foreground line-clamp-2 font-medium">{template.description}</p>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-primary/5">
-                   <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest">Ver composição</p>
+                   <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest">Editar Estrutura</p>
                    <ChevronRight className="h-4 w-4 text-primary" />
                 </div>
               </div>

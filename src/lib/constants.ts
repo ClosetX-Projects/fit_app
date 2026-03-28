@@ -95,3 +95,19 @@ export const FEELING_SCALE_MESSAGES: Record<number, string> = {
   "-4": "Muito Ruim-",
   "-5": "Muito Ruim"
 };
+
+export const TRAINING_METHODS = [
+  "Múltiplas Séries",
+  "Bi-set",
+  "Tri-set",
+  "Pirâmide",
+  "Drop-set",
+  "Cluster Set",
+  "GVT",
+  "Rest-Pause"
+];
+
+export const PROGRESSION_TYPES = [
+  "Linear",
+  "Ondulatória"
+];
