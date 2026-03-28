@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef } from "react"
@@ -14,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Dumbbell, History, PlusCircle, ChevronRight, Info, Scale, Camera, HeartPulse, ScanFace, Timer, Ruler, PlayCircle, UserRound, Zap } from "lucide-react"
+import { Loader2, Save, Activity, Dumbbell, History, PlusCircle, ChevronRight, Info, Scale, Camera, HeartPulse, Timer, Ruler, PlayCircle, UserRound, Zap, Footprints, Accessibility } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -74,13 +75,13 @@ const assessmentSchema = z.object({
   horizontalJump: z.coerce.number().default(0),
   absOneMin: z.coerce.number().default(0),
   pushUps: z.coerce.number().default(0),
-  // Testes Sênior (Rikli & Jones)
+  // Senior Fitness Test (SFT)
   chairStandReps: z.coerce.number().default(0),
   armCurlReps: z.coerce.number().default(0),
   chairSitAndReach: z.coerce.number().default(0),
   backScratch: z.coerce.number().default(0),
-  sixMinWalkDist: z.coerce.number().default(0),
   tugTime: z.coerce.number().default(0),
+  sixMinWalkDist: z.coerce.number().default(0),
 })
 
 export function AssessmentForm() {
@@ -193,18 +194,16 @@ export function AssessmentForm() {
       }
     }
 
-    // Composição Corporal
+    // Composição Corporal (Petroski para idosos)
     let fatPerc = 0
     let fatClassification = ""
     const sum7 = Number(sub) + Number(tri) + Number(max) + Number(pec) + Number(abd) + Number(sup) + Number(t)
     const sum4Idoso = Number(sub) + Number(tri) + Number(sup) + Number(mlg)
 
     if (age < 18) {
-      // Adolescente (Slaughter)
       if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
       else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
     } else if (age >= 60) {
-      // Idoso (Petroski 1995)
       let dc = 0
       if (gender === 'male') {
         dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
@@ -213,7 +212,6 @@ export function AssessmentForm() {
       }
       fatPerc = ((4.95 / dc) - 4.50) * 100
     } else {
-      // Adulto (Jackson & Pollock 7 dobras)
       let dc = 0
       if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
       else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
@@ -222,7 +220,7 @@ export function AssessmentForm() {
 
     const finalFatPerc = bioBodyFat > 0 ? bioBodyFat : Math.max(0, fatPerc)
 
-    // Classificação de Gordura
+    // Classificação de Gordura Idosos (Petroski)
     if (age >= 60) {
       if (gender === 'female') {
         if (age < 70) {
@@ -236,7 +234,7 @@ export function AssessmentForm() {
           else if (finalFatPerc <= 23.2) fatClassification = "Acima";
           else fatClassification = "Muito Acima";
         }
-      } else { // male
+      } else {
         if (age < 70) {
           if (finalFatPerc < 15.0) fatClassification = "Abaixo";
           else if (finalFatPerc <= 19.5) fatClassification = "Regular";
@@ -267,8 +265,17 @@ export function AssessmentForm() {
       fatClassification = "Padrão Infanto-Juvenil";
     }
 
-    // Pressão Arterial Classification
-    const bpClassification = getBloodPressureClassification(Number(systolic), Number(diastolic))
+    // Cálculo Simplificado IAFG (0 a 100) baseado em Rikli & Jones
+    // Nota: Em um sistema real, cada teste teria uma tabela de percentis para pontuação.
+    let iafgPoints = 0;
+    if (isElderly) {
+      if (chairStandReps >= 12) iafgPoints += 16;
+      if (armCurlReps >= 14) iafgPoints += 16;
+      if (sixMinWalkDist >= 400) iafgPoints += 17;
+      if (tugTime <= 8) iafgPoints += 17;
+      if (chairSitAndReach >= 0) iafgPoints += 17;
+      if (backScratch >= -5) iafgPoints += 17;
+    }
 
     return {
       imc: imcValue.toFixed(1),
@@ -285,9 +292,10 @@ export function AssessmentForm() {
       fatClassification,
       isElderly,
       age,
-      bpClassification
+      bpClassification: getBloodPressureClassification(Number(systolic), Number(diastolic)),
+      iafg: Math.min(100, iafgPoints)
     }
-  }, [watchedValues, gender, age])
+  }, [watchedValues, gender, age, isElderly])
 
   const onSubmit = async (values: any) => {
     if (!user || !firestore) return
@@ -353,7 +361,7 @@ export function AssessmentForm() {
               <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">AVALIAÇÃO MULTIDISCIPLINAR</CardTitle>
               <CardDescription>Protocolos científicos, performance e triagem clínica.</CardDescription>
             </div>
-            {isElderly && <Badge className="bg-accent text-accent-foreground font-black px-4 py-1">PROTOCOLO PETROSKI (1995)</Badge>}
+            {isElderly && <Badge className="bg-accent text-accent-foreground font-black px-4 py-1">SENIOR FITNESS TEST (SFT)</Badge>}
           </div>
         </CardHeader>
 
@@ -372,10 +380,17 @@ export function AssessmentForm() {
                 <p className="text-[10px] font-black uppercase text-accent-foreground">Idade Atual</p>
                 <p className="text-sm font-black">{results.age} Anos</p>
               </div>
-              <div className="bg-muted/50 p-4 rounded-3xl text-center border">
-                <p className="text-[10px] font-black uppercase text-muted-foreground">% Gordura</p>
-                <p className="text-sm font-black">{results.fatPerc}% ({results.fatClassification})</p>
-              </div>
+              {isElderly ? (
+                <div className="bg-primary/20 p-4 rounded-3xl text-center border border-primary/30">
+                  <p className="text-[10px] font-black uppercase text-primary">IAFG Total</p>
+                  <p className="text-sm font-black">{results.iafg} / 100</p>
+                </div>
+              ) : (
+                <div className="bg-muted/50 p-4 rounded-3xl text-center border">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">% Gordura</p>
+                  <p className="text-sm font-black">{results.fatPerc}% ({results.fatClassification})</p>
+                </div>
+              )}
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -390,6 +405,7 @@ export function AssessmentForm() {
                 <TabsTrigger value="funcional" className="rounded-xl py-3 text-[9px] font-black uppercase">Func.</TabsTrigger>
               </TabsList>
 
+              {/* ... Outros TabsContents permanecem iguais ou similares ... */}
               <TabsContent value="antropometria" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
@@ -424,93 +440,141 @@ export function AssessmentForm() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="senior" className="space-y-8">
+              <TabsContent value="senior" className="space-y-10">
                 <Alert className="bg-accent/10 border-accent/30 rounded-2xl">
                   <UserRound className="h-4 w-4 text-accent-foreground" />
-                  <AlertTitle className="text-xs font-black uppercase">Normativos Rikli &amp; Jones (2013)</AlertTitle>
-                  <AlertDescription className="text-[10px]">Testes focados em autonomia, equilíbrio e força para a melhor idade.</AlertDescription>
+                  <AlertTitle className="text-xs font-black uppercase">Senior Fitness Test (SFT) - Rikli & Jones</AlertTitle>
+                  <AlertDescription className="text-[10px]">Bateria técnica para avaliação da aptidão funcional em idosos.</AlertDescription>
                 </Alert>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* 1. Chair Stand */}
+                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Levantar e Sentar (30s)</CardTitle>
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Zap className="h-4 w-4" /> 1. Levantar e Sentar</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        <strong>Objetivo:</strong> Força e resistência de membros inferiores.<br/>
+                        <strong>Procedimento:</strong> Sentado com braços cruzados, ao sinal levantar totalmente e sentar. Contar repetições em 30 segundos.
+                      </p>
                       <div className="space-y-2">
-                        <Label>Repetições completas</Label>
-                        <Input type="number" {...form.register("chairStandReps")} />
-                      </div>
-                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
-                        <Info className="h-3 w-3" />
-                        Avalia a força funcional dos membros inferiores.
+                        <Label className="text-[10px] font-black uppercase">Repetições em 30s</Label>
+                        <Input type="number" {...form.register("chairStandReps")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                  {/* 2. Arm Curl */}
+                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Dumbbell className="h-4 w-4 text-primary" /> Rosca Direta (30s)</CardTitle>
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Dumbbell className="h-4 w-4" /> 2. Flexão de Antebraço</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        <strong>Objetivo:</strong> Força e resistência de membros superiores. (2kg F / 4kg M).<br/>
+                        <strong>Procedimento:</strong> Braço dominante estendido. Flexionar completamente e retornar. Contar repetições em 30s.
+                      </p>
                       <div className="space-y-2">
-                        <Label>Repetições (Peso: 2.3kg F / 3.6kg M)</Label>
-                        <Input type="number" {...form.register("armCurlReps")} />
-                      </div>
-                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
-                        <Info className="h-3 w-3" />
-                        Avalia a força funcional dos membros superiores.
+                        <Label className="text-[10px] font-black uppercase">Repetições em 30s</Label>
+                        <Input type="number" {...form.register("armCurlReps")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                  {/* 3. Chair Sit and Reach */}
+                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Timer className="h-4 w-4 text-primary" /> TUG (Time Up and Go)</CardTitle>
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Ruler className="h-4 w-4" /> 3. Sentado e Alcançar</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        <strong>Objetivo:</strong> Flexibilidade de membros inferiores.<br/>
+                        <strong>Procedimento:</strong> Ponta da cadeira, perna estendida. Inclinar tentando tocar o pé. Registrar cm (negativo se não toca, positivo se ultrapassa).
+                      </p>
                       <div className="space-y-2">
-                        <Label>Tempo total (segundos)</Label>
-                        <Input type="number" step="0.01" {...form.register("tugTime")} />
-                      </div>
-                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
-                        <Info className="h-3 w-3" />
-                        Agilidade e equilíbrio dinâmico (3 metros).
+                        <Label className="text-[10px] font-black uppercase">Distância (cm +/-)</Label>
+                        <Input type="number" {...form.register("chairSitAndReach")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="rounded-3xl border-primary/10 overflow-hidden">
+                  {/* 4. 8-Foot Up-and-Go */}
+                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Ruler className="h-4 w-4 text-primary" /> Sentar e Alcançar</CardTitle>
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Timer className="h-4 w-4" /> 4. Agilidade/TUG (2,44m)</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        <strong>Objetivo:</strong> Mobilidade física, agilidade e equilíbrio.<br/>
+                        <strong>Procedimento:</strong> Levantar, caminhar 2,44m, contornar cone e voltar a sentar o mais rápido possível.
+                      </p>
                       <div className="space-y-2">
-                        <Label>Distância (+ ou - cm)</Label>
-                        <Input type="number" {...form.register("chairSitAndReach")} />
-                      </div>
-                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-xl text-[10px] italic">
-                        <Info className="h-3 w-3" />
-                        Flexibilidade da cadeia posterior em cadeira.
+                        <Label className="text-[10px] font-black uppercase">Menor Tempo (segundos)</Label>
+                        <Input type="number" step="0.01" {...form.register("tugTime")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="rounded-3xl border-primary/10 overflow-hidden md:col-span-2">
+                  {/* 5. Back Scratch */}
+                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> Caminhada de 6 Minutos</CardTitle>
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Accessibility className="h-4 w-4" /> 5. Alcançar Costas</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-6 grid md:grid-cols-2 gap-8">
+                    <CardContent className="p-6 space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        <strong>Objetivo:</strong> Flexibilidade de ombros.<br/>
+                        <strong>Procedimento:</strong> Tentar tocar os dedos médios atrás das costas. Registrar cm (+ sobreposição, - distância entre dedos).
+                      </p>
                       <div className="space-y-2">
-                        <Label>Distância total percorrida (metros)</Label>
-                        <Input type="number" {...form.register("sixMinWalkDist")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Alcançar atrás das costas (cm)</Label>
-                        <Input type="number" {...form.register("backScratch")} />
+                        <Label className="text-[10px] font-black uppercase">Distância (cm +/-)</Label>
+                        <Input type="number" {...form.register("backScratch")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* 6. 6-Minute Walk */}
+                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
+                    <CardHeader className="bg-primary/5 py-4">
+                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Footprints className="h-4 w-4" /> 6. Caminhada 6 Min</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        <strong>Objetivo:</strong> Resistência aeróbica funcional.<br/>
+                        <strong>Procedimento:</strong> Caminhar o mais rápido possível por 6 minutos em percurso plano. Registrar distância total.
+                      </p>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase">Distância (metros)</Label>
+                        <Input type="number" {...form.register("sixMinWalkDist")} className="h-12 text-lg font-black" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="perimetros" className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {["neck", "waist", "hip", "armContractedR", "armContractedL", "thighR", "thighL", "legR", "legL"].map(f => (
+                  <div key={f} className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold">{f}</Label>
+                    <Input type="number" step="0.1" {...form.register(f as any)} />
+                  </div>
+                ))}
+              </TabsContent>
+
+              <TabsContent value="dobras" className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {["triceps", "subscapular", "abdominal", "suprailiac", "pectoral", "thigh", "midLeg"].map(d => (
+                  <div key={d} className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase text-primary">{d}</Label>
+                    <Input type="number" step="0.1" {...form.register(d as any)} />
+                  </div>
+                ))}
+              </TabsContent>
+
+              <TabsContent value="bioimpedancia" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2"><Label>TMB (kcal)</Label><Input type="number" {...form.register("bmr")} /></div>
+                  <div className="space-y-2"><Label>Hidratação (%)</Label><Input type="number" step="0.1" {...form.register("hydration")} /></div>
+                  <div className="space-y-2"><Label>% Gordura Bio</Label><Input type="number" step="0.1" {...form.register("bioBodyFat")} /></div>
                 </div>
               </TabsContent>
 
@@ -545,10 +609,6 @@ export function AssessmentForm() {
                             <Input type="number" {...form.register("tenRmReps")} />
                           </div>
                         </div>
-                        <Alert className="bg-accent/5 border-accent/20">
-                          <Info className="h-4 w-4 text-accent" />
-                          <AlertDescription className="text-[10px]">Realize o maior número de repetições possíveis com uma carga submáxima (ideal entre 2 a 10 reps).</AlertDescription>
-                        </Alert>
                       </div>
                       <div className="bg-muted/30 rounded-2xl p-4">
                         <p className="text-[10px] font-black uppercase mb-3 text-center">Tabela de Percentuais</p>
@@ -587,7 +647,7 @@ export function AssessmentForm() {
                       </CardHeader>
                       <CardContent className="p-6 space-y-4">
                         <div className="space-y-2">
-                          <Label>Tempo Total (minutos decimais)</Label>
+                          <Label>Tempo Total (minutos)</Label>
                           <Input type="number" step="0.01" {...form.register("bruceTime")} />
                         </div>
                         <div className="p-3 bg-primary/10 rounded-xl text-center">
@@ -597,58 +657,6 @@ export function AssessmentForm() {
                       </CardContent>
                     </Card>
                   </div>
-
-                  <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
-                    <CardHeader className="bg-primary/5">
-                      <CardTitle className="text-xs font-black uppercase flex items-center gap-2"><Ruler className="h-4 w-4" /> Banco de Wells</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 flex flex-col md:flex-row items-center gap-8">
-                      <div className="flex-1 space-y-4">
-                        <div className="space-y-2">
-                          <Label>Alcance alcançado (cm)</Label>
-                          <Input type="number" {...form.register("wellsDistance")} />
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1 p-3 bg-accent/10 rounded-xl text-center">
-                            <p className="text-[10px] font-black uppercase">Classificação</p>
-                            <p className="text-lg font-black text-accent-foreground">{results.wellsClass}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="w-full md:w-64 aspect-video bg-black rounded-xl flex items-center justify-center relative group cursor-pointer overflow-hidden">
-                        <div className="absolute inset-0 bg-primary/20 group-hover:bg-primary/40 transition-colors flex items-center justify-center">
-                          <PlayCircle className="h-12 w-12 text-white shadow-xl" />
-                        </div>
-                        <span className="absolute bottom-2 text-[8px] font-black text-white uppercase tracking-widest">Vídeo Instrutivo</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="perimetros" className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {["neck", "waist", "hip", "armContractedR", "armContractedL", "thighR", "thighL", "legR", "legL"].map(f => (
-                  <div key={f} className="space-y-1">
-                    <Label className="text-[10px] uppercase font-bold">{f}</Label>
-                    <Input type="number" step="0.1" {...form.register(f as any)} />
-                  </div>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="dobras" className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {["triceps", "subscapular", "abdominal", "suprailiac", "pectoral", "thigh", "midLeg"].map(d => (
-                  <div key={d} className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase text-primary">{d}</Label>
-                    <Input type="number" step="0.1" {...form.register(d as any)} />
-                  </div>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="bioimpedancia" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2"><Label>TMB (kcal)</Label><Input type="number" {...form.register("bmr")} /></div>
-                  <div className="space-y-2"><Label>Hidratação (%)</Label><Input type="number" step="0.1" {...form.register("hydration")} /></div>
-                  <div className="space-y-2"><Label>% Gordura Bio</Label><Input type="number" step="0.1" {...form.register("bioBodyFat")} /></div>
                 </div>
               </TabsContent>
 
