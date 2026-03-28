@@ -15,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Loader2, 
-  Calendar, 
   Dumbbell, 
   ChevronRight, 
   ClipboardList, 
@@ -27,7 +26,6 @@ import {
   ArrowLeft,
   FileText,
   ClipboardCheck,
-  User,
   Activity
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
@@ -138,14 +136,33 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     }
   }, [assessment, student]);
 
-  const ageData = useMemo(() => {
-    if (!formData.birthDate) return { age: 0, protocol: 'Não definido' };
-    const age = differenceInYears(new Date(), new Date(formData.birthDate));
+  const assessmentInsights = useMemo(() => {
+    if (!formData.weight || !formData.height) return { imc: "0.0", classification: "--", age: 0, protocol: "Adulto" };
+    
+    const w = Number(formData.weight);
+    const h = Number(formData.height);
+    const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0;
+    
+    let classification = "";
+    if (imc < 18.5) classification = "Abaixo do peso";
+    else if (imc < 25) classification = "Peso normal";
+    else if (imc < 30) classification = "Sobrepeso";
+    else if (imc < 35) classification = "Obesidade grau I";
+    else if (imc < 40) classification = "Obesidade grau II";
+    else classification = "Obesidade grau III";
+
+    const age = formData.birthDate ? differenceInYears(new Date(), new Date(formData.birthDate)) : 0;
     let protocol = 'Adulto';
-    if (age < 18) protocol = 'Adolescente';
+    if (age > 0 && age < 18) protocol = 'Adolescente';
     else if (age >= 60) protocol = 'Idoso';
-    return { age, protocol };
-  }, [formData.birthDate]);
+
+    return { 
+      imc: imc.toFixed(1), 
+      classification, 
+      age, 
+      protocol 
+    };
+  }, [formData.weight, formData.height, formData.birthDate]);
 
   const notifyStudent = (title: string, message: string, type: string) => {
     if (!firestore || !studentId) return;
@@ -167,19 +184,19 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     );
     toast({
       title: "Questionário Enviado!",
-      description: "O aluno foi notificado e redirecionado para a aba Saúde.",
+      description: "O aluno foi notificado.",
     });
   };
 
   const handleRequestPhysicalAssessment = () => {
     notifyStudent(
       "Avaliação de Aptidão Física",
-      "Seu professor solicitou que você preencha seus dados antropométricos. Clique aqui para iniciar.",
+      "Seu professor solicitou que você preencha seus dados antropométricos.",
       "physical-assessment-request"
     );
     toast({
       title: "Solicitação Enviada!",
-      description: "O aluno foi notificado e será levado à aba de Avaliação Física.",
+      description: "O aluno foi notificado.",
     });
   };
 
@@ -203,7 +220,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       
       toast({
         title: "Nova Ficha Aberta",
-        description: "Você já pode preencher todos os campos.",
+        description: "Preencha os campos para salvar.",
       });
     } catch (error) {
       toast({ variant: "destructive", title: "Erro ao criar" });
@@ -221,29 +238,34 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     const w = Number(formData.weight) || 0;
     const h = Number(formData.height) || 0;
     const f = Number(formData.fatPercentage) || 0;
-    const imc = h > 0 ? (w / ((h / 100) ** 2)).toFixed(1) : "0.0";
     const fatKg = ((w * f) / 100).toFixed(1);
     const leanKg = (w - Number(fatKg)).toFixed(1);
 
     const updateData = {
       ...formData,
-      age: ageData.age,
-      protocol: ageData.protocol,
-      calculatedResults: { imc, fatKg, leanKg, leanPerc: (100 - f).toFixed(1) },
+      calculatedResults: { 
+        imc: assessmentInsights.imc, 
+        imcClassification: assessmentInsights.classification,
+        fatKg, 
+        leanKg, 
+        leanPerc: (100 - f).toFixed(1) 
+      },
+      age: assessmentInsights.age,
+      protocol: assessmentInsights.protocol,
       updatedAt: serverTimestamp(),
     };
 
     setDocumentNonBlocking(assessmentRef, updateData, { merge: true });
 
     notifyStudent(
-      "Sua Avaliação Física foi Atualizada",
-      `Os resultados da avaliação de ${format(new Date(assessment?.date), "dd/MM")} já estão disponíveis. Confira aqui!`,
+      "Avaliação Física Atualizada",
+      `Seus resultados já estão disponíveis. Status: ${assessmentInsights.classification}.`,
       "assessment-result"
     );
 
     toast({
-      title: "Sincronizado!",
-      description: "O aluno foi notificado sobre a atualização dos dados.",
+      title: "Salvo com sucesso!",
+      description: "O aluno foi notificado sobre os resultados.",
     });
     setIsSaving(false);
   };
@@ -267,17 +289,31 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           </Button>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-4 bg-muted/50 text-center">
+            <p className="text-[10px] font-black uppercase text-muted-foreground">IMC</p>
+            <p className="text-2xl font-black">{assessmentInsights.imc}</p>
+          </Card>
+          <Card className="p-4 bg-primary/10 text-center col-span-1 md:col-span-2">
+            <p className="text-[10px] font-black uppercase text-primary">Classificação IMC</p>
+            <p className="text-lg font-black">{assessmentInsights.classification}</p>
+          </Card>
+          <Card className="p-4 bg-accent/10 text-center">
+            <p className="text-[10px] font-black uppercase text-accent-foreground">Protocolo</p>
+            <p className="text-xl font-black">{assessmentInsights.protocol}</p>
+          </Card>
+        </div>
+
         <Card className="border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="bg-primary/5 border-b border-primary/10">
-            <CardTitle className="text-xl font-black text-primary uppercase">Edição de Avaliação</CardTitle>
-            <CardDescription>Preencha todos os campos antropométricos e funcionais.</CardDescription>
+            <CardTitle className="text-xl font-black text-primary uppercase">Ficha de Avaliação</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <Tabs defaultValue="identification">
               <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-6">
-                <TabsTrigger value="identification" className="rounded-xl py-2 text-xs font-bold uppercase">Identificação</TabsTrigger>
-                <TabsTrigger value="anthropometry" className="rounded-xl py-2 text-xs font-bold uppercase">Antropometria</TabsTrigger>
-                <TabsTrigger value="neuromotor" className="rounded-xl py-2 text-xs font-bold uppercase">Neuromotor</TabsTrigger>
+                <TabsTrigger value="identification" className="rounded-xl py-2 text-xs font-bold uppercase">Dados</TabsTrigger>
+                <TabsTrigger value="anthropometry" className="rounded-xl py-2 text-xs font-bold uppercase">Medidas</TabsTrigger>
+                <TabsTrigger value="neuromotor" className="rounded-xl py-2 text-xs font-bold uppercase">Funcional</TabsTrigger>
                 <TabsTrigger value="metabolic" className="rounded-xl py-2 text-xs font-bold uppercase">Metabólico</TabsTrigger>
               </TabsList>
 
@@ -285,7 +321,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase text-primary">Nome Completo</Label>
-                    <Input value={formData.fullName} onChange={e => updateField('fullName', e.target.value)} placeholder="Nome do Aluno" className="rounded-xl h-12" />
+                    <Input value={formData.fullName} onChange={e => updateField('fullName', e.target.value)} className="rounded-xl h-12" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase text-primary">Gênero</Label>
@@ -304,15 +340,13 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                     <Label className="text-xs font-black uppercase text-primary">Data de Nascimento</Label>
                     <Input type="date" value={formData.birthDate} onChange={e => updateField('birthDate', e.target.value)} className="rounded-xl h-12" />
                   </div>
-                  <div className="p-6 bg-primary/5 border border-primary/20 rounded-3xl flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Protocolo Sugerido</p>
-                      <p className="text-2xl font-black text-primary uppercase tracking-tighter">{ageData.protocol}</p>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Idade Calculada</p>
-                       <p className="text-2xl font-black">{ageData.age} anos</p>
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase text-primary">Peso Atual (kg)</Label>
+                    <Input type="number" step="0.1" value={formData.weight} onChange={e => updateField('weight', e.target.value)} className="rounded-xl h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase text-primary">Altura (cm)</Label>
+                    <Input type="number" value={formData.height} onChange={e => updateField('height', e.target.value)} className="rounded-xl h-12" />
                   </div>
                 </div>
               </TabsContent>
@@ -320,11 +354,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               <TabsContent value="anthropometry" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Básicos e Perímetros</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1"><Label className="text-[10px]">Peso (kg)</Label><Input type="number" step="0.1" value={formData.weight} onChange={e => updateField('weight', e.target.value)} /></div>
-                      <div className="space-y-1"><Label className="text-[10px]">Altura (cm)</Label><Input type="number" value={formData.height} onChange={e => updateField('height', e.target.value)} /></div>
-                    </div>
+                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Perímetros (cm)</h4>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                        {[
                          { id: "waist", label: "Abdômen" },
@@ -342,7 +372,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Dobras Cutâneas</h4>
+                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Dobras Cutâneas (mm)</h4>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { id: "triceps", label: "Tric" },
@@ -358,10 +388,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 p-4 bg-primary/5 rounded-2xl">
-                       <Label className="text-[10px] font-black uppercase text-primary">% Gordura Final</Label>
-                       <Input type="number" step="0.1" value={formData.fatPercentage} onChange={e => updateField('fatPercentage', e.target.value)} className="h-10 font-bold" />
-                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -369,18 +395,16 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               <TabsContent value="neuromotor" className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="p-6 bg-primary/5 border-primary/20">
                   <h4 className="text-xs font-black uppercase text-primary mb-4 flex items-center gap-2"><Dumbbell className="h-4 w-4" /> Força</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Teste 10 RM (kg)</Label>
-                      <Input type="number" value={formData.tenRmTest ?? 0} onChange={e => updateField('tenRmTest', e.target.value)} />
-                    </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Teste 10 RM (kg)</Label>
+                    <Input type="number" value={formData.tenRmTest ?? 0} onChange={e => updateField('tenRmTest', e.target.value)} />
                   </div>
                 </Card>
                 <Card className="p-6 bg-accent/5 border-accent/20">
-                  <h4 className="text-xs font-black uppercase text-accent mb-4 flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Funcional</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar (reps)</Label><Input type="number" value={formData.sitToStand ?? 0} onChange={e => updateField('sitToStand', e.target.value)} /></div>
-                    <div className="space-y-1"><Label className="text-[10px]">TUG (segundos)</Label><Input type="number" step="0.1" value={formData.tug ?? 0} onChange={e => updateField('tug', e.target.value)} /></div>
+                  <h4 className="text-xs font-black uppercase text-accent mb-4 flex items-center gap-2"><Activity className="h-4 w-4" /> Funcional</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar</Label><Input type="number" value={formData.sitToStand ?? 0} onChange={e => updateField('sitToStand', e.target.value)} /></div>
+                    <div className="space-y-1"><Label className="text-[10px]">TUG (seg)</Label><Input type="number" step="0.1" value={formData.tug ?? 0} onChange={e => updateField('tug', e.target.value)} /></div>
                   </div>
                 </Card>
               </TabsContent>
@@ -407,7 +431,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           <CardHeader className="text-center p-6">
             <FileText className="h-10 w-10 text-primary mx-auto mb-3" />
             <CardTitle className="text-xl">Questionário Saúde</CardTitle>
-            <CardDescription>Peça para o aluno responder aos questionários.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-12 font-bold gap-2">
@@ -420,7 +443,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           <CardHeader className="text-center p-6">
             <ClipboardCheck className="h-10 w-10 text-primary mx-auto mb-3" />
             <CardTitle className="text-xl">Aptidão Física</CardTitle>
-            <CardDescription>Solicite que o aluno preencha seus perímetros.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <Button onClick={handleRequestPhysicalAssessment} variant="outline" className="w-full rounded-full h-12 font-bold border-primary text-primary hover:bg-primary/10 gap-2">
@@ -432,13 +454,12 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         <Card className="border-dashed border-2 hover:border-accent/50 bg-accent/5">
           <CardHeader className="text-center p-6">
             <ClipboardList className="h-10 w-10 text-accent mx-auto mb-3" />
-            <CardTitle className="text-xl">Ficha Presencial</CardTitle>
-            <CardDescription>Preencha os dados agora junto com o aluno.</CardDescription>
+            <CardTitle className="text-xl">Ficha Manual</CardTitle>
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-12 font-bold border-accent text-accent hover:bg-accent/10 gap-2">
               {isCreating ? <Loader2 className="animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Nova Ficha Manual
+              Nova Ficha
             </Button>
           </CardContent>
         </Card>
@@ -447,7 +468,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       <Card className="border-primary/10 rounded-3xl overflow-hidden shadow-lg">
         <CardHeader className="bg-primary/5 border-b">
           <CardTitle className="text-sm font-black flex items-center gap-2 uppercase">
-            <History className="h-4 w-4 text-primary" /> Histórico de Avaliações
+            <History className="h-4 w-4 text-primary" /> Histórico
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -460,7 +481,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                       {item.date ? format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR }) : '--'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.weight}kg | {item.protocol || 'Adulto'} | {item.fatPercentage}% Gord.
+                      {item.weight}kg | IMC: {item.calculatedResults?.imc} ({item.calculatedResults?.imcClassification})
                     </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -468,7 +489,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               ))}
             </div>
           ) : (
-            <div className="p-12 text-center text-muted-foreground italic">Nenhuma avaliação registrada para este aluno.</div>
+            <div className="p-12 text-center text-muted-foreground italic">Nenhuma avaliação registrada.</div>
           )}
         </CardContent>
       </Card>

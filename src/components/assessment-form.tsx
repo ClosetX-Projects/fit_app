@@ -14,16 +14,14 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase"
 import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Zap, Dumbbell, Ruler, ClipboardCheck, History, PlusCircle, ChevronRight, Calendar, Info } from "lucide-react"
+import { Loader2, Save, Activity, Dumbbell, History, PlusCircle, ChevronRight, Info } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as ChartTooltip } from 'recharts'
 import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 const assessmentSchema = z.object({
   weight: z.coerce.number().min(0).default(0),
   height: z.coerce.number().min(0).default(0),
-  // Circunferências
   waist: z.coerce.number().default(0),
   hip: z.coerce.number().default(0),
   armR: z.coerce.number().default(0),
@@ -34,14 +32,12 @@ const assessmentSchema = z.object({
   thighL: z.coerce.number().default(0),
   calfR: z.coerce.number().default(0),
   calfL: z.coerce.number().default(0),
-  // Dobras
   subscapular: z.coerce.number().default(0),
   triceps: z.coerce.number().default(0),
   pectoral: z.coerce.number().default(0),
   suprailiac: z.coerce.number().default(0),
   thigh: z.coerce.number().default(0),
   abdominal: z.coerce.number().default(0),
-  // Resultados
   vo2max: z.coerce.number().default(0),
   tenRmTest: z.coerce.number().default(0),
   sitToStand: z.coerce.number().default(0),
@@ -108,8 +104,18 @@ export function AssessmentForm() {
 
   const results = useMemo(() => {
     const { weight: w, height: h, subscapular: sub, triceps: tri, pectoral: pec, suprailiac: sup, thigh: t } = watchedValues
-    const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0
     
+    // Cálculo IMC
+    const imcValue = h > 0 ? (w / ((h / 100) ** 2)) : 0
+    let imcClassification = ""
+    if (imcValue < 18.5) imcClassification = "Abaixo do peso"
+    else if (imcValue < 25) imcClassification = "Peso normal"
+    else if (imcValue < 30) imcClassification = "Sobrepeso"
+    else if (imcValue < 35) imcClassification = "Obesidade grau I"
+    else if (imcValue < 40) imcClassification = "Obesidade grau II"
+    else imcClassification = "Obesidade grau III"
+
+    // Composição Corporal (Protocolo 3 Dobras)
     let fatPerc = 0
     if (gender === 'male') {
       const sum = sub + tri + pec
@@ -124,25 +130,12 @@ export function AssessmentForm() {
     const fatKg = (w * fatPerc) / 100
     const leanKg = w - fatKg
 
-    let classification = ""
-    if (gender === 'male') {
-      if (fatPerc < 12) classification = "Abaixo do normal"
-      else if (fatPerc <= 18) classification = "Normal"
-      else if (fatPerc <= 25) classification = "Acima do normal"
-      else classification = "Tendência a obesidade"
-    } else {
-      if (fatPerc < 16) classification = "Abaixo do normal"
-      else if (fatPerc <= 25) classification = "Normal"
-      else if (fatPerc <= 33) classification = "Acima do normal"
-      else classification = "Tendência a obesidade"
-    }
-
     return { 
-      imc: imc.toFixed(1), 
+      imc: imcValue.toFixed(1), 
+      imcClassification,
       fatPerc: Math.max(0, fatPerc).toFixed(1), 
       fatKg: Math.max(0, fatKg).toFixed(1), 
-      leanKg: Math.max(0, leanKg).toFixed(1),
-      classification 
+      leanKg: Math.max(0, leanKg).toFixed(1)
     }
   }, [watchedValues, gender, age])
 
@@ -205,7 +198,7 @@ export function AssessmentForm() {
                 <div>
                   <p className="text-sm font-bold">{format(new Date(item.date), "dd/MM/yyyy")}</p>
                   <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">
-                    {item.weight}kg | {item.calculatedResults?.fatPerc}% Gord.
+                    {item.weight}kg | IMC: {item.calculatedResults?.imc}
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -228,7 +221,7 @@ export function AssessmentForm() {
                 { label: "IMC", val: results.imc, bg: "bg-muted/50" },
                 { label: "% Gordura", val: `${results.fatPerc}%`, bg: "bg-primary/10", border: "border-primary/20" },
                 { label: "Massa Magra", val: `${results.leanKg} kg`, bg: "bg-accent/10", border: "border-accent/20" },
-                { label: "Classificação", val: results.classification, bg: "bg-muted/50", full: true }
+                { label: "Status Nutricional", val: results.imcClassification, bg: "bg-muted/50", full: true }
               ].map((res, i) => (
                 <div key={i} className={`${res.bg} p-4 rounded-3xl text-center border ${res.border || 'border-transparent'} ${res.full ? 'col-span-2' : ''}`}>
                   <p className="text-[10px] font-black uppercase text-muted-foreground">{res.label}</p>
