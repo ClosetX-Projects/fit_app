@@ -19,7 +19,6 @@ import {
   ChevronRight, 
   ClipboardList, 
   Save,
-  TrendingUp,
   History,
   Send,
   UserPlus,
@@ -27,7 +26,8 @@ import {
   FileText,
   ClipboardCheck,
   Activity,
-  Info
+  Info,
+  Scale
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,7 +42,6 @@ const INITIAL_FORM_DATA = {
   gender: 'male',
   weight: 0,
   height: 0,
-  fatPercentage: 0,
   vo2max: 0,
   testNotes: '',
   tenRmTest: 0,
@@ -110,7 +109,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         gender: assessment.gender || student?.gender || 'male',
         weight: assessment.weight ?? 0,
         height: assessment.height ?? 0,
-        fatPercentage: assessment.fatPercentage ?? 0,
         vo2max: assessment.vo2max ?? 0,
         testNotes: assessment.testNotes ?? '',
         tenRmTest: assessment.tenRmTest ?? 0,
@@ -154,116 +152,106 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   const assessmentInsights = useMemo(() => {
     const w = Number(formData.weight) || 0;
     const h = Number(formData.height) || 0;
-    const waist = Number(formData.waist) || 0;
-    const hip = Number(formData.hip) || 0;
+    const age = formData.birthDate ? differenceInYears(new Date(), new Date(formData.birthDate)) : 0;
     const gender = formData.gender || 'male';
-
-    const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0;
     
-    let classification = "--";
+    // IMC
+    const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0;
+    let imcClassification = "--";
     if (imc > 0) {
-        if (imc < 18.5) classification = "Abaixo do peso";
-        else if (imc < 25) classification = "Peso normal";
-        else if (imc < 30) classification = "Sobrepeso";
-        else if (imc < 35) classification = "Obesidade grau I";
-        else if (imc < 40) classification = "Obesidade grau II";
-        else classification = "Obesidade grau III";
+      if (imc < 18.5) imcClassification = "Abaixo do peso";
+      else if (imc < 25) imcClassification = "Peso normal";
+      else if (imc < 30) imcClassification = "Sobrepeso";
+      else if (imc < 35) imcClassification = "Obesidade grau I";
+      else if (imc < 40) imcClassification = "Obesidade grau II";
+      else imcClassification = "Obesidade grau III";
     }
 
-    const age = formData.birthDate ? differenceInYears(new Date(), new Date(formData.birthDate)) : 0;
-    let protocol = 'Adulto';
-    if (age > 0 && age < 18) protocol = 'Adolescente';
-    else if (age >= 60) protocol = 'Idoso';
-
-    // Cálculo RCQ
+    // RCQ
+    const waist = Number(formData.waist) || 0;
+    const hip = Number(formData.hip) || 0;
     const rcq = hip > 0 ? (waist / hip) : 0;
     let rcqRisk = "--";
     if (rcq > 0) {
-        if (gender === 'male') {
-          if (rcq < 0.90) rcqRisk = "Baixo";
-          else if (rcq < 1.00) rcqRisk = "Moderado";
-          else rcqRisk = "Alto";
-        } else {
-          if (rcq < 0.80) rcqRisk = "Baixo";
-          else if (rcq < 0.85) rcqRisk = "Moderado";
-          else rcqRisk = "Alto";
-        }
+      if (gender === 'male') {
+        if (rcq < 0.90) rcqRisk = "Baixo";
+        else if (rcq < 1.00) rcqRisk = "Moderado";
+        else rcqRisk = "Alto";
+      } else {
+        if (rcq < 0.80) rcqRisk = "Baixo";
+        else if (rcq < 0.85) rcqRisk = "Moderado";
+        else rcqRisk = "Alto";
+      }
+    }
+
+    // Composição Corporal
+    let fatPerc = 0;
+    let protocol = "Adulto";
+    
+    const sum7 = Number(formData.subscapular) + Number(formData.triceps) + Number(formData.midAxillary) + Number(formData.pectoral) + Number(formData.abdominal) + Number(formData.suprailiac) + Number(formData.thigh);
+    const sum4 = Number(formData.biceps) + Number(formData.triceps) + Number(formData.subscapular) + Number(formData.suprailiac);
+    
+    if (age > 0 && age < 18) {
+      protocol = "Adolescente (Slaughter)";
+      const triceps = Number(formData.triceps);
+      const calf = Number(formData.midLeg);
+      if (gender === 'male') {
+        fatPerc = 0.735 * (triceps + calf) + 1.0;
+      } else {
+        fatPerc = 0.610 * (triceps + calf) + 5.1;
+      }
+    } else if (age >= 18 && age < 60) {
+      protocol = "Adulto (Jackson & Pollock 7 Dobras)";
+      let dc = 0;
+      if (gender === 'male') {
+        dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age);
+      } else {
+        dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age);
+      }
+      fatPerc = ((4.95 / dc) - 4.50) * 100;
+    } else if (age >= 60) {
+      protocol = "Idoso (Durnin & Womersley 4 Dobras)";
+      if (sum4 > 0) {
+        let c = gender === 'male' ? 1.1715 : 1.1339;
+        let m = gender === 'male' ? 0.0779 : 0.0645;
+        const dc = c - (m * Math.log10(sum4));
+        fatPerc = ((4.95 / dc) - 4.50) * 100;
+      }
+    }
+
+    fatPerc = Math.max(0, fatPerc);
+    const fatKg = (w * fatPerc) / 100;
+    const leanKg = w - fatKg;
+
+    // Classificação Gordura
+    let fatClass = "--";
+    if (gender === 'male') {
+      if (fatPerc < 5) fatClass = "Essencial";
+      else if (fatPerc <= 13) fatClass = "Atleta";
+      else if (fatPerc <= 17) fatClass = "Boa Forma";
+      else if (fatPerc <= 24) fatClass = "Aceitável";
+      else fatClass = "Obesidade";
+    } else {
+      if (fatPerc < 14) fatClass = "Essencial";
+      else if (fatPerc <= 20) fatClass = "Atleta";
+      else if (fatPerc <= 24) fatClass = "Boa Forma";
+      else if (fatPerc <= 31) fatClass = "Aceitável";
+      else fatClass = "Obesidade";
     }
 
     return { 
       imc: imc.toFixed(1), 
-      classification, 
+      imcClassification, 
       rcq: rcq.toFixed(2),
       rcqRisk,
       age, 
-      protocol 
+      protocol,
+      fatPerc: fatPerc.toFixed(1),
+      fatKg: fatKg.toFixed(1),
+      leanKg: leanKg.toFixed(1),
+      fatClass
     };
-  }, [formData.weight, formData.height, formData.waist, formData.hip, formData.gender, formData.birthDate]);
-
-  const notifyStudent = (title: string, message: string, type: string) => {
-    if (!firestore || !studentId) return;
-    const notificationRef = collection(firestore, 'users', studentId, 'notifications');
-    addDocumentNonBlocking(notificationRef, {
-      title,
-      message,
-      type,
-      read: false,
-      createdAt: new Date().toISOString()
-    });
-  };
-
-  const handleSendQuestionnaire = () => {
-    notifyStudent(
-      "Responder Questionário de Saúde",
-      "Seu professor enviou um novo questionário de saúde para você. Clique aqui para responder.",
-      "health-questionnaire"
-    );
-    toast({
-      title: "Questionário Enviado!",
-      description: "O aluno foi notificado.",
-    });
-  };
-
-  const handleRequestPhysicalAssessment = () => {
-    notifyStudent(
-      "Avaliação de Aptidão Física",
-      "Seu professor solicitou que você preencha seus dados antropométricos.",
-      "physical-assessment-request"
-    );
-    toast({
-      title: "Solicitação Enviada!",
-      description: "O aluno foi notificado.",
-    });
-  };
-
-  const handleCreateNewAssessment = async () => {
-    setIsCreating(true);
-    try {
-      const colRef = collection(firestore, 'users', studentId, 'physicalAssessments');
-      const newAssessment = {
-        userId: studentId,
-        date: new Date().toISOString(),
-        fullName: student?.name || '',
-        gender: student?.gender || 'male',
-        weight: 0,
-        height: 0,
-        fatPercentage: 0,
-        createdAt: serverTimestamp(),
-      };
-      
-      const docRef = await addDoc(colRef, newAssessment);
-      setSelectedAssessmentId(docRef.id);
-      
-      toast({
-        title: "Nova Ficha Aberta",
-        description: "Preencha os campos para salvar.",
-      });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro ao criar" });
-    } finally {
-      setIsCreating(false);
-    }
-  };
+  }, [formData]);
 
   const handleSaveFullAssessment = async () => {
     if (!selectedAssessmentId || !firestore) return;
@@ -271,21 +259,17 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
     const assessmentRef = doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId);
     
-    const w = Number(formData.weight) || 0;
-    const f = Number(formData.fatPercentage) || 0;
-    const fatKg = ((w * f) / 100).toFixed(1);
-    const leanKg = (w - Number(fatKg)).toFixed(1);
-
     const updateData = {
       ...formData,
       calculatedResults: { 
         imc: assessmentInsights.imc, 
-        imcClassification: assessmentInsights.classification,
+        imcClassification: assessmentInsights.imcClassification,
         rcq: assessmentInsights.rcq,
         rcqRisk: assessmentInsights.rcqRisk,
-        fatKg, 
-        leanKg, 
-        leanPerc: (100 - f).toFixed(1) 
+        fatPerc: assessmentInsights.fatPerc,
+        fatKg: assessmentInsights.fatKg,
+        leanKg: assessmentInsights.leanKg,
+        fatClass: assessmentInsights.fatClass
       },
       age: assessmentInsights.age,
       protocol: assessmentInsights.protocol,
@@ -294,16 +278,16 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
     setDocumentNonBlocking(assessmentRef, updateData, { merge: true });
 
-    notifyStudent(
-      "Avaliação Física Atualizada",
-      `Seus resultados já estão disponíveis. IMC: ${assessmentInsights.imc} (${assessmentInsights.classification}). RCQ: ${assessmentInsights.rcq} (Risco: ${assessmentInsights.rcqRisk}).`,
-      "assessment-result"
-    );
-
-    toast({
-      title: "Salvo com sucesso!",
-      description: "O aluno foi notificado sobre os resultados.",
+    const notificationRef = collection(firestore, 'users', studentId, 'notifications');
+    addDocumentNonBlocking(notificationRef, {
+      title: "Avaliação Física Atualizada",
+      message: `Resultados disponíveis. % Gordura: ${assessmentInsights.fatPerc}% (${assessmentInsights.fatClass}).`,
+      type: "assessment-result",
+      read: false,
+      createdAt: new Date().toISOString()
     });
+
+    toast({ title: "Avaliação Salva!", description: "Dados técnicos registrados com sucesso." });
     setIsSaving(false);
   };
 
@@ -315,57 +299,63 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   if (selectedAssessmentId && assessment) {
     return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 pb-20">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => setSelectedAssessmentId(null)} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Button>
-          <Button onClick={handleSaveFullAssessment} disabled={isSaving} className="rounded-full px-8 bg-primary">
+          <Button onClick={handleSaveFullAssessment} disabled={isSaving} className="rounded-full px-8 bg-primary shadow-xl">
             {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-            Salvar e Notificar
+            Salvar Avaliação
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="p-4 bg-primary/10 border-primary/20 text-center">
+            <p className="text-[10px] font-black uppercase text-primary">Protocolo</p>
+            <p className="text-xs font-black truncate">{assessmentInsights.protocol}</p>
+          </Card>
+          <Card className="p-4 bg-accent/10 border-accent/20 text-center">
+            <p className="text-[10px] font-black uppercase text-accent-foreground">% Gordura</p>
+            <p className="text-xl font-black">{assessmentInsights.fatPerc}%</p>
+          </Card>
           <Card className="p-4 bg-muted/50 text-center">
-            <p className="text-[10px] font-black uppercase text-muted-foreground">IMC</p>
-            <p className="text-xl font-black">{assessmentInsights.imc}</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground">Status Fat</p>
+            <p className="text-sm font-black">{assessmentInsights.fatClass}</p>
           </Card>
-          <Card className="p-4 bg-primary/10 text-center">
-            <p className="text-[10px] font-black uppercase text-primary">RCQ</p>
-            <p className="text-xl font-black">{assessmentInsights.rcq}</p>
-          </Card>
-          <Card className="p-4 bg-accent/10 text-center">
-            <p className="text-[10px] font-black uppercase text-accent-foreground">Risco RCQ</p>
-            <p className="text-xl font-black">{assessmentInsights.rcqRisk}</p>
-          </Card>
-          <Card className="p-4 bg-muted/50 text-center col-span-1 md:col-span-2">
-            <p className="text-[10px] font-black uppercase text-muted-foreground">Classificação Nutricional</p>
-            <p className="text-sm font-black">{assessmentInsights.classification}</p>
+          <Card className="p-4 bg-primary/5 text-center">
+            <p className="text-[10px] font-black uppercase text-primary">Massa Magra</p>
+            <p className="text-xl font-black">{assessmentInsights.leanKg} kg</p>
           </Card>
         </div>
 
         <Card className="border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="bg-primary/5 border-b border-primary/10">
-            <CardTitle className="text-xl font-black text-primary uppercase">Ficha de Avaliação</CardTitle>
+            <CardTitle className="text-xl font-black text-primary uppercase flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5" /> Ficha Técnica
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <Tabs defaultValue="identification">
-              <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-6">
-                <TabsTrigger value="identification" className="rounded-xl py-2 text-xs font-bold uppercase">Dados</TabsTrigger>
-                <TabsTrigger value="anthropometry" className="rounded-xl py-2 text-xs font-bold uppercase">Medidas</TabsTrigger>
-                <TabsTrigger value="neuromotor" className="rounded-xl py-2 text-xs font-bold uppercase">Funcional</TabsTrigger>
-                <TabsTrigger value="metabolic" className="rounded-xl py-2 text-xs font-bold uppercase">Metabólico</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-8">
+                <TabsTrigger value="identification" className="rounded-xl py-3 text-[10px] font-black uppercase">Identificação</TabsTrigger>
+                <TabsTrigger value="anthropometry" className="rounded-xl py-3 text-[10px] font-black uppercase">Perímetros</TabsTrigger>
+                <TabsTrigger value="skinfolds" className="rounded-xl py-3 text-[10px] font-black uppercase">Dobras</TabsTrigger>
+                <TabsTrigger value="functional" className="rounded-xl py-3 text-[10px] font-black uppercase">Funcional</TabsTrigger>
               </TabsList>
 
               <TabsContent value="identification" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary">Nome Completo</Label>
+                    <Label className="text-[10px] font-black uppercase text-primary">Nome Completo</Label>
                     <Input value={formData.fullName} onChange={e => updateField('fullName', e.target.value)} className="rounded-xl h-12" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary">Gênero</Label>
+                    <Label className="text-[10px] font-black uppercase text-primary">Data de Nascimento</Label>
+                    <Input type="date" value={formData.birthDate} onChange={e => updateField('birthDate', e.target.value)} className="rounded-xl h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-primary">Gênero</Label>
                     <Select value={formData.gender} onValueChange={v => updateField('gender', v)}>
                       <SelectTrigger className="rounded-xl h-12">
                         <SelectValue />
@@ -373,108 +363,99 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                       <SelectContent>
                         <SelectItem value="male">Masculino</SelectItem>
                         <SelectItem value="female">Feminino</SelectItem>
-                        <SelectItem value="other">Outro</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary">Data de Nascimento</Label>
-                    <Input type="date" value={formData.birthDate} onChange={e => updateField('birthDate', e.target.value)} className="rounded-xl h-12" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary">Peso Atual (kg)</Label>
+                    <Label className="text-[10px] font-black uppercase text-primary">Peso (kg)</Label>
                     <Input type="number" step="0.1" value={formData.weight} onChange={e => updateField('weight', e.target.value)} className="rounded-xl h-12" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary">Altura (cm)</Label>
+                    <Label className="text-[10px] font-black uppercase text-primary">Altura (cm)</Label>
                     <Input type="number" value={formData.height} onChange={e => updateField('height', e.target.value)} className="rounded-xl h-12" />
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="anthropometry" className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Perímetros (cm)</h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                       {[
-                         { id: "neck", label: "Pescoço" },
-                         { id: "shoulder", label: "Ombro" },
-                         { id: "chest", label: "Tórax" },
-                         { id: "waist", label: "Cintura" },
-                         { id: "abdomen", label: "Abdômen" },
-                         { id: "hip", label: "Quadril" },
-                         { id: "armRelaxedR", label: "Braço Rel. D." },
-                         { id: "armRelaxedL", label: "Braço Rel. E." },
-                         { id: "armContractedR", label: "Braço Cont. D." },
-                         { id: "armContractedL", label: "Braço Cont. E." },
-                         { id: "forearmR", label: "Antebraço D." },
-                         { id: "forearmL", label: "Antebraço E." },
-                         { id: "thighR", label: "Coxa D." },
-                         { id: "thighL", label: "Coxa E." },
-                         { id: "legR", label: "Perna D." },
-                         { id: "legL", label: "Perna E." }
-                       ].map(f => (
-                         <div key={f.id} className="space-y-1">
-                           <Label className="text-[10px]">{f.label}</Label>
-                           <Input type="number" step="0.1" value={formData[f.id] ?? 0} onChange={e => updateField(f.id, e.target.value)} />
-                         </div>
-                       ))}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {[
+                    { id: "neck", label: "Pescoço" },
+                    { id: "shoulder", label: "Ombro" },
+                    { id: "chest", label: "Tórax" },
+                    { id: "waist", label: "Cintura" },
+                    { id: "abdomen", label: "Abdômen" },
+                    { id: "hip", label: "Quadril" },
+                    { id: "armRelaxedR", label: "B. Rel D." },
+                    { id: "armRelaxedL", label: "B. Rel E." },
+                    { id: "armContractedR", label: "B. Con D." },
+                    { id: "armContractedL", label: "B. Con E." },
+                    { id: "forearmR", label: "Anteb D." },
+                    { id: "forearmL", label: "Anteb E." },
+                    { id: "thighR", label: "Coxa D." },
+                    { id: "thighL", label: "Coxa E." },
+                    { id: "legR", label: "Perna D." },
+                    { id: "legL", label: "Perna E." }
+                  ].map(item => (
+                    <div key={item.id} className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase">{item.label}</Label>
+                      <Input type="number" step="0.1" value={formData[item.id]} onChange={e => updateField(item.id, e.target.value)} />
                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Dobras Cutâneas (mm)</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: "triceps", label: "Tric" },
-                        { id: "biceps", label: "Bic" },
-                        { id: "subscapular", label: "Sub" },
-                        { id: "abdominal", label: "Abd" },
-                        { id: "suprailiac", label: "Sup" },
-                        { id: "thigh", label: "Coxa" }
-                      ].map(d => (
-                        <div key={d.id} className="space-y-1">
-                          <Label className="text-[10px]">{d.label}</Label>
-                          <Input type="number" step="0.1" value={formData[d.id] ?? 0} onChange={e => updateField(d.id, e.target.value)} />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="bg-primary/5 p-4 rounded-2xl flex items-start gap-3 mt-4">
-                      <Info className="h-4 w-4 text-primary shrink-0 mt-1" />
-                      <p className="text-[10px] text-muted-foreground leading-tight">
-                        Jackson & Pollock 3 Dobras: <br/>
-                        <strong>H:</strong> Pec, Tric, Sub. <br/>
-                        <strong>M:</strong> Tric, Sup, Coxa.
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </TabsContent>
 
-              <TabsContent value="neuromotor" className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="p-6 bg-primary/5 border-primary/20">
-                  <h4 className="text-xs font-black uppercase text-primary mb-4 flex items-center gap-2"><Dumbbell className="h-4 w-4" /> Força</h4>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Teste 10 RM (kg)</Label>
-                    <Input type="number" value={formData.tenRmTest ?? 0} onChange={e => updateField('tenRmTest', e.target.value)} />
-                  </div>
-                </Card>
-                <Card className="p-6 bg-accent/5 border-accent/20">
-                  <h4 className="text-xs font-black uppercase text-accent mb-4 flex items-center gap-2"><Activity className="h-4 w-4" /> Funcional</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><Label className="text-[10px]">Sentar e Levantar</Label><Input type="number" value={formData.sitToStand ?? 0} onChange={e => updateField('sitToStand', e.target.value)} /></div>
-                    <div className="space-y-1"><Label className="text-[10px]">TUG (seg)</Label><Input type="number" step="0.1" value={formData.tug ?? 0} onChange={e => updateField('tug', e.target.value)} /></div>
-                  </div>
-                </Card>
+              <TabsContent value="skinfolds" className="space-y-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  {[
+                    { id: "subscapular", label: "Subescapular" },
+                    { id: "triceps", label: "Tricipital" },
+                    { id: "biceps", label: "Bicipital" },
+                    { id: "midAxillary", label: "Axilar Média" },
+                    { id: "pectoral", label: "Peitoral" },
+                    { id: "abdominal", label: "Abdominal" },
+                    { id: "suprailiac", label: "Supra-ilíaca" },
+                    { id: "thigh", label: "Coxa" },
+                    { id: "midLeg", label: "Perna Medial" }
+                  ].map(item => (
+                    <div key={item.id} className="space-y-1">
+                      <Label className="text-[10px] font-black uppercase text-primary">{item.label}</Label>
+                      <Input type="number" step="0.1" value={formData[item.id]} onChange={e => updateField(item.id, e.target.value)} />
+                    </div>
+                  ))}
+                </div>
               </TabsContent>
 
-              <TabsContent value="metabolic" className="space-y-6">
-                <Card className="p-6 bg-primary/5 border-primary/20">
-                  <Label className="font-bold text-primary">VO2 Máximo Estimado</Label>
-                  <Input type="number" step="0.1" value={formData.vo2max ?? 0} onChange={(e) => updateField('vo2max', e.target.value)} className="h-12 text-xl font-bold mt-2" />
-                  <Label className="font-bold text-primary mt-4 block">Observações do Teste</Label>
-                  <Textarea value={formData.testNotes ?? ''} onChange={(e) => updateField('testNotes', e.target.value)} className="mt-2" />
+              <TabsContent value="functional" className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Card className="p-6 bg-primary/5 border-primary/20 rounded-3xl">
+                  <h4 className="font-black text-xs uppercase text-primary mb-4 flex items-center gap-2">
+                    <Activity className="h-4 w-4" /> Força & VO2
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Teste 10 RM (kg)</Label>
+                      <Input type="number" value={formData.tenRmTest} onChange={e => updateField('tenRmTest', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">VO2 Máx Estimado</Label>
+                      <Input type="number" step="0.1" value={formData.vo2max} onChange={e => updateField('vo2max', e.target.value)} />
+                    </div>
+                  </div>
+                </Card>
+                <Card className="p-6 bg-accent/5 border-accent/20 rounded-3xl">
+                  <h4 className="font-black text-xs uppercase text-accent mb-4 flex items-center gap-2">
+                    <Scale className="h-4 w-4" /> Funcional
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Sentar e Levantar</Label>
+                      <Input type="number" value={formData.sitToStand} onChange={e => updateField('sitToStand', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">TUG (seg)</Label>
+                      <Input type="number" step="0.1" value={formData.tug} onChange={e => updateField('tug', e.target.value)} />
+                    </div>
+                  </div>
                 </Card>
               </TabsContent>
             </Tabs>
@@ -486,73 +467,62 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-dashed border-2 hover:border-primary/50 bg-primary/5">
-          <CardHeader className="text-center p-6">
-            <FileText className="h-10 w-10 text-primary mx-auto mb-3" />
-            <CardTitle className="text-xl">Questionário Saúde</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <Button onClick={handleSendQuestionnaire} className="w-full rounded-full h-12 font-bold gap-2">
-              <Send className="h-4 w-4" /> Enviar Saúde
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-dashed border-2 hover:border-primary/50 bg-primary/5">
-          <CardHeader className="text-center p-6">
-            <ClipboardCheck className="h-10 w-10 text-primary mx-auto mb-3" />
-            <CardTitle className="text-xl">Aptidão Física</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <Button onClick={handleRequestPhysicalAssessment} variant="outline" className="w-full rounded-full h-12 font-bold border-primary text-primary hover:bg-primary/10 gap-2">
-              <Send className="h-4 w-4" /> Pedir Avaliação
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-dashed border-2 hover:border-accent/50 bg-accent/5">
-          <CardHeader className="text-center p-6">
-            <ClipboardList className="h-10 w-10 text-accent mx-auto mb-3" />
-            <CardTitle className="text-xl">Ficha Manual</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <Button onClick={handleCreateNewAssessment} disabled={isCreating} variant="outline" className="w-full rounded-full h-12 font-bold border-accent text-accent hover:bg-accent/10 gap-2">
-              {isCreating ? <Loader2 className="animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Nova Ficha
-            </Button>
-          </CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border-dashed border-2 bg-primary/5 hover:border-primary/50 transition-colors cursor-pointer group" onClick={handleCreateNewAssessment}>
+           <CardHeader className="text-center p-8">
+              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                 <UserPlus className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-black uppercase text-primary">Nova Ficha Manual</CardTitle>
+              <CardDescription>Protocolos científicos completos</CardDescription>
+           </CardHeader>
         </Card>
       </div>
 
-      <Card className="border-primary/10 rounded-3xl overflow-hidden shadow-lg">
-        <CardHeader className="bg-primary/5 border-b">
-          <CardTitle className="text-sm font-black flex items-center gap-2 uppercase">
-            <History className="h-4 w-4 text-primary" /> Histórico
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {assessments && assessments.length > 0 ? (
-            <div className="divide-y divide-primary/5">
-              {assessments.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-6 cursor-pointer hover:bg-primary/5 group" onClick={() => setSelectedAssessmentId(item.id)}>
-                  <div>
-                    <p className="font-black">
-                      {item.date ? format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR }) : '--'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.weight}kg | IMC: {item.calculatedResults?.imc} | RCQ: {item.calculatedResults?.rcq} ({item.calculatedResults?.rcqRisk})
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+      <div className="space-y-4">
+        <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+           <ClipboardList className="h-4 w-4" /> Histórico de Avaliações
+        </h3>
+        {assessments && assessments.length > 0 ? (
+           <div className="grid gap-4">
+              {assessments.map(item => (
+                <div key={item.id} className="nubank-card flex items-center justify-between py-6 px-8 cursor-pointer group" onClick={() => setSelectedAssessmentId(item.id)}>
+                   <div>
+                      <p className="font-black text-lg">{item.date ? format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR }) : '--'}</p>
+                      <div className="flex gap-2 mt-1">
+                         <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-2 rounded-full">IMC: {item.calculatedResults?.imc}</span>
+                         <span className="text-[9px] font-black uppercase bg-accent/20 text-accent-foreground px-2 rounded-full">% Gord: {item.calculatedResults?.fatPerc}%</span>
+                      </div>
+                   </div>
+                   <ChevronRight className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-all" />
                 </div>
               ))}
-            </div>
-          ) : (
-            <div className="p-12 text-center text-muted-foreground italic">Nenhuma avaliação registrada.</div>
-          )}
-        </CardContent>
-      </Card>
+           </div>
+        ) : (
+           <div className="py-20 text-center border-2 border-dashed rounded-[3rem] bg-muted/10">
+              <p className="text-sm font-black uppercase text-muted-foreground opacity-30">Nenhum registro encontrado</p>
+           </div>
+        )}
+      </div>
     </div>
   );
+
+  async function handleCreateNewAssessment() {
+    setIsCreating(true);
+    try {
+      const colRef = collection(firestore, 'users', studentId, 'physicalAssessments');
+      const docRef = await addDoc(colRef, {
+        userId: studentId,
+        date: new Date().toISOString(),
+        fullName: student?.name || '',
+        gender: student?.gender || 'male',
+        createdAt: serverTimestamp(),
+      });
+      setSelectedAssessmentId(docRef.id);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erro ao criar avaliação" });
+    } finally {
+      setIsCreating(false);
+    }
+  }
 }
