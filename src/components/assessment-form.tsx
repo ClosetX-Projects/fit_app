@@ -22,16 +22,22 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 const assessmentSchema = z.object({
   weight: z.coerce.number().min(0).default(0),
   height: z.coerce.number().min(0).default(0),
+  neck: z.coerce.number().default(0),
+  shoulder: z.coerce.number().default(0),
+  chest: z.coerce.number().default(0),
   waist: z.coerce.number().default(0),
+  abdomen: z.coerce.number().default(0),
   hip: z.coerce.number().default(0),
-  armR: z.coerce.number().default(0),
-  armL: z.coerce.number().default(0),
+  armRelaxedR: z.coerce.number().default(0),
+  armRelaxedL: z.coerce.number().default(0),
   armContractedR: z.coerce.number().default(0),
   armContractedL: z.coerce.number().default(0),
+  forearmR: z.coerce.number().default(0),
+  forearmL: z.coerce.number().default(0),
   thighR: z.coerce.number().default(0),
   thighL: z.coerce.number().default(0),
-  calfR: z.coerce.number().default(0),
-  calfL: z.coerce.number().default(0),
+  legR: z.coerce.number().default(0),
+  legL: z.coerce.number().default(0),
   subscapular: z.coerce.number().default(0),
   triceps: z.coerce.number().default(0),
   pectoral: z.coerce.number().default(0),
@@ -73,16 +79,22 @@ export function AssessmentForm() {
         form.reset({
           weight: assessment.weight || 0,
           height: assessment.height || 0,
+          neck: assessment.neck || 0,
+          shoulder: assessment.shoulder || 0,
+          chest: assessment.chest || 0,
           waist: assessment.waist || 0,
+          abdomen: assessment.abdomen || 0,
           hip: assessment.hip || 0,
-          armR: assessment.armR || 0,
-          armL: assessment.armL || 0,
+          armRelaxedR: assessment.armRelaxedR || 0,
+          armRelaxedL: assessment.armRelaxedL || 0,
           armContractedR: assessment.armContractedR || 0,
           armContractedL: assessment.armContractedL || 0,
+          forearmR: assessment.forearmR || 0,
+          forearmL: assessment.forearmL || 0,
           thighR: assessment.thighR || 0,
           thighL: assessment.thighL || 0,
-          calfR: assessment.calfR || 0,
-          calfL: assessment.calfL || 0,
+          legR: assessment.legR || 0,
+          legL: assessment.legL || 0,
           subscapular: assessment.subscapular || 0,
           triceps: assessment.triceps || 0,
           pectoral: assessment.pectoral || 0,
@@ -103,7 +115,7 @@ export function AssessmentForm() {
   const age = profile?.age || 30
 
   const results = useMemo(() => {
-    const { weight: w, height: h, subscapular: sub, triceps: tri, pectoral: pec, suprailiac: sup, thigh: t } = watchedValues
+    const { weight: w, height: h, waist, hip, subscapular: sub, triceps: tri, pectoral: pec, suprailiac: sup, thigh: t } = watchedValues
     
     // Cálculo IMC
     const imcValue = h > 0 ? (w / ((h / 100) ** 2)) : 0
@@ -115,10 +127,23 @@ export function AssessmentForm() {
     else if (imcValue < 40) imcClassification = "Obesidade grau II"
     else imcClassification = "Obesidade grau III"
 
-    // Composição Corporal (Protocolo 3 Dobras)
+    // Cálculo RCQ
+    const rcqValue = hip > 0 ? (waist / hip) : 0
+    let rcqRisk = "--"
+    if (gender === 'male') {
+      if (rcqValue < 0.90) rcqRisk = "Baixo"
+      else if (rcqValue < 1.00) rcqRisk = "Moderado"
+      else rcqRisk = "Alto"
+    } else {
+      if (rcqValue < 0.80) rcqRisk = "Baixo"
+      else if (rcqValue < 0.85) rcqRisk = "Moderado"
+      else rcqRisk = "Alto"
+    }
+
+    // Composição Corporal (Jackson & Pollock 3 Dobras)
     let fatPerc = 0
     if (gender === 'male') {
-      const sum = sub + tri + pec
+      const sum = pec + tri + sub
       const dens = 1.1125025 - (0.0013125 * sum) + (0.0000055 * (sum ** 2)) - (0.000244 * age)
       fatPerc = ((4.95 / dens) - 4.5) * 100
     } else {
@@ -133,6 +158,8 @@ export function AssessmentForm() {
     return { 
       imc: imcValue.toFixed(1), 
       imcClassification,
+      rcq: rcqValue.toFixed(2),
+      rcqRisk,
       fatPerc: Math.max(0, fatPerc).toFixed(1), 
       fatKg: Math.max(0, fatKg).toFixed(1), 
       leanKg: Math.max(0, leanKg).toFixed(1)
@@ -216,18 +243,23 @@ export function AssessmentForm() {
         
         <CardContent className="p-8">
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {[
                 { label: "IMC", val: results.imc, bg: "bg-muted/50" },
+                { label: "RCQ", val: results.rcq, bg: "bg-muted/50" },
+                { label: "Risco RCQ", val: results.rcqRisk, bg: results.rcqRisk === "Alto" ? "bg-destructive/10" : "bg-muted/50", border: results.rcqRisk === "Alto" ? "border-destructive/20" : "border-transparent" },
                 { label: "% Gordura", val: `${results.fatPerc}%`, bg: "bg-primary/10", border: "border-primary/20" },
-                { label: "Massa Magra", val: `${results.leanKg} kg`, bg: "bg-accent/10", border: "border-accent/20" },
-                { label: "Status Nutricional", val: results.imcClassification, bg: "bg-muted/50", full: true }
+                { label: "Massa Magra", val: `${results.leanKg} kg`, bg: "bg-accent/10", border: "border-accent/20" }
               ].map((res, i) => (
-                <div key={i} className={`${res.bg} p-4 rounded-3xl text-center border ${res.border || 'border-transparent'} ${res.full ? 'col-span-2' : ''}`}>
+                <div key={i} className={`${res.bg} p-4 rounded-3xl text-center border ${res.border || 'border-transparent'}`}>
                   <p className="text-[10px] font-black uppercase text-muted-foreground">{res.label}</p>
                   <p className="text-lg font-black">{res.val}</p>
                 </div>
               ))}
+              <div className="bg-muted/50 p-4 rounded-3xl text-center border border-transparent col-span-2 md:col-span-5">
+                 <p className="text-[10px] font-black uppercase text-muted-foreground">Status Nutricional</p>
+                 <p className="text-sm font-black">{results.imcClassification}</p>
+              </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -241,28 +273,42 @@ export function AssessmentForm() {
               <TabsContent value="antropometria" className="space-y-8 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="text-sm font-black uppercase text-primary border-b pb-1">Básicos</h4>
+                    <h4 className="text-sm font-black uppercase text-primary border-b pb-1">Tronco & Tronco</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2"><Label>Peso (kg)</Label><Input type="number" step="0.1" {...form.register("weight")} /></div>
                       <div className="space-y-2"><Label>Altura (cm)</Label><Input type="number" {...form.register("height")} /></div>
                     </div>
-                    <div className="space-y-2"><Label>Quadril (cm)</Label><Input type="number" step="0.1" {...form.register("hip")} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label>Pescoço (cm)</Label><Input type="number" step="0.1" {...form.register("neck")} /></div>
+                      <div className="space-y-2"><Label>Ombro (cm)</Label><Input type="number" step="0.1" {...form.register("shoulder")} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label>Tórax (cm)</Label><Input type="number" step="0.1" {...form.register("chest")} /></div>
+                      <div className="space-y-2"><Label>Cintura (cm)</Label><Input type="number" step="0.1" {...form.register("waist")} /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label>Abdômen (cm)</Label><Input type="number" step="0.1" {...form.register("abdomen")} /></div>
+                      <div className="space-y-2"><Label>Quadril (cm)</Label><Input type="number" step="0.1" {...form.register("hip")} /></div>
+                    </div>
                   </div>
                   <div className="space-y-4">
-                    <h4 className="text-sm font-black uppercase text-primary border-b pb-1">Membros (cm)</h4>
+                    <h4 className="text-sm font-black uppercase text-primary border-b pb-1">Membros Bilaterais (cm)</h4>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                       {[
-                        { id: "waist", label: "Abdominal" },
-                        { id: "armR", label: "Braço D." },
-                        { id: "armContractedR", label: "B. Cont. D." },
-                        { id: "armContractedL", label: "B. Cont. E." },
+                        { id: "armRelaxedR", label: "Br. Rel. D." },
+                        { id: "armRelaxedL", label: "Br. Rel. E." },
+                        { id: "armContractedR", label: "Br. Cont. D." },
+                        { id: "armContractedL", label: "Br. Cont. E." },
+                        { id: "forearmR", label: "Antebr. D." },
+                        { id: "forearmL", label: "Antebr. E." },
                         { id: "thighR", label: "Coxa D." },
-                        { id: "calfR", label: "Pant. D." },
-                        { id: "calfL", label: "Pant. E." }
+                        { id: "thighL", label: "Coxa E." },
+                        { id: "legR", label: "Perna D." },
+                        { id: "legL", label: "Perna E." }
                       ].map(f => (
                         <div key={f.id} className="flex items-center justify-between gap-2">
                           <Label className="text-[11px]">{f.label}</Label>
-                          <Input {...form.register(f.id as any)} className="w-16 h-8" />
+                          <Input type="number" step="0.1" {...form.register(f.id as any)} className="w-16 h-8" />
                         </div>
                       ))}
                     </div>
@@ -274,7 +320,7 @@ export function AssessmentForm() {
                 <div className="bg-primary/5 p-4 rounded-2xl flex items-start gap-3 mb-4">
                   <Info className="h-4 w-4 text-primary shrink-0 mt-1" />
                   <p className="text-xs text-muted-foreground leading-tight">
-                    O cálculo automático utiliza: <br/>
+                    O cálculo automático utiliza Jackson & Pollock 3 Dobras: <br/>
                     <strong>Homens:</strong> Peitoral, Tríceps, Subescapular. <br/>
                     <strong>Mulheres:</strong> Tríceps, Supra-ilíaca, Coxa.
                   </p>

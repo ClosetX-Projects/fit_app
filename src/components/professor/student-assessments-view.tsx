@@ -26,7 +26,8 @@ import {
   ArrowLeft,
   FileText,
   ClipboardCheck,
-  Activity
+  Activity,
+  Info
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -47,9 +48,16 @@ const INITIAL_FORM_DATA = {
   tenRmTest: 0,
   sitToStand: 0,
   tug: 0,
+  neck: 0,
+  shoulder: 0,
+  chest: 0,
   waist: 0,
-  armR: 0,
-  armL: 0,
+  abdomen: 0,
+  hip: 0,
+  armRelaxedR: 0,
+  armRelaxedL: 0,
+  armContractedR: 0,
+  armContractedL: 0,
   forearmR: 0,
   forearmL: 0,
   thighR: 0,
@@ -108,9 +116,16 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         tenRmTest: assessment.tenRmTest ?? 0,
         sitToStand: assessment.sitToStand ?? 0,
         tug: assessment.tug ?? 0,
+        neck: assessment.neck ?? 0,
+        shoulder: assessment.shoulder ?? 0,
+        chest: assessment.chest ?? 0,
         waist: assessment.waist ?? 0,
-        armR: assessment.armR ?? 0,
-        armL: assessment.armL ?? 0,
+        abdomen: assessment.abdomen ?? 0,
+        hip: assessment.hip ?? 0,
+        armRelaxedR: assessment.armRelaxedR ?? 0,
+        armRelaxedL: assessment.armRelaxedL ?? 0,
+        armContractedR: assessment.armContractedR ?? 0,
+        armContractedL: assessment.armContractedL ?? 0,
         forearmR: assessment.forearmR ?? 0,
         forearmL: assessment.forearmL ?? 0,
         thighR: assessment.thighR ?? 0,
@@ -137,32 +152,53 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   }, [assessment, student]);
 
   const assessmentInsights = useMemo(() => {
-    if (!formData.weight || !formData.height) return { imc: "0.0", classification: "--", age: 0, protocol: "Adulto" };
-    
-    const w = Number(formData.weight);
-    const h = Number(formData.height);
+    const w = Number(formData.weight) || 0;
+    const h = Number(formData.height) || 0;
+    const waist = Number(formData.waist) || 0;
+    const hip = Number(formData.hip) || 0;
+    const gender = formData.gender || 'male';
+
     const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0;
     
-    let classification = "";
-    if (imc < 18.5) classification = "Abaixo do peso";
-    else if (imc < 25) classification = "Peso normal";
-    else if (imc < 30) classification = "Sobrepeso";
-    else if (imc < 35) classification = "Obesidade grau I";
-    else if (imc < 40) classification = "Obesidade grau II";
-    else classification = "Obesidade grau III";
+    let classification = "--";
+    if (imc > 0) {
+        if (imc < 18.5) classification = "Abaixo do peso";
+        else if (imc < 25) classification = "Peso normal";
+        else if (imc < 30) classification = "Sobrepeso";
+        else if (imc < 35) classification = "Obesidade grau I";
+        else if (imc < 40) classification = "Obesidade grau II";
+        else classification = "Obesidade grau III";
+    }
 
     const age = formData.birthDate ? differenceInYears(new Date(), new Date(formData.birthDate)) : 0;
     let protocol = 'Adulto';
     if (age > 0 && age < 18) protocol = 'Adolescente';
     else if (age >= 60) protocol = 'Idoso';
 
+    // Cálculo RCQ
+    const rcq = hip > 0 ? (waist / hip) : 0;
+    let rcqRisk = "--";
+    if (rcq > 0) {
+        if (gender === 'male') {
+          if (rcq < 0.90) rcqRisk = "Baixo";
+          else if (rcq < 1.00) rcqRisk = "Moderado";
+          else rcqRisk = "Alto";
+        } else {
+          if (rcq < 0.80) rcqRisk = "Baixo";
+          else if (rcq < 0.85) rcqRisk = "Moderado";
+          else rcqRisk = "Alto";
+        }
+    }
+
     return { 
       imc: imc.toFixed(1), 
       classification, 
+      rcq: rcq.toFixed(2),
+      rcqRisk,
       age, 
       protocol 
     };
-  }, [formData.weight, formData.height, formData.birthDate]);
+  }, [formData.weight, formData.height, formData.waist, formData.hip, formData.gender, formData.birthDate]);
 
   const notifyStudent = (title: string, message: string, type: string) => {
     if (!firestore || !studentId) return;
@@ -236,7 +272,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
     const assessmentRef = doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId);
     
     const w = Number(formData.weight) || 0;
-    const h = Number(formData.height) || 0;
     const f = Number(formData.fatPercentage) || 0;
     const fatKg = ((w * f) / 100).toFixed(1);
     const leanKg = (w - Number(fatKg)).toFixed(1);
@@ -246,6 +281,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       calculatedResults: { 
         imc: assessmentInsights.imc, 
         imcClassification: assessmentInsights.classification,
+        rcq: assessmentInsights.rcq,
+        rcqRisk: assessmentInsights.rcqRisk,
         fatKg, 
         leanKg, 
         leanPerc: (100 - f).toFixed(1) 
@@ -259,7 +296,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
     notifyStudent(
       "Avaliação Física Atualizada",
-      `Seus resultados já estão disponíveis. Status: ${assessmentInsights.classification}.`,
+      `Seus resultados já estão disponíveis. IMC: ${assessmentInsights.imc} (${assessmentInsights.classification}). RCQ: ${assessmentInsights.rcq} (Risco: ${assessmentInsights.rcqRisk}).`,
       "assessment-result"
     );
 
@@ -289,18 +326,22 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="p-4 bg-muted/50 text-center">
             <p className="text-[10px] font-black uppercase text-muted-foreground">IMC</p>
-            <p className="text-2xl font-black">{assessmentInsights.imc}</p>
+            <p className="text-xl font-black">{assessmentInsights.imc}</p>
           </Card>
-          <Card className="p-4 bg-primary/10 text-center col-span-1 md:col-span-2">
-            <p className="text-[10px] font-black uppercase text-primary">Classificação IMC</p>
-            <p className="text-lg font-black">{assessmentInsights.classification}</p>
+          <Card className="p-4 bg-primary/10 text-center">
+            <p className="text-[10px] font-black uppercase text-primary">RCQ</p>
+            <p className="text-xl font-black">{assessmentInsights.rcq}</p>
           </Card>
           <Card className="p-4 bg-accent/10 text-center">
-            <p className="text-[10px] font-black uppercase text-accent-foreground">Protocolo</p>
-            <p className="text-xl font-black">{assessmentInsights.protocol}</p>
+            <p className="text-[10px] font-black uppercase text-accent-foreground">Risco RCQ</p>
+            <p className="text-xl font-black">{assessmentInsights.rcqRisk}</p>
+          </Card>
+          <Card className="p-4 bg-muted/50 text-center col-span-1 md:col-span-2">
+            <p className="text-[10px] font-black uppercase text-muted-foreground">Classificação Nutricional</p>
+            <p className="text-sm font-black">{assessmentInsights.classification}</p>
           </Card>
         </div>
 
@@ -357,11 +398,22 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                     <h4 className="text-xs font-black uppercase text-primary border-b pb-1">Perímetros (cm)</h4>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                        {[
-                         { id: "waist", label: "Abdômen" },
-                         { id: "armR", label: "Braço D." },
-                         { id: "armL", label: "Braço E." },
+                         { id: "neck", label: "Pescoço" },
+                         { id: "shoulder", label: "Ombro" },
+                         { id: "chest", label: "Tórax" },
+                         { id: "waist", label: "Cintura" },
+                         { id: "abdomen", label: "Abdômen" },
+                         { id: "hip", label: "Quadril" },
+                         { id: "armRelaxedR", label: "Braço Rel. D." },
+                         { id: "armRelaxedL", label: "Braço Rel. E." },
+                         { id: "armContractedR", label: "Braço Cont. D." },
+                         { id: "armContractedL", label: "Braço Cont. E." },
+                         { id: "forearmR", label: "Antebraço D." },
+                         { id: "forearmL", label: "Antebraço E." },
                          { id: "thighR", label: "Coxa D." },
-                         { id: "thighL", label: "Coxa E." }
+                         { id: "thighL", label: "Coxa E." },
+                         { id: "legR", label: "Perna D." },
+                         { id: "legL", label: "Perna E." }
                        ].map(f => (
                          <div key={f.id} className="space-y-1">
                            <Label className="text-[10px]">{f.label}</Label>
@@ -387,6 +439,14 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                           <Input type="number" step="0.1" value={formData[d.id] ?? 0} onChange={e => updateField(d.id, e.target.value)} />
                         </div>
                       ))}
+                    </div>
+                    <div className="bg-primary/5 p-4 rounded-2xl flex items-start gap-3 mt-4">
+                      <Info className="h-4 w-4 text-primary shrink-0 mt-1" />
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Jackson & Pollock 3 Dobras: <br/>
+                        <strong>H:</strong> Pec, Tric, Sub. <br/>
+                        <strong>M:</strong> Tric, Sup, Coxa.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -481,7 +541,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                       {item.date ? format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR }) : '--'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.weight}kg | IMC: {item.calculatedResults?.imc} ({item.calculatedResults?.imcClassification})
+                      {item.weight}kg | IMC: {item.calculatedResults?.imc} | RCQ: {item.calculatedResults?.rcq} ({item.calculatedResults?.rcqRisk})
                     </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />

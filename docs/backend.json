@@ -32,9 +32,16 @@
         "circumferences": {
           "type": "object",
           "properties": {
+            "neck": { "type": "number" },
+            "shoulder": { "type": "number" },
+            "chest": { "type": "number" },
             "waist": { "type": "number" },
-            "armR": { "type": "number" },
-            "armL": { "type": "number" },
+            "abdomen": { "type": "number" },
+            "hip": { "type": "number" },
+            "armRelaxedR": { "type": "number" },
+            "armRelaxedL": { "type": "number" },
+            "armContractedR": { "type": "number" },
+            "armContractedL": { "type": "number" },
             "forearmR": { "type": "number" },
             "forearmL": { "type": "number" },
             "thighR": { "type": "number" },
@@ -71,6 +78,15 @@
             "oneRmEstimated": { "type": "number" },
             "sitToStand": { "type": "number" },
             "tug": { "type": "number" }
+          }
+        },
+        "calculatedResults": {
+          "type": "object",
+          "properties": {
+            "imc": { "type": "string" },
+            "imcClassification": { "type": "string" },
+            "rcq": { "type": "string" },
+            "rcqRisk": { "type": "string" }
           }
         }
       }
