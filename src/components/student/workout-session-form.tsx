@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert, Zap } from 'lucide-react';
+import { Timer, Smile, CheckCircle2, Loader2, Play, Square, Activity, HeartPulse, Droplets, ShieldAlert, Zap, Battery, AlertTriangle, RefreshCw } from 'lucide-react';
 import { RECOVERY_MESSAGES, BORG_SCALE_MESSAGES, BORG_SCALE_COLORS, FEELING_SCALE_MESSAGES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -31,21 +31,30 @@ export function WorkoutSessionForm() {
   const { user } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  
+  // Controle de Fluxo
+  const [psrAnswered, setPsrAnswered] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
+  
+  // Dados de Sessão
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showPleasureDialog, setShowPleasureDialog] = useState(false);
   const [showMedicalCheck, setShowMedicalCheck] = useState(false);
   const [medicalMoment, setMedicalMoment] = useState<'start' | 'mid' | 'end'>('start');
 
+  // Questionários Mandatórios
   const [selectedProgramId, setSelectedProgramId] = useState('');
-  const [recovery, setRecovery] = useState(10);
-  const [pleasure, setPleasure] = useState(0);
-  const [sessionPse, setSessionPse] = useState(7);
-  const [intentionToRepeat, setIntentionToRepeat] = useState(false);
+  const [recovery, setRecovery] = useState(10); // PSR
+  const [pleasure, setPleasure] = useState(0); // Feeling Scale
+  const [sessionPse, setSessionPse] = useState(7); // PSE Borg
+  const [intentionToRepeat, setIntentionToRepeat] = useState(true);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>({});
 
-  // Dados Médicos do Treino
+  // Cálculo de Ajuste de Carga
+  const loadAdjustmentFactor = recovery / 10; // PSR 10 = 1.0, PSR 9 = 0.9, etc.
+
+  // Dados Médicos
   const [paStart, setPaStart] = useState({ sys: '', dia: '' });
   const [paMid, setPaMid] = useState({ sys: '', dia: '' });
   const [paEnd, setPaEnd] = useState({ sys: '', dia: '' });
@@ -78,11 +87,18 @@ export function WorkoutSessionForm() {
     if (prescribedExercises) {
       const initialLogs: Record<string, ExerciseLog> = {};
       prescribedExercises.forEach(ex => {
-        initialLogs[ex.id] = { sets: ex.sets || 0, reps: ex.reps || '', weight: ex.weight || 0, pse: 7 };
+        // Aplicar o fator de ajuste na carga sugerida
+        const adjustedWeight = ex.weight ? Math.round(ex.weight * loadAdjustmentFactor) : 0;
+        initialLogs[ex.id] = { 
+          sets: ex.sets || 0, 
+          reps: ex.reps || '', 
+          weight: adjustedWeight, 
+          pse: 7 
+        };
       });
       setExerciseLogs(initialLogs);
     }
-  }, [prescribedExercises]);
+  }, [prescribedExercises, loadAdjustmentFactor]);
 
   const validateMedical = (moment: 'start' | 'mid' | 'end') => {
     if (moment === 'start') {
@@ -97,6 +113,11 @@ export function WorkoutSessionForm() {
       if (isDiabetic && !glycemiaPost) return false;
     }
     return true;
+  };
+
+  const handleConfirmRecovery = () => {
+    setPsrAnswered(true);
+    toast({ title: "Recuperação registrada!", description: recovery < 10 ? `Cargas reduzidas em ${Math.round((1 - loadAdjustmentFactor) * 100)}% por segurança.` : "Pronto para o treino normal!" });
   };
 
   const handleStartWorkout = () => {
@@ -135,11 +156,6 @@ export function WorkoutSessionForm() {
       const internalLoad = durationMin * sessionPse;
       
       // Cálculo de Gasto Calórico (Musculação)
-      // Kcal = 38,8837 – 1,5848 × x1 + 0,003177 × x2 + 103,467 × x3
-      // x1 = volume total (séries × repetições × número de exercícios)
-      // x2 = soma de todas as cargas utilizadas em kg
-      // x3 = duração da sessão em minutos
-      
       const numExercises = Object.keys(exerciseLogs).length;
       let totalRepsVolume = 0;
       let totalLoadSum = 0;
@@ -154,9 +170,6 @@ export function WorkoutSessionForm() {
       const x2 = totalLoadSum;
       const x3 = durationMin;
       
-      // Nota técnica: O coeficiente 103.467 por minuto gera valores extremamente altos. 
-      // Em fórmulas de literatura como de Reis et al., o fator de tempo costuma ser por hora (ex: 1.03 x min).
-      // Seguiremos a instrução literal do usuário para fins de protótipo.
       const kcal = 38.8837 - (1.5848 * x1) + (0.003177 * x2) + (103.467 * x3);
       const finalKcal = Math.round(Math.max(0, kcal));
 
@@ -165,14 +178,14 @@ export function WorkoutSessionForm() {
         userId: user.uid,
         trainingProgramId: selectedProgramId,
         date: new Date().toISOString(),
-        recoveryPerception: recovery,
-        pleasureScale: pleasure,
-        pseSession: sessionPse,
+        recoveryPerception: recovery, // PSR
+        pleasureScale: pleasure, // Feeling
+        pseSession: sessionPse, // Borg
         internalLoad: internalLoad,
         intentionToRepeat: intentionToRepeat ? 1 : 0,
         duration: durationMin,
         caloriesBurned: finalKcal,
-        // Dados Medicos
+        loadAdjustmentFactor,
         medical: {
           isHypertensive,
           isDiabetic,
@@ -202,8 +215,9 @@ export function WorkoutSessionForm() {
         }, { merge: true });
       });
 
-      toast({ title: "Treino Finalizado!", description: `Registrado com sucesso. Gasto: ${finalKcal} kcal.` });
+      toast({ title: "Treino Finalizado!", description: `Carga Interna: ${internalLoad} AU | Gasto: ${finalKcal} kcal.` });
       setIsStarted(false);
+      setPsrAnswered(false);
       setStartTime(null);
       setShowPleasureDialog(false);
       setPaStart({ sys: '', dia: '' }); setPaMid({ sys: '', dia: '' }); setPaEnd({ sys: '', dia: '' });
@@ -219,18 +233,72 @@ export function WorkoutSessionForm() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // TELA 1: PSR (Percepção Subjetiva de Recuperação) - Bloqueante
+  if (!psrAnswered && !isStarted) {
+    return (
+      <Card className="rounded-[3rem] border-primary/20 bg-background p-8 md:p-12 max-w-2xl mx-auto shadow-2xl animate-in zoom-in-95 duration-500">
+        <CardHeader className="p-0 text-center mb-10">
+          <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+            <Battery className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="text-3xl font-black text-primary uppercase tracking-tighter">Prontuário Pré-Treino</CardTitle>
+          <CardDescription className="text-base font-medium">Como está sua recuperação para a sessão de hoje?</CardDescription>
+        </CardHeader>
+        
+        <div className="space-y-10">
+          <div className="space-y-6">
+            <div className="flex justify-between items-end">
+              <Label className="font-black uppercase text-xs text-muted-foreground tracking-widest">Escala PSR (Recuperação)</Label>
+              <span className="text-6xl font-black text-primary leading-none">{recovery}</span>
+            </div>
+            <Slider value={[recovery]} onValueChange={v => setRecovery(v[0])} min={0} max={10} step={1} className="py-2" />
+            
+            <div className="p-6 bg-primary text-primary-foreground rounded-[2rem] text-center shadow-xl shadow-primary/20 transition-all">
+               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-70">Estado Atual</p>
+               <p className="text-xl font-bold italic leading-tight">"{RECOVERY_MESSAGES[recovery]}"</p>
+            </div>
+          </div>
+
+          {recovery < 10 && (
+            <Alert className="bg-orange-500/10 border-orange-500/30 rounded-2xl animate-pulse">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              <AlertTitle className="text-xs font-black uppercase text-orange-500">Ajuste de Carga Ativo</AlertTitle>
+              <AlertDescription className="text-[11px] font-medium">
+                Sua carga será reduzida em **{Math.round((1 - loadAdjustmentFactor) * 100)}%** automaticamente para prevenir lesões e overtraining.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <Button onClick={handleConfirmRecovery} className="w-full h-20 rounded-full text-xl font-black bg-primary gap-3 shadow-2xl hover:scale-[1.02] transition-transform">
+            LIBERAR TREINO <Play className="h-6 w-6 fill-current" />
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  // TELA 2: Seleção de Programa e Start
   if (!isStarted) {
     return (
-      <Card className="rounded-3xl border-primary/20 bg-primary/5 p-8 max-w-2xl mx-auto shadow-xl">
+      <Card className="rounded-[3rem] border-primary/20 bg-primary/5 p-8 max-w-2xl mx-auto shadow-xl">
         <CardHeader className="p-0 mb-8">
-          <CardTitle className="text-3xl font-black text-primary uppercase">PRONTO PARA O PLAY?</CardTitle>
-          <CardDescription>Escolha o programa e verifique seus indicadores de saúde.</CardDescription>
+          <div className="flex items-center justify-between mb-4">
+            <Badge variant="outline" className="bg-background border-primary/20 text-primary font-black px-4 py-1">
+              RECUPEÇÃO: {recovery}/10
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={() => setPsrAnswered(false)} className="text-[10px] font-black uppercase text-muted-foreground gap-1">
+              <RefreshCw className="h-3 w-3" /> Alterar
+            </Button>
+          </div>
+          <CardTitle className="text-3xl font-black text-primary uppercase">PLANO DE AÇÃO</CardTitle>
+          <CardDescription>O sistema ajustou suas cargas com base no seu PSR.</CardDescription>
         </CardHeader>
+        
         <div className="space-y-8">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Plano de Treino</Label>
+            <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Selecione seu Treino</Label>
             <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
-              <SelectTrigger className="h-14 rounded-2xl shadow-sm border-primary/20 bg-background">
+              <SelectTrigger className="h-16 rounded-2xl shadow-sm border-primary/20 bg-background text-lg font-bold">
                 <SelectValue placeholder="Escolha um programa..." />
               </SelectTrigger>
               <SelectContent>
@@ -243,24 +311,23 @@ export function WorkoutSessionForm() {
             <Alert className="bg-destructive/5 border-destructive/20 rounded-2xl">
               <ShieldAlert className="h-4 w-4 text-destructive" />
               <AlertTitle className="text-[10px] font-black uppercase text-destructive">Triagem Obrigatória</AlertTitle>
-              <AlertDescription className="text-xs">Identificamos restrições que exigem monitoramento de PA/Glicemia antes de iniciar.</AlertDescription>
+              <AlertDescription className="text-xs">Monitore sua PA/Glicemia antes de iniciar o esforço.</AlertDescription>
             </Alert>
           )}
           
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <Label className="font-black uppercase text-[10px] text-primary tracking-widest">Estado de Recuperação (ESR)</Label>
-              <span className="text-3xl font-black text-primary">{recovery}</span>
-            </div>
-            <Slider value={[recovery]} onValueChange={v => setRecovery(v[0])} min={0} max={10} step={1} className="py-2" />
-            <div className="p-4 bg-primary text-primary-foreground rounded-2xl text-center shadow-lg">
-               <p className="text-xs font-black uppercase tracking-widest mb-1 opacity-70">Sua Percepção</p>
-               <p className="text-lg font-bold leading-tight">"{RECOVERY_MESSAGES[recovery]}"</p>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+             <div className="bg-background p-4 rounded-2xl border border-primary/10 text-center">
+                <p className="text-[9px] font-black text-muted-foreground uppercase mb-1">Ajuste de Peso</p>
+                <p className="text-2xl font-black text-primary">-{Math.round((1 - loadAdjustmentFactor) * 100)}%</p>
+             </div>
+             <div className="bg-background p-4 rounded-2xl border border-primary/10 text-center">
+                <p className="text-[9px] font-black text-muted-foreground uppercase mb-1">Intensidade</p>
+                <p className="text-2xl font-black text-primary">{recovery >= 8 ? 'ALTA' : 'MODERADA'}</p>
+             </div>
           </div>
           
-          <Button onClick={handleStartWorkout} className="w-full h-20 rounded-full text-xl font-black bg-primary gap-3 shadow-xl hover:scale-[1.02] transition-transform">
-            <Play className="h-8 w-8 fill-current" /> COMEÇAR TREINO
+          <Button onClick={handleStartWorkout} className="w-full h-24 rounded-full text-2xl font-black bg-primary gap-4 shadow-xl hover:scale-[1.02] transition-transform">
+            <Play className="h-10 w-10 fill-current" /> INICIAR SESSÃO
           </Button>
         </div>
 
@@ -281,7 +348,7 @@ export function WorkoutSessionForm() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Sistólica (MAX)</Label>
+                      <Label className="text-[10px]">Sistólica</Label>
                       <Input type="number" placeholder="120" value={medicalMoment === 'start' ? paStart.sys : medicalMoment === 'mid' ? paMid.sys : paEnd.sys} onChange={e => {
                         const v = e.target.value;
                         if(medicalMoment === 'start') setPaStart(p => ({...p, sys: v}));
@@ -290,7 +357,7 @@ export function WorkoutSessionForm() {
                       }} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Diastólica (MIN)</Label>
+                      <Label className="text-[10px]">Diastólica</Label>
                       <Input type="number" placeholder="80" value={medicalMoment === 'start' ? paStart.dia : medicalMoment === 'mid' ? paMid.dia : paEnd.dia} onChange={e => {
                         const v = e.target.value;
                         if(medicalMoment === 'start') setPaStart(p => ({...p, dia: v}));
@@ -321,10 +388,10 @@ export function WorkoutSessionForm() {
                   setShowMedicalCheck(false);
                   if(medicalMoment === 'start') handleStartWorkout();
                 } else {
-                  toast({ variant: "destructive", title: "Campos Obrigatórios", description: "Por favor, preencha seus indicadores vitais para prosseguir." });
+                  toast({ variant: "destructive", title: "Dados Necessários", description: "Por favor, preencha seus indicadores vitais." });
                 }
               }} className="w-full h-14 rounded-full font-black text-lg bg-primary">
-                Confirmar Dados
+                Confirmar e Avançar
               </Button>
             </div>
           </DialogContent>
@@ -333,8 +400,9 @@ export function WorkoutSessionForm() {
     );
   }
 
+  // TELA 3: Workout Ativo
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-24">
+    <div className="max-w-4xl mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
       <div className="bg-primary p-6 rounded-3xl text-white flex justify-between items-center shadow-xl sticky top-20 z-30">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-full bg-white/20 flex items-center justify-center animate-pulse"><Timer className="h-6 w-6" /></div>
@@ -352,6 +420,16 @@ export function WorkoutSessionForm() {
         </div>
       </div>
 
+      {loadAdjustmentFactor < 1 && (
+        <Alert className="bg-primary/10 border-primary/30 rounded-2xl">
+          <Battery className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-xs font-black uppercase">Modo de Segurança Ativo</AlertTitle>
+          <AlertDescription className="text-[11px] font-medium">
+            Seus pesos sugeridos abaixo já contemplam a redução de **{Math.round((1 - loadAdjustmentFactor) * 100)}%** baseada no seu PSR.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4">
         {prescribedExercises?.map(ex => (
           <Card key={ex.id} className="rounded-2xl border-l-8 border-l-primary shadow-md hover:border-l-accent transition-all">
@@ -359,23 +437,45 @@ export function WorkoutSessionForm() {
               <div className="flex flex-col md:flex-row justify-between gap-6">
                 <div className="flex-1">
                   <p className="font-black text-xl text-primary">{ex.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Meta: {ex.sets}x {ex.reps}</span>
-                    <span className="text-[10px] uppercase font-black text-accent-foreground bg-accent/20 px-2 py-0.5 rounded-full">{ex.oneRmPercentage}% 1RM</span>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Séries: {ex.sets}</span>
+                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Reps: {ex.reps}</span>
+                    {ex.weight && (
+                      <span className="text-[10px] uppercase font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                        Carga Original: {ex.weight}kg
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
                   <div className="space-y-1">
                     <Label className="text-[9px] font-black uppercase text-muted-foreground">Peso (kg)</Label>
-                    <Input type="number" className="h-12 font-black text-lg text-center rounded-xl" value={exerciseLogs[ex.id]?.weight ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} />
+                    <Input 
+                      type="number" 
+                      className="h-12 font-black text-lg text-center rounded-xl bg-primary/5 border-primary/20" 
+                      value={exerciseLogs[ex.id]?.weight ?? 0} 
+                      onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], weight: Number(e.target.value)}}))} 
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[9px] font-black uppercase text-muted-foreground">Séries</Label>
-                    <Input type="number" className="h-12 font-black text-lg text-center rounded-xl" value={exerciseLogs[ex.id]?.sets ?? 0} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} />
+                    <Input 
+                      type="number" 
+                      className="h-12 font-black text-lg text-center rounded-xl" 
+                      value={exerciseLogs[ex.id]?.sets ?? 0} 
+                      onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], sets: Number(e.target.value)}}))} 
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[9px] font-black uppercase text-muted-foreground">PSE (Borg)</Label>
-                    <Input type="number" min="0" max="10" className="h-12 font-black text-lg text-center rounded-xl text-primary" value={exerciseLogs[ex.id]?.pse ?? 7} onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} />
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      max="10" 
+                      className="h-12 font-black text-lg text-center rounded-xl text-primary" 
+                      value={exerciseLogs[ex.id]?.pse ?? 7} 
+                      onChange={e => setExerciseLogs(p => ({...p, [ex.id]: {...p[ex.id], pse: Number(e.target.value)}}))} 
+                    />
                   </div>
                 </div>
               </div>
@@ -401,7 +501,7 @@ export function WorkoutSessionForm() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Sistólica (MAX)</Label>
+                      <Label className="text-[10px]">Sistólica</Label>
                       <Input type="number" placeholder="120" value={medicalMoment === 'start' ? paStart.sys : medicalMoment === 'mid' ? paMid.sys : paEnd.sys} onChange={e => {
                         const v = e.target.value;
                         if(medicalMoment === 'start') setPaStart(p => ({...p, sys: v}));
@@ -410,7 +510,7 @@ export function WorkoutSessionForm() {
                       }} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Diastólica (MIN)</Label>
+                      <Label className="text-[10px]">Diastólica</Label>
                       <Input type="number" placeholder="80" value={medicalMoment === 'start' ? paStart.dia : medicalMoment === 'mid' ? paMid.dia : paEnd.dia} onChange={e => {
                         const v = e.target.value;
                         if(medicalMoment === 'start') setPaStart(p => ({...p, dia: v}));
@@ -441,7 +541,7 @@ export function WorkoutSessionForm() {
                   setShowMedicalCheck(false);
                   if(medicalMoment === 'end') setShowPleasureDialog(true);
                 } else {
-                  toast({ variant: "destructive", title: "Campos Obrigatórios", description: "Por favor, preencha os indicadores vitais deste momento." });
+                  toast({ variant: "destructive", title: "Campos Obrigatórios", description: "Preencha os dados vitais para continuar." });
                 }
               }} className="w-full h-14 rounded-full font-black text-lg bg-primary">
                 Confirmar Dados
@@ -456,7 +556,7 @@ export function WorkoutSessionForm() {
           <div className="space-y-8 py-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Escala de Feeling (Sensação)</Label>
+                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Feeling Scale (Bem-estar)</Label>
                 <span className="text-4xl font-black text-primary">{pleasure > 0 ? `+${pleasure}` : pleasure}</span>
               </div>
               <Slider value={[pleasure]} onValueChange={v => setPleasure(v[0])} min={-5} max={5} step={1} className="py-2" />
@@ -467,7 +567,7 @@ export function WorkoutSessionForm() {
 
             <div className="space-y-4 pt-4 border-t">
               <div className="flex justify-between items-center">
-                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Esforço Total (PSE da Sessão)</Label>
+                <Label className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Esforço Total (PSE Borg)</Label>
                 <span className="text-4xl font-black text-primary">{sessionPse}</span>
               </div>
               <Slider value={[sessionPse]} onValueChange={v => setSessionPse(v[0])} min={0} max={10} step={1} className="py-2" />
@@ -476,15 +576,16 @@ export function WorkoutSessionForm() {
               </div>
             </div>
             
-            <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-[2rem] border border-primary/10">
+            <div className="flex items-center gap-4 p-5 bg-primary/5 rounded-[2rem] border border-primary/10">
               <Switch checked={intentionToRepeat} onCheckedChange={setIntentionToRepeat} />
-              <Label className="flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-left leading-tight">
-                 Pretendo repetir este treino
-              </Label>
+              <div className="text-left">
+                 <Label className="font-black text-[10px] uppercase tracking-widest leading-tight block">Aderência</Label>
+                 <span className="text-[11px] font-bold opacity-60">Pretendo repetir esta sessão</span>
+              </div>
             </div>
 
-            <Button onClick={handleSubmit} disabled={loading} className="w-full h-16 rounded-full text-xl font-black bg-primary shadow-2xl">
-              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-3 h-6 w-6" />} FINALIZAR REGISTROS
+            <Button onClick={handleSubmit} disabled={loading} className="w-full h-20 rounded-full text-xl font-black bg-primary shadow-2xl">
+              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 className="mr-3 h-6 w-6" />} SALVAR PRONTUÁRIO
             </Button>
           </div>
         </DialogContent>
