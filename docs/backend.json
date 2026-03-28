@@ -24,7 +24,7 @@
     "PhysicalAssessment": {
       "title": "PhysicalAssessment",
       "type": "object",
-      "description": "Avaliação completa incluindo Bioimpedância e PA.",
+      "description": "Avaliação completa incluindo Bioimpedância, PA e Testes Físicos.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -48,6 +48,7 @@
         },
         "circumferences": { "type": "object" },
         "skinfolds": { "type": "object" },
+        "physicalTests": { "type": "object" },
         "calculatedResults": { "type": "object" }
       }
     }
