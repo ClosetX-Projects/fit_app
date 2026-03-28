@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Loader2, 
   Calendar, 
@@ -25,9 +26,11 @@ import {
   UserPlus,
   ArrowLeft,
   FileText,
-  ClipboardCheck
+  ClipboardCheck,
+  User,
+  Activity
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface StudentAssessmentsViewProps {
@@ -35,6 +38,9 @@ interface StudentAssessmentsViewProps {
 }
 
 const INITIAL_FORM_DATA = {
+  fullName: '',
+  birthDate: '',
+  gender: 'male',
   weight: 0,
   height: 0,
   fatPercentage: 0,
@@ -87,9 +93,15 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
   
   const { data: assessment } = useDoc(selectedAssessmentRef);
 
+  const studentProfileRef = useMemoFirebase(() => doc(firestore, 'users', studentId), [firestore, studentId]);
+  const { data: student } = useDoc(studentProfileRef);
+
   useEffect(() => {
     if (assessment) {
       setFormData({
+        fullName: assessment.fullName || student?.name || '',
+        birthDate: assessment.birthDate || '',
+        gender: assessment.gender || student?.gender || 'male',
         weight: assessment.weight ?? 0,
         height: assessment.height ?? 0,
         fatPercentage: assessment.fatPercentage ?? 0,
@@ -118,9 +130,22 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         midLeg: assessment.midLeg ?? 0,
       });
     } else {
-      setFormData(INITIAL_FORM_DATA);
+      setFormData({
+        ...INITIAL_FORM_DATA,
+        fullName: student?.name || '',
+        gender: student?.gender || 'male'
+      });
     }
-  }, [assessment]);
+  }, [assessment, student]);
+
+  const ageData = useMemo(() => {
+    if (!formData.birthDate) return { age: 0, protocol: 'Não definido' };
+    const age = differenceInYears(new Date(), new Date(formData.birthDate));
+    let protocol = 'Adulto';
+    if (age < 18) protocol = 'Adolescente';
+    else if (age >= 60) protocol = 'Idoso';
+    return { age, protocol };
+  }, [formData.birthDate]);
 
   const notifyStudent = (title: string, message: string, type: string) => {
     if (!firestore || !studentId) return;
@@ -165,6 +190,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       const newAssessment = {
         userId: studentId,
         date: new Date().toISOString(),
+        fullName: student?.name || '',
+        gender: student?.gender || 'male',
         weight: 0,
         height: 0,
         fatPercentage: 0,
@@ -200,6 +227,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
     const updateData = {
       ...formData,
+      age: ageData.age,
+      protocol: ageData.protocol,
       calculatedResults: { imc, fatKg, leanKg, leanPerc: (100 - f).toFixed(1) },
       updatedAt: serverTimestamp(),
     };
@@ -244,12 +273,49 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             <CardDescription>Preencha todos os campos antropométricos e funcionais.</CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <Tabs defaultValue="anthropometry">
-              <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted rounded-2xl mb-6">
+            <Tabs defaultValue="identification">
+              <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-6">
+                <TabsTrigger value="identification" className="rounded-xl py-2 text-xs font-bold uppercase">Identificação</TabsTrigger>
                 <TabsTrigger value="anthropometry" className="rounded-xl py-2 text-xs font-bold uppercase">Antropometria</TabsTrigger>
                 <TabsTrigger value="neuromotor" className="rounded-xl py-2 text-xs font-bold uppercase">Neuromotor</TabsTrigger>
                 <TabsTrigger value="metabolic" className="rounded-xl py-2 text-xs font-bold uppercase">Metabólico</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="identification" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase text-primary">Nome Completo</Label>
+                    <Input value={formData.fullName} onChange={e => updateField('fullName', e.target.value)} placeholder="Nome do Aluno" className="rounded-xl h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase text-primary">Gênero</Label>
+                    <Select value={formData.gender} onValueChange={v => updateField('gender', v)}>
+                      <SelectTrigger className="rounded-xl h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Masculino</SelectItem>
+                        <SelectItem value="female">Feminino</SelectItem>
+                        <SelectItem value="other">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase text-primary">Data de Nascimento</Label>
+                    <Input type="date" value={formData.birthDate} onChange={e => updateField('birthDate', e.target.value)} className="rounded-xl h-12" />
+                  </div>
+                  <div className="p-6 bg-primary/5 border border-primary/20 rounded-3xl flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Protocolo Sugerido</p>
+                      <p className="text-2xl font-black text-primary uppercase tracking-tighter">{ageData.protocol}</p>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-widest">Idade Calculada</p>
+                       <p className="text-2xl font-black">{ageData.age} anos</p>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
 
               <TabsContent value="anthropometry" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -390,15 +456,19 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               {assessments.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-6 cursor-pointer hover:bg-primary/5 group" onClick={() => setSelectedAssessmentId(item.id)}>
                   <div>
-                    <p className="font-black">{format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR })}</p>
-                    <p className="text-xs text-muted-foreground">{item.weight}kg | {item.fatPercentage}% Gord.</p>
+                    <p className="font-black">
+                      {item.date ? format(new Date(item.date), "dd/MM/yyyy", { locale: ptBR }) : '--'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.weight}kg | {item.protocol || 'Adulto'} | {item.fatPercentage}% Gord.
+                    </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="p-12 text-center text-muted-foreground italic">Nenhuma avaliação registrada.</div>
+            <div className="p-12 text-center text-muted-foreground italic">Nenhuma avaliação registrada para este aluno.</div>
           )}
         </CardContent>
       </Card>

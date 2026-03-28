@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -15,12 +16,14 @@ import { StudentHistoryView } from './student-history-view';
 interface StudentDetailsProps {
   studentId: string;
   onBack: () => void;
+  defaultTab?: string;
 }
 
-export function StudentDetails({ studentId, onBack }: StudentDetailsProps) {
+export function StudentDetails({ studentId, onBack, defaultTab = 'training' }: StudentDetailsProps) {
   const { firestore } = useFirebase();
   const studentRef = useMemoFirebase(() => doc(firestore, 'users', studentId), [firestore, studentId]);
   const { data: student } = useDoc(studentRef);
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -71,7 +74,7 @@ export function StudentDetails({ studentId, onBack }: StudentDetailsProps) {
          </Card>
       </div>
 
-      <Tabs defaultValue="training" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-8">
           <TabsTrigger value="training" className="rounded-xl py-2 gap-2"><Dumbbell className="h-4 w-4" /> Prescrição</TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-xl py-2 gap-2"><LineChart className="h-4 w-4" /> Análise</TabsTrigger>

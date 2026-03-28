@@ -7,8 +7,7 @@ import { collection, doc, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Users, UserPlus, ClipboardList, Dumbbell, Search, Loader2, BookOpen, UserCheck, LayoutGrid, Settings } from 'lucide-react';
+import { Users, UserPlus, ClipboardList, Dumbbell, Search, Loader2, BookOpen, UserCheck, LayoutGrid, Settings, ClipboardCheck } from 'lucide-react';
 import { AddStudentDialog } from './add-student-dialog';
 import { StudentDetails } from './student-details';
 import { ProgramLibrary } from './program-library';
@@ -18,7 +17,8 @@ export function ProfessorView() {
   const { user } = useUser();
   const { firestore } = useFirebase();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('students');
+  const [activeTab, setActiveTab] = useState('assessments');
+  const [initialStudentTab, setInitialStudentTab] = useState('training');
 
   const studentsRef = useMemoFirebase(() => 
     user ? collection(firestore, 'professors', user.uid, 'students') : null
@@ -26,8 +26,13 @@ export function ProfessorView() {
   
   const { data: students, isLoading } = useCollection(studentsRef);
 
+  const handleSelectStudent = (id: string, tab: string = 'training') => {
+    setInitialStudentTab(tab);
+    setSelectedStudentId(id);
+  };
+
   if (selectedStudentId) {
-    return <StudentDetails studentId={selectedStudentId} onBack={() => setSelectedStudentId(null)} />;
+    return <StudentDetails studentId={selectedStudentId} defaultTab={initialStudentTab} onBack={() => setSelectedStudentId(null)} />;
   }
 
   return (
@@ -41,46 +46,47 @@ export function ProfessorView() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full md:w-fit grid-cols-2 h-auto p-1 bg-muted rounded-2xl mb-8">
+        <TabsList className="grid w-full md:w-fit grid-cols-3 h-auto p-1 bg-muted rounded-2xl mb-8">
+          <TabsTrigger value="assessments" className="rounded-xl py-3 px-8 text-xs font-bold uppercase gap-2">
+            <ClipboardCheck className="h-4 w-4" /> Avaliações
+          </TabsTrigger>
           <TabsTrigger value="students" className="rounded-xl py-3 px-8 text-xs font-bold uppercase gap-2">
-            <Users className="h-4 w-4" /> Alunos Ativos
+            <Users className="h-4 w-4" /> Alunos
           </TabsTrigger>
           <TabsTrigger value="library" className="rounded-xl py-3 px-8 text-xs font-bold uppercase gap-2">
-            <BookOpen className="h-4 w-4" /> Biblioteca de treinos
+            <BookOpen className="h-4 w-4" /> Biblioteca
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="students" className="space-y-8 animate-in fade-in duration-500">
+        <TabsContent value="assessments" className="space-y-6 animate-in fade-in duration-500">
            <div className="grid gap-6 md:grid-cols-2">
               <section className="space-y-4">
                  <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                    <UserCheck className="h-4 w-4" /> Listagem de Alunos
+                    <ClipboardList className="h-4 w-4" /> Iniciar Nova Avaliação
                  </h3>
                  <div className="grid gap-4">
                     {isLoading ? (
                       <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
                     ) : students?.length ? (
                       students.map(student => (
-                        <div key={student.id} onClick={() => setSelectedStudentId(student.id)} className="nubank-card cursor-pointer group flex items-center justify-between py-4">
+                        <div key={student.id} onClick={() => handleSelectStudent(student.id, 'assessments')} className="nubank-card cursor-pointer group flex items-center justify-between py-4 border-l-4 border-l-primary/30 hover:border-l-primary">
                            <div className="flex items-center gap-4">
-                              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl font-black">
+                              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg font-black">
                                  {student.name?.[0]}
                               </div>
                               <div>
-                                 <p className="font-black text-lg text-foreground group-hover:text-primary transition-colors">{student.name}</p>
-                                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{student.email}</p>
+                                 <p className="font-black text-base text-foreground group-hover:text-primary transition-colors">{student.name}</p>
+                                 <p className="text-[9px] text-muted-foreground uppercase font-bold">Clique para avaliar</p>
                               </div>
                            </div>
-                           <Button variant="ghost" size="icon" className="rounded-full group-hover:bg-primary group-hover:text-white transition-all">
-                              <Search className="h-5 w-5" />
+                           <Button size="sm" className="rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold text-[10px] uppercase">
+                              Avaliar
                            </Button>
                         </div>
                       ))
                     ) : (
                       <div className="p-16 text-center bg-muted/30 rounded-[3rem] border-2 border-dashed border-primary/10">
-                         <Users className="h-16 w-16 mx-auto mb-6 opacity-10" />
-                         <p className="font-black text-muted-foreground uppercase tracking-widest text-xs">Nenhum aluno vinculado.</p>
-                         <p className="text-xs text-muted-foreground mt-2">Use o botão "Adicionar Aluno" para gerar um link de convite.</p>
+                         <p className="font-black text-muted-foreground uppercase tracking-widest text-xs">Nenhum aluno para avaliar.</p>
                       </div>
                     )}
                  </div>
@@ -88,15 +94,31 @@ export function ProfessorView() {
 
               <section className="space-y-4">
                  <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                    <LayoutGrid className="h-4 w-4" /> Resumo de Atividade
+                    <LayoutGrid className="h-4 w-4" /> Central Técnica
                  </h3>
                  <div className="nubank-card border-primary/5 bg-primary/5 p-8 flex flex-col items-center justify-center text-center">
-                    <Settings className="h-12 w-12 mb-4 text-primary opacity-20" />
-                    <p className="text-sm font-bold text-primary uppercase tracking-tighter">Métricas de Retenção</p>
-                    <p className="text-xs text-muted-foreground mt-2 max-w-[200px]">Em breve: Visualize quem está treinando com consistência e quem precisa de atenção.</p>
+                    <ClipboardCheck className="h-12 w-12 mb-4 text-primary opacity-20" />
+                    <p className="text-sm font-bold text-primary uppercase tracking-tighter">Protocolos Ativos</p>
+                    <p className="text-xs text-muted-foreground mt-2">Jackson & Pollock 3 Dobras configurado como padrão para todos os novos registros.</p>
                  </div>
               </section>
            </div>
+        </TabsContent>
+
+        <TabsContent value="students" className="space-y-8 animate-in fade-in duration-500">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {students?.map(student => (
+                <div key={student.id} onClick={() => handleSelectStudent(student.id, 'training')} className="nubank-card cursor-pointer group flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl font-black">
+                    {student.name?.[0]}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-foreground group-hover:text-primary transition-colors">{student.name}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">{student.email}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
         </TabsContent>
 
         <TabsContent value="library" className="animate-in fade-in duration-500">
