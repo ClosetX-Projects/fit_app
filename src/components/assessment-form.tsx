@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { getBloodPressureClassification } from "@/lib/constants"
+import { getIAFG } from "@/lib/sft-scoring"
 import { cn } from "@/lib/utils"
 
 const assessmentSchema = z.object({
@@ -265,16 +266,17 @@ export function AssessmentForm() {
       fatClassification = "Padrão Infanto-Juvenil";
     }
 
-    // Cálculo Simplificado IAFG (0 a 100) baseado em Rikli & Jones
-    // Nota: Em um sistema real, cada teste teria uma tabela de percentis para pontuação.
-    let iafgPoints = 0;
+    // Cálculo Completo IAFG (0 a 100) baseado em Rikli & Jones
+    let iafgResults = { total: 0, classification: "--" };
     if (isElderly) {
-      if (chairStandReps >= 12) iafgPoints += 16;
-      if (armCurlReps >= 14) iafgPoints += 16;
-      if (sixMinWalkDist >= 400) iafgPoints += 17;
-      if (tugTime <= 8) iafgPoints += 17;
-      if (chairSitAndReach >= 0) iafgPoints += 17;
-      if (backScratch >= -5) iafgPoints += 17;
+      iafgResults = getIAFG(gender, age, {
+        chairStandReps: Number(chairStandReps),
+        armCurlReps: Number(armCurlReps),
+        sixMinWalkDist: Number(sixMinWalkDist),
+        chairSitAndReach: Number(chairSitAndReach),
+        backScratch: Number(backScratch),
+        tugTime: Number(tugTime),
+      });
     }
 
     return {
@@ -293,7 +295,8 @@ export function AssessmentForm() {
       isElderly,
       age,
       bpClassification: getBloodPressureClassification(Number(systolic), Number(diastolic)),
-      iafg: Math.min(100, iafgPoints)
+      iafg: iafgResults.total,
+      iafgClassification: iafgResults.classification
     }
   }, [watchedValues, gender, age, isElderly])
 
@@ -382,8 +385,8 @@ export function AssessmentForm() {
               </div>
               {isElderly ? (
                 <div className="bg-primary/20 p-4 rounded-3xl text-center border border-primary/30">
-                  <p className="text-[10px] font-black uppercase text-primary">IAFG Total</p>
-                  <p className="text-sm font-black">{results.iafg} / 100</p>
+                  <p className="text-[10px] font-black uppercase text-primary">IAFG ({results.iafgClassification})</p>
+                  <p className="text-sm font-black">{results.iafg} pts</p>
                 </div>
               ) : (
                 <div className="bg-muted/50 p-4 rounded-3xl text-center border">
@@ -405,7 +408,6 @@ export function AssessmentForm() {
                 <TabsTrigger value="funcional" className="rounded-xl py-3 text-[9px] font-black uppercase">Func.</TabsTrigger>
               </TabsList>
 
-              {/* ... Outros TabsContents permanecem iguais ou similares ... */}
               <TabsContent value="antropometria" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
@@ -444,11 +446,10 @@ export function AssessmentForm() {
                 <Alert className="bg-accent/10 border-accent/30 rounded-2xl">
                   <UserRound className="h-4 w-4 text-accent-foreground" />
                   <AlertTitle className="text-xs font-black uppercase">Senior Fitness Test (SFT) - Rikli & Jones</AlertTitle>
-                  <AlertDescription className="text-[10px]">Bateria técnica para avaliação da aptidão funcional em idosos.</AlertDescription>
+                  <AlertDescription className="text-[10px]">Bateria técnica para avaliação da aptidão funcional em idosos (Cálculo IAFG ativo).</AlertDescription>
                 </Alert>
 
                 <div className="grid md:grid-cols-2 gap-8">
-                  {/* 1. Chair Stand */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Zap className="h-4 w-4" /> 1. Levantar e Sentar</CardTitle>
@@ -465,7 +466,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* 2. Arm Curl */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Dumbbell className="h-4 w-4" /> 2. Flexão de Antebraço</CardTitle>
@@ -482,7 +482,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* 3. Chair Sit and Reach */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Ruler className="h-4 w-4" /> 3. Sentado e Alcançar</CardTitle>
@@ -494,12 +493,11 @@ export function AssessmentForm() {
                       </p>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase">Distância (cm +/-)</Label>
-                        <Input type="number" {...form.register("chairSitAndReach")} className="h-12 text-lg font-black" />
+                        <Input type="number" step="0.1" {...form.register("chairSitAndReach")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* 4. 8-Foot Up-and-Go */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Timer className="h-4 w-4" /> 4. Agilidade/TUG (2,44m)</CardTitle>
@@ -516,7 +514,6 @@ export function AssessmentForm() {
                     </CardContent>
                   </Card>
 
-                  {/* 5. Back Scratch */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Accessibility className="h-4 w-4" /> 5. Alcançar Costas</CardTitle>
@@ -528,12 +525,11 @@ export function AssessmentForm() {
                       </p>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase">Distância (cm +/-)</Label>
-                        <Input type="number" {...form.register("backScratch")} className="h-12 text-lg font-black" />
+                        <Input type="number" step="0.1" {...form.register("backScratch")} className="h-12 text-lg font-black" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* 6. 6-Minute Walk */}
                   <Card className="rounded-[2rem] border-primary/10 overflow-hidden">
                     <CardHeader className="bg-primary/5 py-4">
                       <CardTitle className="text-xs font-black uppercase flex items-center gap-2 text-primary"><Footprints className="h-4 w-4" /> 6. Caminhada 6 Min</CardTitle>
