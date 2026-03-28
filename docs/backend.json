@@ -4,7 +4,7 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Perfil do usuário incluindo gênero para identificação visual.",
+      "description": "Perfil do usuário incluindo sinalizadores de saúde.",
       "properties": {
         "id": { "type": "string" },
         "userType": { "type": "string", "enum": ["student", "professor"] },
@@ -13,6 +13,8 @@
         "photoUrl": { "type": "string" },
         "age": { "type": "number" },
         "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "isHypertensive": { "type": "boolean" },
+        "isDiabetic": { "type": "boolean" },
         "whatsapp": { "type": "string" },
         "restrictions": { "type": "string" },
         "anamnesis": { "type": "string" },
@@ -22,98 +24,31 @@
     "PhysicalAssessment": {
       "title": "PhysicalAssessment",
       "type": "object",
-      "description": "Avaliação completa: Antropometria, Metabólico e Neuromotor.",
+      "description": "Avaliação completa incluindo Bioimpedância e PA.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "weight": { "type": "number" },
         "height": { "type": "number" },
-        "circumferences": {
+        "bloodPressure": {
           "type": "object",
           "properties": {
-            "neck": { "type": "number" },
-            "shoulder": { "type": "number" },
-            "chest": { "type": "number" },
-            "waist": { "type": "number" },
-            "abdomen": { "type": "number" },
-            "hip": { "type": "number" },
-            "armRelaxedR": { "type": "number" },
-            "armRelaxedL": { "type": "number" },
-            "armContractedR": { "type": "number" },
-            "armContractedL": { "type": "number" },
-            "forearmR": { "type": "number" },
-            "forearmL": { "type": "number" },
-            "thighR": { "type": "number" },
-            "thighL": { "type": "number" },
-            "legR": { "type": "number" },
-            "legL": { "type": "number" }
+            "systolic": { "type": "number" },
+            "diastolic": { "type": "number" }
           }
         },
-        "skinfolds": {
+        "bioimpedance": {
           "type": "object",
           "properties": {
-            "subscapular": { "type": "number" },
-            "triceps": { "type": "number" },
-            "biceps": { "type": "number" },
-            "midAxillary": { "type": "number" },
-            "pectoral": { "type": "number" },
-            "suprailiac": { "type": "number" },
-            "abdominal": { "type": "number" },
-            "thigh": { "type": "number" },
-            "midLeg": { "type": "number" }
+            "bmr": { "type": "number" },
+            "hydration": { "type": "number" },
+            "bodyFatPercentage": { "type": "number" }
           }
         },
-        "metabolic": {
-          "type": "object",
-          "properties": {
-            "vo2max": { "type": "number" },
-            "testNotes": { "type": "string" }
-          }
-        },
-        "neuromotor": {
-          "type": "object",
-          "properties": {
-            "tenRmTest": { "type": "number" },
-            "oneRmEstimated": { "type": "number" },
-            "sitToStand": { "type": "number" },
-            "tug": { "type": "number" }
-          }
-        },
-        "calculatedResults": {
-          "type": "object",
-          "properties": {
-            "imc": { "type": "string" },
-            "imcClassification": { "type": "string" },
-            "rcq": { "type": "string" },
-            "rcqRisk": { "type": "string" }
-          }
-        }
-      }
-    },
-    "TrainingTemplate": {
-      "title": "TrainingTemplate",
-      "type": "object",
-      "description": "Modelo de programa de treino para ser replicado.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "category": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "Notification": {
-      "title": "Notification",
-      "type": "object",
-      "description": "Notificações internas para o usuário.",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "message": { "type": "string" },
-        "type": { "type": "string" },
-        "read": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "circumferences": { "type": "object" },
+        "skinfolds": { "type": "object" },
+        "calculatedResults": { "type": "object" }
       }
     }
   },
@@ -124,6 +59,6 @@
     "/users/{userId}": { "schema": "User", "description": "Perfil" },
     "/users/{userId}/physicalAssessments/{id}": { "schema": "PhysicalAssessment", "description": "Avaliações" },
     "/users/{userId}/notifications/{id}": { "schema": "Notification", "description": "Notificações" },
-    "/users/{userId}/programTemplates/{id}": { "schema": "TrainingTemplate", "description": "Biblioteca de Modelos do Professor" }
+    "/users/{userId}/workoutHistory_flat/{id}": { "schema": "object", "description": "Histórico de Treinos com Dados Vitais" }
   }
 }
