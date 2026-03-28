@@ -104,7 +104,9 @@ export const TRAINING_METHODS = [
   "Drop-set",
   "Cluster Set",
   "GVT",
-  "Rest-Pause"
+  "Rest-Pause",
+  "Contínuo Aeróbio",
+  "HIIT"
 ];
 
 export const PROGRESSION_TYPES = [
