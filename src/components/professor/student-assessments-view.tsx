@@ -113,8 +113,14 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
   const age = useMemo(() => {
     if (!formData.birthDate) return 30;
-    return differenceInYears(new Date(), new Date(formData.birthDate));
+    try {
+      return differenceInYears(new Date(), new Date(formData.birthDate));
+    } catch {
+      return 30;
+    }
   }, [formData.birthDate]);
+
+  const isElderly = age >= 60;
 
   const results = useMemo(() => {
     const { 
@@ -140,8 +146,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         : (4.38 * bruceTime - 3.9);
     }
 
-    // SFT Pontuação (IAFG)
-    const iafg = age >= 60 ? getIAFG(gender, age, {
+    // SFT Pontuação (IAFG) - Apenas se for idoso
+    const iafg = isElderly ? getIAFG(gender, age, {
       chairStandReps: Number(chairStandReps),
       armCurlReps: Number(armCurlReps),
       sixMinWalkDist: Number(sixMinWalkDist),
@@ -157,7 +163,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       vo2Cooper: vo2Cooper.toFixed(1), vo2YoYo: vo2YoYo.toFixed(1), vo2Bruce: vo2Bruce.toFixed(1),
       iafg, bpClassification 
     };
-  }, [formData, age]);
+  }, [formData, age, isElderly]);
 
   const handleSave = async () => {
     if (!selectedAssessmentId || !firestore) return;
@@ -199,9 +205,9 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             <p className="text-3xl font-black">{results.vo2Cooper}</p>
           </Card>
           <Card className="p-6 bg-muted/50 border-primary/5 text-center rounded-[2rem]">
-            <p className="text-[10px] font-black uppercase text-muted-foreground mb-2">Aptidão Geral (IAFG)</p>
-            <p className="text-3xl font-black">{results.iafg?.total || '--'}</p>
-            {results.iafg && <p className="text-[10px] font-black text-primary uppercase mt-1">{results.iafg.classification}</p>}
+            <p className="text-[10px] font-black uppercase text-muted-foreground mb-2">{isElderly ? 'Aptidão Geral (IAFG)' : 'IMC'}</p>
+            <p className="text-3xl font-black">{isElderly ? (results.iafg?.total || '--') : results.imc}</p>
+            {isElderly && results.iafg && <p className="text-[10px] font-black text-primary uppercase mt-1">{results.iafg.classification}</p>}
           </Card>
           <Card className="p-6 bg-background border-primary/10 text-center rounded-[2rem] flex flex-col justify-center items-center">
             <p className="text-[10px] font-black uppercase text-muted-foreground mb-2">Status Clínico</p>
@@ -214,10 +220,13 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         </div>
 
         <Tabs defaultValue="neuromotor" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted rounded-3xl mb-10">
+          <TabsList className={cn(
+            "grid w-full h-auto p-1 bg-muted rounded-3xl mb-10",
+            isElderly ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"
+          )}>
             <TabsTrigger value="neuromotor" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Zap className="h-4 w-4" /> Neuromotor</TabsTrigger>
             <TabsTrigger value="vo2" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Activity className="h-4 w-4" /> VO2 Máx</TabsTrigger>
-            <TabsTrigger value="senior" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><History className="h-4 w-4" /> Funcional Idoso</TabsTrigger>
+            {isElderly && <TabsTrigger value="senior" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><History className="h-4 w-4" /> Funcional Idoso</TabsTrigger>}
             <TabsTrigger value="performance" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Trophy className="h-4 w-4" /> Desempenho</TabsTrigger>
             <TabsTrigger value="manual" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Info className="h-4 w-4" /> Guia</TabsTrigger>
           </TabsList>
@@ -316,38 +325,40 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
           </TabsContent>
 
           {/* 3. SENIOR FITNESS TEST (SFT) */}
-          <TabsContent value="senior" className="space-y-10 animate-in fade-in slide-in-from-top-2">
-            <Alert className="rounded-[2rem] bg-accent/10 border-accent/20">
-              <Info className="h-5 w-5 text-accent-foreground" />
-              <AlertTitle className="font-black uppercase text-xs">Protocolo SFT (Rikli & Jones)</AlertTitle>
-              <AlertDescription className="text-[11px] font-medium opacity-80 uppercase leading-relaxed">
-                Aplique esta bateria para alunos com 60 anos ou mais. O sistema calculará o IAFG automaticamente.
-              </AlertDescription>
-            </Alert>
+          {isElderly && (
+            <TabsContent value="senior" className="space-y-10 animate-in fade-in slide-in-from-top-2">
+              <Alert className="rounded-[2rem] bg-accent/10 border-accent/20">
+                <Info className="h-5 w-5 text-accent-foreground" />
+                <AlertTitle className="font-black uppercase text-xs">Protocolo SFT (Rikli & Jones)</AlertTitle>
+                <AlertDescription className="text-[11px] font-medium opacity-80 uppercase leading-relaxed">
+                  Aplique esta bateria para alunos com 60 anos ou mais. O sistema calculará o IAFG automaticamente.
+                </AlertDescription>
+              </Alert>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { id: 'chairStandReps', label: 'Levantar e Sentar', icon: Ruler, unit: 'reps', desc: '30 seg. com braços cruzados' },
-                { id: 'armCurlReps', label: 'Flexão Antebraço', icon: Dumbbell, unit: 'reps', desc: '30 seg. (2kg F / 4kg M)' },
-                { id: 'sixMinWalkDist', label: 'Caminhada 6 Min', icon: Timer, unit: 'metros', desc: 'Maior distância sem correr' },
-                { id: 'chairSitAndReach', label: 'Sentar e Alcançar', icon: Ruler, unit: 'cm', desc: 'Distância até a ponta do pé' },
-                { id: 'backScratch', label: 'Alcançar Costas', icon: HeartPulse, unit: 'cm', desc: 'Sobreposição dos dedos médios' },
-                { id: 'tugTime', label: 'Agilidade (TUG)', icon: Zap, unit: 'seg', desc: 'Levantar, andar 2,44m e sentar' },
-              ].map(test => (
-                <div key={test.id} className="nubank-card border-primary/5 bg-card p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <test.icon className="h-4 w-4 text-primary" />
-                    <Label className="text-[10px] font-black uppercase tracking-widest">{test.label}</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { id: 'chairStandReps', label: 'Levantar e Sentar', icon: Ruler, unit: 'reps', desc: '30 seg. com braços cruzados' },
+                  { id: 'armCurlReps', label: 'Flexão Antebraço', icon: Dumbbell, unit: 'reps', desc: '30 seg. (2kg F / 4kg M)' },
+                  { id: 'sixMinWalkDist', label: 'Caminhada 6 Min', icon: Timer, unit: 'metros', desc: 'Maior distância sem correr' },
+                  { id: 'chairSitAndReach', label: 'Sentar e Alcançar', icon: Ruler, unit: 'cm', desc: 'Distância até a ponta do pé' },
+                  { id: 'backScratch', label: 'Alcançar Costas', icon: HeartPulse, unit: 'cm', desc: 'Sobreposição dos dedos médios' },
+                  { id: 'tugTime', label: 'Agilidade (TUG)', icon: Zap, unit: 'seg', desc: 'Levantar, andar 2,44m e sentar' },
+                ].map(test => (
+                  <div key={test.id} className="nubank-card border-primary/5 bg-card p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <test.icon className="h-4 w-4 text-primary" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest">{test.label}</Label>
+                    </div>
+                    <div className="relative">
+                      <Input type="number" step="0.1" value={formData[test.id]} onChange={e => setFormData({...formData, [test.id]: Number(e.target.value)})} className="h-12 rounded-xl text-lg font-black pr-12" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase opacity-40">{test.unit}</span>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-2 font-bold uppercase">{test.desc}</p>
                   </div>
-                  <div className="relative">
-                    <Input type="number" step="0.1" value={formData[test.id]} onChange={e => setFormData({...formData, [test.id]: Number(e.target.value)})} className="h-12 rounded-xl text-lg font-black pr-12" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase opacity-40">{test.unit}</span>
-                  </div>
-                  <p className="text-[9px] text-muted-foreground mt-2 font-bold uppercase">{test.desc}</p>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
+                ))}
+              </div>
+            </TabsContent>
+          )}
 
           {/* 4. PERFORMANCE */}
           <TabsContent value="performance" className="space-y-8 animate-in fade-in slide-in-from-top-2">
