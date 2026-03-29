@@ -26,7 +26,9 @@ import {
   PlayCircle,
   Info,
   Trophy,
-  History
+  History,
+  TrendingUp,
+  Stethoscope
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -67,20 +69,23 @@ const INITIAL_FORM_DATA = {
   abdominal: 0,
   thigh: 0,
   midLeg: 0,
-  // Novos Campos de Testes
+  // Neuromotor
   tenRmExercise: 'Supino Reto',
   tenRmWeight: 0,
   tenRmReps: 0,
+  // Aeróbico
   cooperDistance: 0,
   yoYoDistance: 0,
   bruceTime: 0,
-  wellsDistance: 0,
+  conconiSpeed: 0,
+  conconiHR: 0,
   // Performance
   verticalJump: 0,
   horizontalJump: 0,
   pushUpReps: 0,
   sitUpReps: 0,
-  // SFT Idoso
+  wellsDistance: 0, // Flexibilidade Geral
+  // SFT Idoso (Exclusivo 60+)
   chairStandReps: 0,
   armCurlReps: 0,
   sixMinWalkDist: 0,
@@ -225,9 +230,9 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             isElderly ? "grid-cols-2 md:grid-cols-5" : "grid-cols-2 md:grid-cols-4"
           )}>
             <TabsTrigger value="neuromotor" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Zap className="h-4 w-4" /> Neuromotor</TabsTrigger>
-            <TabsTrigger value="vo2" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Activity className="h-4 w-4" /> VO2 Máx</TabsTrigger>
+            <TabsTrigger value="aerobico" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Activity className="h-4 w-4" /> Aeróbico & Limiar</TabsTrigger>
             {isElderly && <TabsTrigger value="senior" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><History className="h-4 w-4" /> Funcional Idoso</TabsTrigger>}
-            <TabsTrigger value="performance" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Trophy className="h-4 w-4" /> Desempenho</TabsTrigger>
+            <TabsTrigger value="performance" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Trophy className="h-4 w-4" /> Performance</TabsTrigger>
             <TabsTrigger value="manual" className="rounded-2xl py-3 text-[10px] font-black uppercase gap-2"><Info className="h-4 w-4" /> Guia</TabsTrigger>
           </TabsList>
 
@@ -282,9 +287,10 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             </div>
           </TabsContent>
 
-          {/* 2. VO2 MAX */}
-          <TabsContent value="vo2" className="space-y-8 animate-in fade-in slide-in-from-top-2">
-            <div className="grid md:grid-cols-3 gap-6">
+          {/* 2. AERÓBICO & LIMIAR */}
+          <TabsContent value="aerobico" className="space-y-8 animate-in fade-in slide-in-from-top-2">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Cooper */}
               <Card className="rounded-[2rem] p-6 border-primary/10 hover:border-primary transition-colors group">
                 <div className="flex justify-between items-start mb-6">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><Timer className="h-5 w-5" /></div>
@@ -295,9 +301,10 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                   <Input type="number" value={formData.cooperDistance} onChange={e => setFormData({...formData, cooperDistance: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">metros</span>
                 </div>
-                <p className="text-[9px] text-muted-foreground font-bold mt-4 uppercase leading-relaxed">Resultado Estimado: <span className="text-primary">{results.cooperDistance > 0 ? results.vo2Cooper : '--'} ml/kg/min</span></p>
+                <p className="text-[9px] text-muted-foreground font-bold mt-4 uppercase">VO2: <span className="text-primary">{results.vo2Cooper}</span></p>
               </Card>
 
+              {/* Yo-Yo */}
               <Card className="rounded-[2rem] p-6 border-primary/10 hover:border-primary transition-colors group">
                 <div className="flex justify-between items-start mb-6">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><Activity className="h-5 w-5" /></div>
@@ -310,16 +317,29 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 </div>
               </Card>
 
+              {/* Bruce */}
               <Card className="rounded-[2rem] p-6 border-primary/10 hover:border-primary transition-colors group">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><HeartPulse className="h-5 w-5" /></div>
-                  <Badge variant="outline" className="text-[8px] font-black uppercase">Bruce (Rampa)</Badge>
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><Stethoscope className="h-5 w-5" /></div>
+                  <Badge variant="outline" className="text-[8px] font-black uppercase">Bruce (Clínico)</Badge>
                 </div>
-                <h5 className="font-black text-sm uppercase mb-4">Tempo Total</h5>
+                <h5 className="font-black text-sm uppercase mb-4">Tempo em Rampa</h5>
                 <div className="relative">
                   <Input type="number" step="0.1" value={formData.bruceTime} onChange={e => setFormData({...formData, bruceTime: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">min</span>
                 </div>
+              </Card>
+
+              {/* Conconi */}
+              <Card className="rounded-[2rem] p-6 border-accent/20 bg-accent/5 hover:border-accent transition-colors group">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="h-10 w-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent-foreground group-hover:bg-accent group-hover:text-white transition-all"><TrendingUp className="h-5 w-5" /></div>
+                  <Badge variant="outline" className="text-[8px] font-black uppercase border-accent/30 text-accent-foreground">Limiar Conconi</Badge>
+                </div>
+                <h5 className="font-black text-sm uppercase mb-2">Velocidade Limiar</h5>
+                <Input type="number" step="0.1" value={formData.conconiSpeed} onChange={e => setFormData({...formData, conconiSpeed: Number(e.target.value)})} className="h-10 rounded-xl font-bold mb-4" />
+                <h5 className="font-black text-sm uppercase mb-2">FC no Limiar</h5>
+                <Input type="number" value={formData.conconiHR} onChange={e => setFormData({...formData, conconiHR: Number(e.target.value)})} className="h-10 rounded-xl font-bold" />
               </Card>
             </div>
           </TabsContent>
@@ -331,7 +351,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 <Info className="h-5 w-5 text-accent-foreground" />
                 <AlertTitle className="font-black uppercase text-xs">Protocolo SFT (Rikli & Jones)</AlertTitle>
                 <AlertDescription className="text-[11px] font-medium opacity-80 uppercase leading-relaxed">
-                  Aplique esta bateria para alunos com 60 anos ou mais. O sistema calculará o IAFG automaticamente.
+                  Bateria funcional exclusiva para idosos (60+). O cálculo do IAFG é automático.
                 </AlertDescription>
               </Alert>
 
@@ -339,8 +359,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 {[
                   { id: 'chairStandReps', label: 'Levantar e Sentar', icon: Ruler, unit: 'reps', desc: '30 seg. com braços cruzados' },
                   { id: 'armCurlReps', label: 'Flexão Antebraço', icon: Dumbbell, unit: 'reps', desc: '30 seg. (2kg F / 4kg M)' },
-                  { id: 'sixMinWalkDist', label: 'Caminhada 6 Min', icon: Timer, unit: 'metros', desc: 'Maior distância sem correr' },
-                  { id: 'chairSitAndReach', label: 'Sentar e Alcançar', icon: Ruler, unit: 'cm', desc: 'Distância até a ponta do pé' },
+                  { id: 'sixMinWalkDist', label: 'Caminhada 6 Min', icon: Timer, unit: 'metros', desc: 'Resistência aeróbica máxima' },
+                  { id: 'chairSitAndReach', label: 'Sentar e Alcançar (SFT)', icon: Ruler, unit: 'cm', desc: 'Ponta do pé na cadeira' },
                   { id: 'backScratch', label: 'Alcançar Costas', icon: HeartPulse, unit: 'cm', desc: 'Sobreposição dos dedos médios' },
                   { id: 'tugTime', label: 'Agilidade (TUG)', icon: Zap, unit: 'seg', desc: 'Levantar, andar 2,44m e sentar' },
                 ].map(test => (
@@ -360,12 +380,12 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
             </TabsContent>
           )}
 
-          {/* 4. PERFORMANCE */}
+          {/* 4. PERFORMANCE & FLEXIBILIDADE */}
           <TabsContent value="performance" className="space-y-8 animate-in fade-in slide-in-from-top-2">
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-3 gap-8">
               <section className="space-y-6">
-                <h4 className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2"><Zap className="h-4 w-4" /> Potência Muscular</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2"><Zap className="h-4 w-4" /> Potência</h4>
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Impulsão Vertical (cm)</Label>
                     <Input type="number" value={formData.verticalJump} onChange={e => setFormData({...formData, verticalJump: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
@@ -379,7 +399,7 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
 
               <section className="space-y-6">
                 <h4 className="font-black text-xs uppercase text-primary tracking-widest flex items-center gap-2"><Activity className="h-4 w-4" /> Resistência (RML)</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Abdominais (1 min)</Label>
                     <Input type="number" value={formData.sitUpReps} onChange={e => setFormData({...formData, sitUpReps: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
@@ -389,6 +409,18 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                     <Input type="number" value={formData.pushUpReps} onChange={e => setFormData({...formData, pushUpReps: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
                   </div>
                 </div>
+              </section>
+
+              <section className="space-y-6">
+                <h4 className="font-black text-xs uppercase text-accent-foreground tracking-widest flex items-center gap-2"><Ruler className="h-4 w-4" /> Flexibilidade</h4>
+                <Card className="p-6 border-accent/20 bg-accent/5 rounded-[2rem]">
+                  <Label className="text-[10px] font-black uppercase mb-4 block">Banco de Wells</Label>
+                  <div className="relative">
+                    <Input type="number" step="0.1" value={formData.wellsDistance} onChange={e => setFormData({...formData, wellsDistance: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pr-12" />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">cm</span>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground mt-4 font-bold uppercase leading-relaxed">Avalia flexibilidade de cadeia posterior (lombar e isquiotibiais).</p>
+                </Card>
               </section>
             </div>
           </TabsContent>
@@ -403,8 +435,8 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                   <p className="absolute bottom-4 left-4 text-[10px] font-black text-white uppercase tracking-widest">Tutorial: Protocolo de Bruce</p>
                 </div>
                 <CardContent className="p-6">
-                  <h5 className="font-black uppercase text-sm mb-2">Bruce (Esteira)</h5>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Incrementos de velocidade e inclinação a cada 3 minutos. Registre o tempo total até a exaustão ou interrupção por critérios de segurança.</p>
+                  <h5 className="font-black uppercase text-sm mb-2">Bruce (Esteira Clínico)</h5>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Protocolo de rampa progressivo. Incrementos de carga a cada 3 min. Ideal para triagem cardiológica e avaliação de atletas.</p>
                 </CardContent>
               </Card>
 
@@ -412,11 +444,11 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
                 <div className="aspect-video bg-black relative flex items-center justify-center group cursor-pointer">
                   <PlayCircle className="h-16 w-16 text-white/50 group-hover:text-primary transition-colors" />
                   <div className="absolute inset-0 bg-primary/10 group-hover:bg-primary/5 transition-colors" />
-                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white uppercase tracking-widest">Tutorial: Senior Fitness Test</p>
+                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white uppercase tracking-widest">Tutorial: Banco de Wells</p>
                 </div>
                 <CardContent className="p-6">
-                  <h5 className="font-black uppercase text-sm mb-2">Testes Funcionais</h5>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Padronização da cadeira (43cm), cones a 2,44m e cronometragem precisa para o TUG e Caminhada de 6 minutos.</p>
+                  <h5 className="font-black uppercase text-sm mb-2">Sentar e Alcançar</h5>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Pés descalços apoiados no banco. Mãos sobrepostas. Registrar o maior alcance em cm após 2 segundos de sustentação.</p>
                 </CardContent>
               </Card>
             </div>
