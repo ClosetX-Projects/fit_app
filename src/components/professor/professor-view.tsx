@@ -19,6 +19,7 @@ export function ProfessorView() {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('assessments');
   const [showAssessmentWizard, setShowAssessmentWizard] = useState(false);
+  const [initialDetailsTab, setInitialDetailsTab] = useState('assessments');
 
   const studentsRef = useMemoFirebase(() => 
     user ? collection(firestore, 'professors', user.uid, 'students') : null
@@ -26,7 +27,8 @@ export function ProfessorView() {
   
   const { data: students, isLoading } = useCollection(studentsRef);
 
-  const handleSelectStudent = (id: string, tab: string = 'training') => {
+  const handleSelectStudent = (id: string, tab: string = 'assessments') => {
+    setInitialDetailsTab(tab);
     setSelectedStudentId(id);
   };
 
@@ -42,7 +44,13 @@ export function ProfessorView() {
   }
 
   if (selectedStudentId) {
-    return <StudentDetails studentId={selectedStudentId} onBack={() => setSelectedStudentId(null)} />;
+    return (
+      <StudentDetails 
+        studentId={selectedStudentId} 
+        onBack={() => setSelectedStudentId(null)} 
+        defaultTab={initialDetailsTab}
+      />
+    );
   }
 
   return (
@@ -123,7 +131,7 @@ export function ProfessorView() {
         <TabsContent value="students" className="space-y-8 animate-in fade-in duration-500">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {students?.map(student => (
-                <div key={student.id} onClick={() => handleSelectStudent(student.id)} className="nubank-card cursor-pointer group flex items-center gap-4">
+                <div key={student.id} onClick={() => handleSelectStudent(student.id, 'assessments')} className="nubank-card cursor-pointer group flex items-center gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl font-black">
                     {student.name?.[0]}
                   </div>

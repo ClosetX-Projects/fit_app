@@ -19,7 +19,7 @@ interface StudentDetailsProps {
   defaultTab?: string;
 }
 
-export function StudentDetails({ studentId, onBack, defaultTab = 'training' }: StudentDetailsProps) {
+export function StudentDetails({ studentId, onBack, defaultTab = 'assessments' }: StudentDetailsProps) {
   const { firestore } = useFirebase();
   const studentRef = useMemoFirebase(() => doc(firestore, 'users', studentId), [firestore, studentId]);
   const { data: student } = useDoc(studentRef);
@@ -76,20 +76,20 @@ export function StudentDetails({ studentId, onBack, defaultTab = 'training' }: S
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-8">
+          <TabsTrigger value="assessments" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><ClipboardList className="h-4 w-4" /> Avaliações</TabsTrigger>
           <TabsTrigger value="training" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><Dumbbell className="h-4 w-4" /> Prescrição</TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><TrendingUp className="h-4 w-4" /> Evolução</TabsTrigger>
-          <TabsTrigger value="assessments" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><ClipboardList className="h-4 w-4" /> Avaliações</TabsTrigger>
           <TabsTrigger value="history" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><History className="h-4 w-4" /> Treinos</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="assessments" className="pt-4 animate-in fade-in slide-in-from-top-2 duration-500">
+          <StudentAssessmentsView studentId={studentId} />
+        </TabsContent>
         <TabsContent value="training" className="pt-4 animate-in fade-in slide-in-from-top-2 duration-500">
           <TrainingManager studentId={studentId} />
         </TabsContent>
         <TabsContent value="analytics" className="pt-4 animate-in fade-in slide-in-from-top-2 duration-500">
           <StudentAnalytics studentId={studentId} />
-        </TabsContent>
-        <TabsContent value="assessments" className="pt-4 animate-in fade-in slide-in-from-top-2 duration-500">
-          <StudentAssessmentsView studentId={studentId} />
         </TabsContent>
         <TabsContent value="history" className="pt-4 animate-in fade-in slide-in-from-top-2 duration-500">
           <StudentHistoryView studentId={studentId} />
