@@ -128,10 +128,12 @@ export function AssessmentForm() {
 
   // Buscar histórico de avaliações do aluno selecionado
   const historyQuery = useMemoFirebase(() => {
+    if (!isClient) return null;
     const targetId = isProfessor ? watched.studentId : user?.uid;
-    if (!targetId || targetId === "new_student") return null;
+    // Evitar consulta se targetId for inválido ou se estivermos no meio de um novo cadastro
+    if (!targetId || targetId === "new_student" || targetId === "") return null;
     return query(collection(firestore, "users", targetId, "physicalAssessments"), orderBy("date", "desc"));
-  }, [firestore, user, isProfessor, watched.studentId])
+  }, [firestore, user, isProfessor, watched.studentId, isClient])
 
   const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
 
@@ -142,16 +144,15 @@ export function AssessmentForm() {
       if (student) {
         form.setValue("fullName", student.name || "");
         form.setValue("email", student.email || "");
-        // Tentar buscar gênero e nascimento se existirem no cadastro base
         if (student.gender) form.setValue("gender", student.gender);
         if (student.birthDate) form.setValue("birthDate", student.birthDate);
       }
-    } else if (!isProfessor && user) {
+    } else if (!isProfessor && user && isClient) {
       form.setValue("studentId", user.uid);
       form.setValue("fullName", profile?.name || user.displayName || "");
       form.setValue("email", profile?.email || user.email || "");
     }
-  }, [watched.studentId, students, isProfessor, user, profile, form]);
+  }, [watched.studentId, students, isProfessor, user, profile, form, isClient]);
 
   // Carregar dados de uma avaliação histórica selecionada
   useEffect(() => {
@@ -164,7 +165,6 @@ export function AssessmentForm() {
     }
   }, [selectedId, history, form])
   
-  // Cálculo de idade e definição de protocolo científico
   const age = useMemo(() => {
     if (!isClient || !watched.birthDate) return 0
     try {
@@ -181,7 +181,6 @@ export function AssessmentForm() {
     return "Idoso (Petroski 1995)"
   }, [age])
 
-  // MOTOR DE CÁLCULOS ANTROPOMÉTRICOS
   const results = useMemo(() => {
     const { 
       weight: w, height: h, waist, hip, gender,
@@ -189,7 +188,6 @@ export function AssessmentForm() {
       abdominal: abd, suprailiac: sup, thigh: t, midLeg: mlg
     } = watched
 
-    // 1. IMC: peso / (altura/100)²
     const imcValue = h > 0 ? (w / ((h / 100) ** 2)) : 0
     let imcClass = "--"
     if (imcValue > 0) {
@@ -201,7 +199,6 @@ export function AssessmentForm() {
       else imcClass = "Obesidade III"
     }
 
-    // 2. RCQ (Relação Cintura-Quadril): cintura / quadril
     const rcqValue = hip > 0 ? (waist / hip) : 0
     let rcqRisk = "--"
     if (rcqValue > 0) {
@@ -216,18 +213,15 @@ export function AssessmentForm() {
       }
     }
 
-    // 3. Percentual de Gordura (Fórmulas por Protocolo)
     let fatPerc = 0
     const sum7 = Number(sub) + Number(tri) + Number(max) + Number(pec) + Number(abd) + Number(sup) + Number(t)
     const sum4Idoso = Number(sub) + Number(tri) + Number(sup) + Number(mlg)
 
     if (age > 0) {
       if (age < 18) {
-        // Protocolo Slaughter
         if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
         else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
       } else if (age >= 60) {
-        // Protocolo Petroski (1995)
         let dc = 0
         if (gender === 'male') {
           dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
@@ -236,7 +230,6 @@ export function AssessmentForm() {
         }
         fatPerc = ((4.95 / dc) - 4.50) * 100
       } else {
-        // Protocolo Jackson & Pollock 7
         let dc = 0
         if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
         else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
@@ -248,7 +241,6 @@ export function AssessmentForm() {
     const fatMass = w * (finalFatPerc / 100)
     const leanMass = w - fatMass
 
-    // Classificação do Percentual de Gordura
     let fatClass = "--"
     if (age >= 18) {
       if (gender === 'male') {
@@ -285,12 +277,10 @@ export function AssessmentForm() {
     
     let targetUserId = values.studentId;
 
-    // Se for um novo aluno, criar perfil básico e vinculação
     if (isNewStudent) {
       const newStudentId = doc(collection(firestore, 'users')).id;
       targetUserId = newStudentId;
 
-      // 1. Criar perfil base
       const userRef = doc(firestore, 'users', newStudentId);
       setDocumentNonBlocking(userRef, {
         id: newStudentId,
@@ -303,7 +293,6 @@ export function AssessmentForm() {
         createdBy: user.uid,
       }, { merge: true });
 
-      // 2. Vincular ao professor
       const linkRef = doc(firestore, 'professors', user.uid, 'students', newStudentId);
       setDocumentNonBlocking(linkRef, {
         id: newStudentId,
@@ -313,7 +302,6 @@ export function AssessmentForm() {
       }, { merge: true });
     }
 
-    // Salvar Avaliação Física
     const assessmentRef = selectedId
       ? doc(firestore, "users", targetUserId, "physicalAssessments", selectedId)
       : doc(collection(firestore, "users", targetUserId, "physicalAssessments"))
@@ -341,7 +329,6 @@ export function AssessmentForm() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-24 px-4">
-      {/* Sidebar Histórico */}
       <Card className="lg:col-span-3 border-primary/10 rounded-3xl overflow-hidden shadow-lg bg-card h-fit">
         <CardHeader className="bg-primary/5 p-6 border-b">
           <CardTitle className="text-xs font-black flex items-center gap-2 uppercase tracking-widest">
@@ -350,6 +337,7 @@ export function AssessmentForm() {
           <Button 
             variant="ghost" 
             size="sm" 
+            type="button"
             onClick={handleNewRecord} 
             className="w-full justify-start mt-2 h-10 rounded-xl hover:bg-primary/10 text-primary font-bold"
           >
@@ -384,7 +372,6 @@ export function AssessmentForm() {
         </CardContent>
       </Card>
 
-      {/* Formulário Principal */}
       <Card className="lg:col-span-9 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden bg-background">
         <CardHeader className="bg-primary/5 p-8 border-b border-primary/10">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
@@ -487,7 +474,6 @@ export function AssessmentForm() {
               </div>
             ) : (
               <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
-                {/* Cabeçalho de Resultados e Classificações */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">IMC</p>

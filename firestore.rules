@@ -12,57 +12,56 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Verifica se existe o vínculo na coleção de relacionamento
     function isProfessorOfStudent(studentId) {
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    function isProfessor() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'professor';
+    // Verifica se o professor foi quem criou o perfil do aluno (útil para evitar race conditions em novos cadastros)
+    function isCreatorOfStudent(studentId) {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(studentId)).data.createdBy == request.auth.uid;
     }
 
-    // Perfis de usuários e subcoleções diretas
+    function canAccessStudentData(studentId) {
+      return isOwner(studentId) || isProfessorOfStudent(studentId) || isCreatorOfStudent(studentId);
+    }
+
+    // Perfis de usuários e subcoleções
     match /users/{userId} {
       allow read: if isSignedIn();
-      // Permite que o dono edite seu perfil OU um professor crie o perfil inicial de um aluno
       allow create: if isSignedIn();
-      allow update: if isOwner(userId) || isProfessorOfStudent(userId);
+      allow update: if canAccessStudentData(userId);
 
+      // Regra genérica para todas as subcoleções (physicalAssessments, notifications, workoutHistory_flat, etc.)
       match /{allSubcollections=**} {
-        allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
+        allow read, write: if canAccessStudentData(userId);
       }
     }
 
-    // ACL Professor-Aluno
+    // ACL Professor-Aluno: Armazena o vínculo direto
     match /professors/{professorId}/students/{studentId} {
       allow read: if isOwner(professorId);
       allow write: if isOwner(professorId) || (isSignedIn() && request.auth.uid == studentId);
     }
 
-    // Regras para Tokens de Autenticação
+    // Regras para Tokens de Autenticação (Acesso Público para validação de login)
     match /auth_codes/{email} {
       allow read, write: if true; 
     }
 
+    // Atalhos para consultas em nível de raiz ou coleções específicas se necessário
     match /{path=**}/workoutSessions/{sessionId} {
       allow read: if isSignedIn() && (
         (request.auth.uid == resource.data.userId) || 
-        exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
+        isProfessorOfStudent(resource.data.userId)
       );
     }
 
     match /{path=**}/exercises/{exerciseId} {
       allow read: if isSignedIn() && (
         (request.auth.uid == resource.data.userId) || 
-        exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(resource.data.userId))
+        isProfessorOfStudent(resource.data.userId)
       );
-    }
-    
-    // Suporte para histórico plano
-    match /users/{userId}/workoutHistory_flat/{id} {
-      allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
-    }
-    match /users/{userId}/exerciseHistory_flat/{id} {
-      allow read, write: if isOwner(userId) || isProfessorOfStudent(userId);
     }
   }
 }
