@@ -15,13 +15,14 @@ import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from "@/firebase"
 import { doc, collection, serverTimestamp, query, orderBy, where } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Scale, Ruler, UserCircle, ChevronRight, Calculator, PieChart, HeartPulse, Users } from "lucide-react"
+import { Loader2, Save, Activity, Scale, Ruler, UserCircle, ChevronRight, Calculator, PieChart, HeartPulse, Users, Mail, UserPlus } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 const assessmentSchema = z.object({
   studentId: z.string().min(1, "Selecione um aluno"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   fullName: z.string().min(2, "Nome obrigatório"),
   birthDate: z.string().min(1, "Data de nascimento obrigatória"),
   gender: z.enum(["male", "female"]),
@@ -60,6 +61,7 @@ type AssessmentValues = z.infer<typeof assessmentSchema>
 
 const DEFAULT_VALUES: AssessmentValues = {
   studentId: "",
+  email: "",
   fullName: "",
   birthDate: "",
   gender: "male",
@@ -122,11 +124,12 @@ export function AssessmentForm() {
   })
 
   const watched = form.watch()
+  const isNewStudent = watched.studentId === "new_student";
 
   // Buscar histórico do aluno selecionado
   const historyQuery = useMemoFirebase(() => {
     const targetId = isProfessor ? watched.studentId : user?.uid;
-    if (!targetId) return null;
+    if (!targetId || targetId === "new_student") return null;
     return query(collection(firestore, "users", targetId, "physicalAssessments"), orderBy("date", "desc"));
   }, [firestore, user, isProfessor, watched.studentId])
 
@@ -134,15 +137,18 @@ export function AssessmentForm() {
 
   // Sincronizar dados do aluno selecionado
   useEffect(() => {
-    if (isProfessor && watched.studentId && students) {
+    if (isProfessor && watched.studentId && watched.studentId !== "new_student" && students) {
       const student = students.find(s => s.id === watched.studentId);
       if (student) {
         form.setValue("fullName", student.name || "");
-        // Se o aluno já tiver dados básicos no perfil, poderíamos preencher aqui
+        form.setValue("email", student.email || "");
       }
+    } else if (isProfessor && watched.studentId === "new_student") {
+      // Não faz nada, deixa os campos livres para preenchimento
     } else if (!isProfessor && user) {
       form.setValue("studentId", user.uid);
       form.setValue("fullName", profile?.name || user.displayName || "");
+      form.setValue("email", profile?.email || user.email || "");
     }
   }, [watched.studentId, students, isProfessor, user, profile, form]);
 
@@ -265,24 +271,57 @@ export function AssessmentForm() {
     if (!user || !firestore || !values.studentId) return
     setLoading(true)
     
-    const targetUserId = values.studentId;
+    let targetUserId = values.studentId;
+
+    // Se for um novo aluno, criar perfil básico primeiro
+    if (isNewStudent) {
+      const newStudentId = doc(collection(firestore, 'users')).id;
+      targetUserId = newStudentId;
+
+      // 1. Criar perfil
+      const userRef = doc(firestore, 'users', newStudentId);
+      setDocumentNonBlocking(userRef, {
+        id: newStudentId,
+        name: values.fullName,
+        email: values.email?.toLowerCase().trim(),
+        userType: 'student',
+        birthDate: values.birthDate,
+        gender: values.gender,
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid,
+      }, { merge: true });
+
+      // 2. Vincular ao professor
+      const linkRef = doc(firestore, 'professors', user.uid, 'students', newStudentId);
+      setDocumentNonBlocking(linkRef, {
+        id: newStudentId,
+        name: values.fullName,
+        email: values.email?.toLowerCase().trim(),
+        linkedAt: new Date().toISOString(),
+      }, { merge: true });
+    }
+
     const assessmentRef = selectedId
       ? doc(firestore, "users", targetUserId, "physicalAssessments", selectedId)
       : doc(collection(firestore, "users", targetUserId, "physicalAssessments"))
 
     setDocumentNonBlocking(assessmentRef, {
       ...values,
+      studentId: targetUserId, // Garantir ID real se for novo
       id: assessmentRef.id,
       userId: targetUserId,
       date: new Date().toISOString(),
       updatedAt: serverTimestamp(),
       calculatedResults: results,
-      assessedBy: user.uid, // Professor que realizou a avaliação
+      assessedBy: user.uid,
     }, { merge: true })
 
-    toast({ title: "Avaliação salva com sucesso!" })
+    toast({ title: isNewStudent ? "Aluno cadastrado e avaliação salva!" : "Avaliação salva com sucesso!" })
     setSelectedId(assessmentRef.id)
     setLoading(false)
+    if (isNewStudent) {
+      form.setValue("studentId", targetUserId);
+    }
   }
 
   if (!isClient) return null
@@ -293,7 +332,7 @@ export function AssessmentForm() {
       <Card className="lg:col-span-3 border-primary/10 rounded-3xl overflow-hidden shadow-lg bg-card h-fit">
         <CardHeader className="bg-primary/5 p-6 border-b">
           <CardTitle className="text-xs font-black flex items-center gap-2 uppercase tracking-widest">
-            <Activity className="h-4 w-4 text-primary" /> Histórico {watched.studentId ? "(Aluno)" : ""}
+            <Activity className="h-4 w-4 text-primary" /> Histórico {watched.studentId && !isNewStudent ? "(Aluno)" : ""}
           </CardTitle>
           <Button 
             variant="ghost" 
@@ -325,7 +364,7 @@ export function AssessmentForm() {
               </button>
             )) : (
               <div className="p-8 text-center text-[10px] uppercase font-bold text-muted-foreground opacity-50 italic">
-                {watched.studentId ? "Nenhuma avaliação encontrada." : "Selecione um aluno para ver o histórico."}
+                {watched.studentId === "new_student" ? "Cadastrando novo aluno..." : watched.studentId ? "Nenhuma avaliação encontrada." : "Selecione um aluno para ver o histórico."}
               </div>
             )}
           </ScrollArea>
@@ -353,49 +392,81 @@ export function AssessmentForm() {
             {step === 1 ? (
               <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
-                      <Users className="h-3 w-3" /> Selecionar Aluno
-                    </Label>
-                    {isProfessor ? (
-                      <Select value={watched.studentId} onValueChange={(v) => form.setValue("studentId", v)}>
-                        <SelectTrigger className="h-12 rounded-xl">
-                          <SelectValue placeholder="Escolha um aluno cadastrado..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {students?.map(student => (
-                            <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input value={watched.fullName} readOnly className="h-12 rounded-xl bg-muted" />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                        <Users className="h-3 w-3" /> Selecionar Aluno
+                      </Label>
+                      {isProfessor ? (
+                        <Select value={watched.studentId} onValueChange={(v) => form.setValue("studentId", v)}>
+                          <SelectTrigger className="h-12 rounded-xl">
+                            <SelectValue placeholder="Escolha um aluno cadastrado..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new_student" className="font-bold text-primary">
+                              <div className="flex items-center gap-2">
+                                <UserPlus className="h-4 w-4" /> + Novo Aluno (Cadastrar agora)
+                              </div>
+                            </SelectItem>
+                            {students?.map(student => (
+                              <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={watched.fullName} readOnly className="h-12 rounded-xl bg-muted" />
+                      )}
+                    </div>
+
+                    {(isNewStudent || !isProfessor) && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2">
+                        <Label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                          <Mail className="h-3 w-3" /> E-mail do Aluno
+                        </Label>
+                        <Input 
+                          placeholder="aluno@email.com" 
+                          {...form.register("email")} 
+                          className="h-12 rounded-xl"
+                          readOnly={!isNewStudent && isProfessor}
+                        />
+                      </div>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-black uppercase text-primary tracking-widest">Nascimento</Label>
-                      <Input type="date" {...form.register("birthDate")} className="h-12 rounded-xl" />
+                      <Label className="text-xs font-black uppercase text-primary tracking-widest">Nome Completo</Label>
+                      <Input 
+                        placeholder="Nome do aluno" 
+                        {...form.register("fullName")} 
+                        className="h-12 rounded-xl" 
+                        readOnly={!isNewStudent && isProfessor}
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-black uppercase text-primary tracking-widest">Gênero</Label>
-                      <Select value={watched.gender} onValueChange={(v: any) => form.setValue("gender", v)}>
-                        <SelectTrigger className="h-12 rounded-xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Masculino</SelectItem>
-                          <SelectItem value="female">Feminino</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-black uppercase text-primary tracking-widest">Nascimento</Label>
+                        <Input type="date" {...form.register("birthDate")} className="h-12 rounded-xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-black uppercase text-primary tracking-widest">Gênero</Label>
+                        <Select value={watched.gender} onValueChange={(v: any) => form.setValue("gender", v)}>
+                          <SelectTrigger className="h-12 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Masculino</SelectItem>
+                            <SelectItem value="female">Feminino</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </div>
                 <Button 
                   type="button" 
                   onClick={() => setStep(2)} 
-                  disabled={!watched.studentId || !watched.birthDate}
+                  disabled={!watched.studentId || !watched.birthDate || !watched.fullName || (isNewStudent && !watched.email)}
                   className="w-full h-16 rounded-full text-lg font-black bg-primary gap-2 shadow-xl hover:scale-[1.01] transition-transform"
                 >
                   INICIAR MEDIDAS <ChevronRight className="h-6 w-6" />
@@ -516,7 +587,7 @@ export function AssessmentForm() {
                 <div className="flex gap-4">
                   <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1 h-16 rounded-full font-bold">VOLTAR</Button>
                   <Button type="submit" disabled={loading} className="flex-[2] h-16 rounded-full text-xl font-black bg-primary gap-2 shadow-xl">
-                    {loading ? <Loader2 className="animate-spin" /> : <Save className="h-6 w-6" />} SALVAR AVALIAÇÃO
+                    {loading ? <Loader2 className="animate-spin" /> : <Save className="h-6 w-6" />} {isNewStudent ? "CADASTRAR E SALVAR" : "SALVAR AVALIAÇÃO"}
                   </Button>
                 </div>
               </div>
