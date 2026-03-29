@@ -19,6 +19,7 @@ import { Logo } from './icons';
 import { Loader2, ShieldCheck, ArrowLeft, Info, LockKeyhole } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
+import { linkExistingProfile } from '@/lib/auth-utils';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -59,6 +60,9 @@ export function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
+      // Tentar vincular perfil pré-existente criado por professor
+      await linkExistingProfile(firestore, user.uid, user.email || '');
+
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       if (!userDoc.exists()) {
         await setDoc(doc(firestore, 'users', user.uid), {
@@ -137,6 +141,11 @@ export function LoginForm() {
       const data = codeDoc.data();
       if (data.code !== values.code.trim()) throw new Error('Código incorreto.');
       if (new Date(data.expiresAt) < new Date()) throw new Error('O código expirou.');
+
+      // Vincular perfil se houver antes de redirecionar
+      if (auth.currentUser) {
+        await linkExistingProfile(firestore, auth.currentUser.uid, tempEmail);
+      }
 
       await deleteDoc(doc(firestore, 'auth_codes', tempEmail));
       toast({ title: 'Acesso liberado!', description: 'Bem-vindo ao seu painel.' });

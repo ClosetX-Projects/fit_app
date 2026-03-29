@@ -21,6 +21,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Loader2, ShieldCheck, ArrowLeft, Info, UserRound, GraduationCap, Lock } from 'lucide-react';
 import { sendLoginCode } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
+import { linkExistingProfile } from '@/lib/auth-utils';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
@@ -99,6 +100,11 @@ function SignUpFormContent() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
+      // Se for aluno, tentar vincular perfil pré-criado pelo Personal
+      if (finalRole === 'student') {
+        await linkExistingProfile(firestore, user.uid, user.email || '');
+      }
+
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       if (!userDoc.exists()) {
         await setDoc(doc(firestore, 'users', user.uid), {
@@ -164,6 +170,12 @@ function SignUpFormContent() {
 
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, tempData.password);
       const user = userCredential.user;
+      
+      // Tentar migrar dados se o professor já tiver criado o perfil
+      if (tempData.userType === 'student') {
+        await linkExistingProfile(firestore, user.uid, normalizedEmail);
+      }
+
       await updateProfile(user, { displayName: tempData.name, photoURL: defaultAvatar });
       
       await setDoc(doc(firestore, 'users', user.uid), {
@@ -176,7 +188,7 @@ function SignUpFormContent() {
         gender: tempData.gender || null,
         whatsapp: tempData.whatsapp || null,
         createdAt: new Date().toISOString(),
-      });
+      }, { merge: true });
 
       if (tempData.userType === 'student' && invitedBy) {
         linkProfessor(user.uid, tempData.name, normalizedEmail);

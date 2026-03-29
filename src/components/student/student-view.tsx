@@ -10,8 +10,8 @@ import { HealthDiagnostics } from '@/components/health-diagnostics';
 import { WorkoutCalendar } from './workout-calendar';
 import { StudentOnboarding } from './student-onboarding';
 import { StudentTestsView } from './student-tests-view';
-import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { LayoutGrid, ClipboardPen, BrainCircuit, HeartPulse, ClipboardCheck, Calendar as CalendarIcon, Loader2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,11 @@ export function StudentView() {
   , [firestore, user]);
 
   const { data: assessments, isLoading: isAssessmentsLoading } = useCollection(assessmentsRef);
+
+  const profileRef = useMemoFirebase(() => 
+    user ? doc(firestore, 'users', user.uid) : null
+  , [firestore, user]);
+  const { data: profile } = useDoc(profileRef);
 
   const navItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutGrid },
@@ -56,10 +61,11 @@ export function StudentView() {
     );
   }
 
-  // Se não houver avaliações, força o onboarding
+  // Se houver avaliações migradas ou onboarding já iniciado, pula o onboarding
   const hasAssessment = assessments && assessments.length > 0;
+  const onboardingCompleted = profile?.onboardingStarted === true;
 
-  if (!hasAssessment) {
+  if (!hasAssessment && !onboardingCompleted) {
     return <StudentOnboarding />;
   }
 
