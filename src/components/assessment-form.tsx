@@ -13,9 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from "@/firebase"
-import { doc, collection, serverTimestamp, query, orderBy, where } from "firebase/firestore"
+import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Scale, Ruler, UserCircle, ChevronRight, Calculator, PieChart, HeartPulse, Users, Mail, UserPlus } from "lucide-react"
+import { Loader2, Save, Activity, Scale, Ruler, ChevronRight, Calculator, Users, Mail, UserPlus, Info } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -28,7 +28,7 @@ const assessmentSchema = z.object({
   gender: z.enum(["male", "female"]),
   weight: z.coerce.number().min(0).default(0),
   height: z.coerce.number().min(0).default(0),
-  // Circunferências
+  // Circunferências (16 campos)
   neck: z.coerce.number().default(0),
   shoulder: z.coerce.number().default(0),
   chest: z.coerce.number().default(0),
@@ -45,7 +45,7 @@ const assessmentSchema = z.object({
   armContractedL: z.coerce.number().default(0),
   forearmR: z.coerce.number().default(0),
   forearmL: z.coerce.number().default(0),
-  // Dobras
+  // Dobras Cutâneas (9 campos)
   subscapular: z.coerce.number().default(0),
   triceps: z.coerce.number().default(0),
   biceps: z.coerce.number().default(0),
@@ -107,12 +107,12 @@ export function AssessmentForm() {
     setIsClient(true)
   }, [])
 
-  // Buscar perfil para saber se é professor
+  // Identificação do Perfil do Professor
   const profileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: profile } = useDoc(profileRef);
   const isProfessor = profile?.userType === 'professor';
 
-  // Buscar alunos se for professor
+  // Buscar lista de alunos vinculados
   const studentsRef = useMemoFirebase(() => 
     (user && isProfessor) ? collection(firestore, 'professors', user.uid, 'students') : null
   , [firestore, user, isProfessor]);
@@ -126,7 +126,7 @@ export function AssessmentForm() {
   const watched = form.watch()
   const isNewStudent = watched.studentId === "new_student";
 
-  // Buscar histórico do aluno selecionado
+  // Buscar histórico de avaliações do aluno selecionado
   const historyQuery = useMemoFirebase(() => {
     const targetId = isProfessor ? watched.studentId : user?.uid;
     if (!targetId || targetId === "new_student") return null;
@@ -135,16 +135,17 @@ export function AssessmentForm() {
 
   const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
 
-  // Sincronizar dados do aluno selecionado
+  // Sincronização de dados ao trocar de aluno no seletor
   useEffect(() => {
     if (isProfessor && watched.studentId && watched.studentId !== "new_student" && students) {
       const student = students.find(s => s.id === watched.studentId);
       if (student) {
         form.setValue("fullName", student.name || "");
         form.setValue("email", student.email || "");
+        // Tentar buscar gênero e nascimento se existirem no cadastro base
+        if (student.gender) form.setValue("gender", student.gender);
+        if (student.birthDate) form.setValue("birthDate", student.birthDate);
       }
-    } else if (isProfessor && watched.studentId === "new_student") {
-      // Não faz nada, deixa os campos livres para preenchimento
     } else if (!isProfessor && user) {
       form.setValue("studentId", user.uid);
       form.setValue("fullName", profile?.name || user.displayName || "");
@@ -152,6 +153,7 @@ export function AssessmentForm() {
     }
   }, [watched.studentId, students, isProfessor, user, profile, form]);
 
+  // Carregar dados de uma avaliação histórica selecionada
   useEffect(() => {
     if (selectedId && history) {
       const a = history.find(item => item.id === selectedId)
@@ -162,22 +164,32 @@ export function AssessmentForm() {
     }
   }, [selectedId, history, form])
   
-  // Cálculo de idade seguro para hidratação
+  // Cálculo de idade e definição de protocolo científico
   const age = useMemo(() => {
     if (!isClient || !watched.birthDate) return 0
-    return differenceInYears(new Date(), new Date(watched.birthDate))
+    try {
+      return differenceInYears(new Date(), new Date(watched.birthDate))
+    } catch {
+      return 0
+    }
   }, [watched.birthDate, isClient])
 
-  const protocol = age === 0 ? "..." : age < 18 ? "Adolescente" : age < 60 ? "Adulto" : "Idoso"
+  const protocol = useMemo(() => {
+    if (age === 0) return "..."
+    if (age < 18) return "Adolescente (Slaughter)"
+    if (age < 60) return "Adulto (Jackson & Pollock 7)"
+    return "Idoso (Petroski 1995)"
+  }, [age])
 
+  // MOTOR DE CÁLCULOS ANTROPOMÉTRICOS
   const results = useMemo(() => {
     const { 
       weight: w, height: h, waist, hip, gender,
-      subscapular: sub, triceps: tri, biceps: bic, midAxillary: max, pectoral: pec,
+      subscapular: sub, triceps: tri, midAxillary: max, pectoral: pec,
       abdominal: abd, suprailiac: sup, thigh: t, midLeg: mlg
     } = watched
 
-    // 1. IMC
+    // 1. IMC: peso / (altura/100)²
     const imcValue = h > 0 ? (w / ((h / 100) ** 2)) : 0
     let imcClass = "--"
     if (imcValue > 0) {
@@ -189,7 +201,7 @@ export function AssessmentForm() {
       else imcClass = "Obesidade III"
     }
 
-    // 2. RCQ
+    // 2. RCQ (Relação Cintura-Quadril): cintura / quadril
     const rcqValue = hip > 0 ? (waist / hip) : 0
     let rcqRisk = "--"
     if (rcqValue > 0) {
@@ -204,18 +216,18 @@ export function AssessmentForm() {
       }
     }
 
-    // 3. Composição Corporal
+    // 3. Percentual de Gordura (Fórmulas por Protocolo)
     let fatPerc = 0
     const sum7 = Number(sub) + Number(tri) + Number(max) + Number(pec) + Number(abd) + Number(sup) + Number(t)
     const sum4Idoso = Number(sub) + Number(tri) + Number(sup) + Number(mlg)
 
     if (age > 0) {
       if (age < 18) {
-        // Slaughter
+        // Protocolo Slaughter
         if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
         else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
       } else if (age >= 60) {
-        // Petroski 1995
+        // Protocolo Petroski (1995)
         let dc = 0
         if (gender === 'male') {
           dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
@@ -224,7 +236,7 @@ export function AssessmentForm() {
         }
         fatPerc = ((4.95 / dc) - 4.50) * 100
       } else {
-        // Jackson & Pollock 7
+        // Protocolo Jackson & Pollock 7
         let dc = 0
         if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
         else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
@@ -236,7 +248,7 @@ export function AssessmentForm() {
     const fatMass = w * (finalFatPerc / 100)
     const leanMass = w - fatMass
 
-    // Classificação Gordura
+    // Classificação do Percentual de Gordura
     let fatClass = "--"
     if (age >= 18) {
       if (gender === 'male') {
@@ -273,12 +285,12 @@ export function AssessmentForm() {
     
     let targetUserId = values.studentId;
 
-    // Se for um novo aluno, criar perfil básico primeiro
+    // Se for um novo aluno, criar perfil básico e vinculação
     if (isNewStudent) {
       const newStudentId = doc(collection(firestore, 'users')).id;
       targetUserId = newStudentId;
 
-      // 1. Criar perfil
+      // 1. Criar perfil base
       const userRef = doc(firestore, 'users', newStudentId);
       setDocumentNonBlocking(userRef, {
         id: newStudentId,
@@ -301,13 +313,14 @@ export function AssessmentForm() {
       }, { merge: true });
     }
 
+    // Salvar Avaliação Física
     const assessmentRef = selectedId
       ? doc(firestore, "users", targetUserId, "physicalAssessments", selectedId)
       : doc(collection(firestore, "users", targetUserId, "physicalAssessments"))
 
     setDocumentNonBlocking(assessmentRef, {
       ...values,
-      studentId: targetUserId, // Garantir ID real se for novo
+      studentId: targetUserId,
       id: assessmentRef.id,
       userId: targetUserId,
       date: new Date().toISOString(),
@@ -327,7 +340,7 @@ export function AssessmentForm() {
   if (!isClient) return null
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-24">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-24 px-4">
       {/* Sidebar Histórico */}
       <Card className="lg:col-span-3 border-primary/10 rounded-3xl overflow-hidden shadow-lg bg-card h-fit">
         <CardHeader className="bg-primary/5 p-6 border-b">
@@ -374,14 +387,14 @@ export function AssessmentForm() {
       {/* Formulário Principal */}
       <Card className="lg:col-span-9 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden bg-background">
         <CardHeader className="bg-primary/5 p-8 border-b border-primary/10">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">Avaliação Antropométrica</CardTitle>
-              <CardDescription>Protocolos científicos Jackson & Pollock, Slaughter e Petroski.</CardDescription>
+              <CardDescription>Gerenciamento técnico de composição corporal e riscos à saúde.</CardDescription>
             </div>
             {step === 2 && (
-              <div className="bg-accent/20 text-accent-foreground px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest border border-accent/30">
-                Protocolo: {results.protocol}
+              <div className="bg-primary/10 text-primary px-4 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-primary/20 flex items-center gap-2">
+                <Info className="h-3 w-3" /> Protocolo: {results.protocol}
               </div>
             )}
           </div>
@@ -392,7 +405,7 @@ export function AssessmentForm() {
             {step === 1 ? (
               <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="space-y-2">
                       <Label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
                         <Users className="h-3 w-3" /> Selecionar Aluno
@@ -433,7 +446,7 @@ export function AssessmentForm() {
                     )}
                   </div>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="space-y-2">
                       <Label className="text-xs font-black uppercase text-primary tracking-widest">Nome Completo</Label>
                       <Input 
@@ -469,22 +482,12 @@ export function AssessmentForm() {
                   disabled={!watched.studentId || !watched.birthDate || !watched.fullName || (isNewStudent && !watched.email)}
                   className="w-full h-16 rounded-full text-lg font-black bg-primary gap-2 shadow-xl hover:scale-[1.01] transition-transform"
                 >
-                  INICIAR MEDIDAS <ChevronRight className="h-6 w-6" />
+                  INICIAR MEDIDAS TÉCNICAS <ChevronRight className="h-6 w-6" />
                 </Button>
               </div>
             ) : (
               <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
-                {/* Cabeçalho de Identificação Rápida */}
-                <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                   <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-black">
-                      {watched.fullName?.[0]}
-                   </div>
-                   <div>
-                      <p className="text-sm font-black text-primary uppercase">{watched.fullName}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{watched.gender === 'male' ? 'Masculino' : 'Feminino'} | {results.age} anos</p>
-                   </div>
-                </div>
-
+                {/* Cabeçalho de Resultados e Classificações */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">IMC</p>
@@ -504,13 +507,13 @@ export function AssessmentForm() {
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Massa Magra</p>
                     <p className="text-lg font-black">{results.leanMass} kg</p>
-                    <p className="text-[8px] font-bold uppercase opacity-60">Peso da Gordura: {results.fatMass}kg</p>
+                    <p className="text-[8px] font-bold uppercase opacity-60">Peso Gordura: {results.fatMass}kg</p>
                   </div>
                 </div>
 
-                <Tabs defaultValue="medidas" className="w-full">
+                <Tabs defaultValue="geral" className="w-full">
                   <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted rounded-2xl mb-8">
-                    <TabsTrigger value="medidas" className="rounded-xl py-3 text-[10px] font-black uppercase gap-2">
+                    <TabsTrigger value="geral" className="rounded-xl py-3 text-[10px] font-black uppercase gap-2">
                       <Scale className="h-4 w-4" /> Peso & Altura
                     </TabsTrigger>
                     <TabsTrigger value="perimetros" className="rounded-xl py-3 text-[10px] font-black uppercase gap-2">
@@ -521,20 +524,20 @@ export function AssessmentForm() {
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="medidas" className="space-y-6">
+                  <TabsContent value="geral" className="space-y-6 animate-in fade-in duration-300">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-2">
-                        <Label>Peso Corporal (kg)</Label>
+                        <Label className="text-xs font-black uppercase tracking-widest">Peso Corporal (kg)</Label>
                         <Input type="number" step="0.1" {...form.register("weight")} className="h-14 text-xl font-bold rounded-2xl" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Estatura (cm)</Label>
+                        <Label className="text-xs font-black uppercase tracking-widest">Estatura (cm)</Label>
                         <Input type="number" {...form.register("height")} className="h-14 text-xl font-bold rounded-2xl" />
                       </div>
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="perimetros" className="space-y-8">
+                  <TabsContent value="perimetros" className="space-y-8 animate-in fade-in duration-300">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       {[
                         { id: "neck", label: "Pescoço" },
@@ -543,26 +546,26 @@ export function AssessmentForm() {
                         { id: "waist", label: "Cintura" },
                         { id: "abdomen", label: "Abdômen" },
                         { id: "hip", label: "Quadril" },
+                        { id: "thighR", label: "Coxa Dir." },
+                        { id: "thighL", label: "Coxa Esq." },
+                        { id: "legR", label: "Perna Dir." },
+                        { id: "legL", label: "Perna Esq." },
                         { id: "armRelaxedR", label: "Br. Relax. D" },
                         { id: "armRelaxedL", label: "Br. Relax. E" },
                         { id: "armContractedR", label: "Br. Contr. D" },
                         { id: "armContractedL", label: "Br. Contr. E" },
-                        { id: "forearmR", label: "Ant.braço D" },
-                        { id: "forearmL", label: "Ant.braço E" },
-                        { id: "thighR", label: "Coxa D" },
-                        { id: "thighL", label: "Coxa E" },
-                        { id: "legR", label: "Perna D" },
-                        { id: "legL", label: "Perna E" },
+                        { id: "forearmR", label: "Ant.Braço D" },
+                        { id: "forearmL", label: "Ant.Braço E" },
                       ].map((f) => (
                         <div key={f.id} className="space-y-1">
-                          <Label className="text-[10px] font-black uppercase text-muted-foreground">{f.label}</Label>
+                          <Label className="text-[10px] font-black uppercase text-muted-foreground">{f.label} (cm)</Label>
                           <Input type="number" step="0.1" {...form.register(f.id as any)} className="h-10 rounded-xl" />
                         </div>
                       ))}
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="dobras" className="space-y-8">
+                  <TabsContent value="dobras" className="space-y-8 animate-in fade-in duration-300">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                       {[
                         { id: "subscapular", label: "Subescapular" },
