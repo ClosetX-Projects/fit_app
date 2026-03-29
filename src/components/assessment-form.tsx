@@ -57,6 +57,39 @@ const assessmentSchema = z.object({
 
 type AssessmentValues = z.infer<typeof assessmentSchema>
 
+const DEFAULT_VALUES: AssessmentValues = {
+  fullName: "",
+  birthDate: "",
+  gender: "male",
+  weight: 0,
+  height: 0,
+  neck: 0,
+  shoulder: 0,
+  chest: 0,
+  waist: 0,
+  abdomen: 0,
+  hip: 0,
+  thighR: 0,
+  thighL: 0,
+  legR: 0,
+  legL: 0,
+  armRelaxedR: 0,
+  armRelaxedL: 0,
+  armContractedR: 0,
+  armContractedL: 0,
+  forearmR: 0,
+  forearmL: 0,
+  subscapular: 0,
+  triceps: 0,
+  biceps: 0,
+  midAxillary: 0,
+  pectoral: 0,
+  abdominal: 0,
+  suprailiac: 0,
+  thigh: 0,
+  midLeg: 0,
+}
+
 export function AssessmentForm() {
   const { toast } = useToast()
   const { firestore } = useFirebase()
@@ -64,6 +97,11 @@ export function AssessmentForm() {
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const historyQuery = useMemoFirebase(() =>
     user ? query(collection(firestore, "users", user.uid, "physicalAssessments"), orderBy("date", "desc")) : null
@@ -73,28 +111,28 @@ export function AssessmentForm() {
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
-    defaultValues: { 
-      fullName: "", 
-      birthDate: "", 
-      gender: "male",
-      weight: 0, 
-      height: 0 
-    }
+    defaultValues: DEFAULT_VALUES
   })
 
   useEffect(() => {
     if (selectedId && history) {
       const a = history.find(item => item.id === selectedId)
       if (a) {
-        form.reset({ ...a })
+        form.reset({ ...DEFAULT_VALUES, ...a })
         setStep(2)
       }
     }
   }, [selectedId, history, form])
 
   const watched = form.watch()
-  const age = watched.birthDate ? differenceInYears(new Date(), new Date(watched.birthDate)) : 0
-  const protocol = age < 18 ? "Adolescente" : age < 60 ? "Adulto" : "Idoso"
+  
+  // Cálculo de idade seguro para hidratação
+  const age = useMemo(() => {
+    if (!isClient || !watched.birthDate) return 0
+    return differenceInYears(new Date(), new Date(watched.birthDate))
+  }, [watched.birthDate, isClient])
+
+  const protocol = age === 0 ? "..." : age < 18 ? "Adolescente" : age < 60 ? "Adulto" : "Idoso"
 
   const results = useMemo(() => {
     const { 
@@ -186,6 +224,12 @@ export function AssessmentForm() {
     }
   }, [watched, age, protocol])
 
+  const handleNewRecord = () => {
+    setSelectedId(null)
+    form.reset(DEFAULT_VALUES)
+    setStep(1)
+  }
+
   const onSubmit = async (values: AssessmentValues) => {
     if (!user || !firestore) return
     setLoading(true)
@@ -207,6 +251,8 @@ export function AssessmentForm() {
     setLoading(false)
   }
 
+  if (!isClient) return null
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-24">
       {/* Sidebar Histórico */}
@@ -218,7 +264,7 @@ export function AssessmentForm() {
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => { setSelectedId(null); form.reset(); setStep(1); }} 
+            onClick={handleNewRecord} 
             className="w-full justify-start mt-2 h-10 rounded-xl hover:bg-primary/10 text-primary font-bold"
           >
             + Novo Registro
@@ -231,6 +277,7 @@ export function AssessmentForm() {
             ) : history?.map((item) => (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => setSelectedId(item.id)}
                 className={`w-full text-left p-4 transition-all hover:bg-primary/5 flex items-center justify-between group border-b border-primary/5 ${selectedId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
               >

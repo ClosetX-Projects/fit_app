@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Bar, BarChart, Area, AreaChart } from "recharts"
@@ -35,8 +35,11 @@ export function Dashboard() {
   const { user } = useUser()
   const { firestore } = useFirebase()
   const { toast } = useToast()
-  const [pendingPseValue, setPendingPseValue] = useState(7)
-  const [isPseDialogOpen, setIsPseDialogOpen] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const assessmentsRef = useMemoFirebase(() => 
     user ? query(collection(firestore, 'users', user.uid, 'physicalAssessments'), orderBy('date', 'asc'), limit(20)) : null
@@ -54,7 +57,8 @@ export function Dashboard() {
   const { data: rawExercises, isLoading: isExercisesLoading } = useCollection(exercisesRef);
 
   const stats = useMemo(() => {
-    if (!rawSessions || rawSessions.length === 0) return { total: 0, frequency: 0, lastSession: 'Nenhum', avgLoad: 0, totalReps: 0, totalSeries: 0, totalKcal: 0 }
+    if (!isClient || !rawSessions || rawSessions.length === 0) return { total: 0, frequency: 0, lastSession: 'Nenhum', avgLoad: 0, totalReps: 0, totalSeries: 0, totalKcal: 0 }
+    
     const now = new Date()
     const startOfCurrentMonth = startOfMonth(now)
     const thisMonth = rawSessions.filter(s => new Date(s.date) >= startOfCurrentMonth)
@@ -76,7 +80,7 @@ export function Dashboard() {
       totalReps,
       totalKcal
     }
-  }, [rawSessions, rawExercises])
+  }, [rawSessions, rawExercises, isClient])
 
   const volumeByGroup = useMemo(() => {
     if (!rawExercises) return [];
@@ -103,7 +107,7 @@ export function Dashboard() {
       }));
   }, [rawExercises]);
 
-  if (isAssessmentsLoading || isSessionsLoading || isExercisesLoading) {
+  if (!isClient || isAssessmentsLoading || isSessionsLoading || isExercisesLoading) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
