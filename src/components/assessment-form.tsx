@@ -12,15 +12,16 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
+import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from "@/firebase"
+import { doc, collection, serverTimestamp, query, orderBy, where } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Scale, Ruler, UserCircle, ChevronRight, Calculator, PieChart, HeartPulse } from "lucide-react"
+import { Loader2, Save, Activity, Scale, Ruler, UserCircle, ChevronRight, Calculator, PieChart, HeartPulse, Users } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 const assessmentSchema = z.object({
+  studentId: z.string().min(1, "Selecione um aluno"),
   fullName: z.string().min(2, "Nome obrigatório"),
   birthDate: z.string().min(1, "Data de nascimento obrigatória"),
   gender: z.enum(["male", "female"]),
@@ -58,6 +59,7 @@ const assessmentSchema = z.object({
 type AssessmentValues = z.infer<typeof assessmentSchema>
 
 const DEFAULT_VALUES: AssessmentValues = {
+  studentId: "",
   fullName: "",
   birthDate: "",
   gender: "male",
@@ -103,16 +105,46 @@ export function AssessmentForm() {
     setIsClient(true)
   }, [])
 
-  const historyQuery = useMemoFirebase(() =>
-    user ? query(collection(firestore, "users", user.uid, "physicalAssessments"), orderBy("date", "desc")) : null
-  , [firestore, user])
+  // Buscar perfil para saber se é professor
+  const profileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: profile } = useDoc(profileRef);
+  const isProfessor = profile?.userType === 'professor';
 
-  const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
+  // Buscar alunos se for professor
+  const studentsRef = useMemoFirebase(() => 
+    (user && isProfessor) ? collection(firestore, 'professors', user.uid, 'students') : null
+  , [firestore, user, isProfessor]);
+  const { data: students } = useCollection(studentsRef);
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
     defaultValues: DEFAULT_VALUES
   })
+
+  const watched = form.watch()
+
+  // Buscar histórico do aluno selecionado
+  const historyQuery = useMemoFirebase(() => {
+    const targetId = isProfessor ? watched.studentId : user?.uid;
+    if (!targetId) return null;
+    return query(collection(firestore, "users", targetId, "physicalAssessments"), orderBy("date", "desc"));
+  }, [firestore, user, isProfessor, watched.studentId])
+
+  const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
+
+  // Sincronizar dados do aluno selecionado
+  useEffect(() => {
+    if (isProfessor && watched.studentId && students) {
+      const student = students.find(s => s.id === watched.studentId);
+      if (student) {
+        form.setValue("fullName", student.name || "");
+        // Se o aluno já tiver dados básicos no perfil, poderíamos preencher aqui
+      }
+    } else if (!isProfessor && user) {
+      form.setValue("studentId", user.uid);
+      form.setValue("fullName", profile?.name || user.displayName || "");
+    }
+  }, [watched.studentId, students, isProfessor, user, profile, form]);
 
   useEffect(() => {
     if (selectedId && history) {
@@ -123,8 +155,6 @@ export function AssessmentForm() {
       }
     }
   }, [selectedId, history, form])
-
-  const watched = form.watch()
   
   // Cálculo de idade seguro para hidratação
   const age = useMemo(() => {
@@ -226,24 +256,28 @@ export function AssessmentForm() {
 
   const handleNewRecord = () => {
     setSelectedId(null)
-    form.reset(DEFAULT_VALUES)
+    const currentStudentId = watched.studentId;
+    form.reset({ ...DEFAULT_VALUES, studentId: currentStudentId })
     setStep(1)
   }
 
   const onSubmit = async (values: AssessmentValues) => {
-    if (!user || !firestore) return
+    if (!user || !firestore || !values.studentId) return
     setLoading(true)
+    
+    const targetUserId = values.studentId;
     const assessmentRef = selectedId
-      ? doc(firestore, "users", user.uid, "physicalAssessments", selectedId)
-      : doc(collection(firestore, "users", user.uid, "physicalAssessments"))
+      ? doc(firestore, "users", targetUserId, "physicalAssessments", selectedId)
+      : doc(collection(firestore, "users", targetUserId, "physicalAssessments"))
 
     setDocumentNonBlocking(assessmentRef, {
       ...values,
       id: assessmentRef.id,
-      userId: user.uid,
+      userId: targetUserId,
       date: new Date().toISOString(),
       updatedAt: serverTimestamp(),
       calculatedResults: results,
+      assessedBy: user.uid, // Professor que realizou a avaliação
     }, { merge: true })
 
     toast({ title: "Avaliação salva com sucesso!" })
@@ -259,7 +293,7 @@ export function AssessmentForm() {
       <Card className="lg:col-span-3 border-primary/10 rounded-3xl overflow-hidden shadow-lg bg-card h-fit">
         <CardHeader className="bg-primary/5 p-6 border-b">
           <CardTitle className="text-xs font-black flex items-center gap-2 uppercase tracking-widest">
-            <Activity className="h-4 w-4 text-primary" /> Histórico
+            <Activity className="h-4 w-4 text-primary" /> Histórico {watched.studentId ? "(Aluno)" : ""}
           </CardTitle>
           <Button 
             variant="ghost" 
@@ -274,7 +308,7 @@ export function AssessmentForm() {
           <ScrollArea className="h-[400px]">
             {isHistoryLoading ? (
               <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>
-            ) : history?.map((item) => (
+            ) : history && history.length > 0 ? history.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -289,7 +323,11 @@ export function AssessmentForm() {
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
-            ))}
+            )) : (
+              <div className="p-8 text-center text-[10px] uppercase font-bold text-muted-foreground opacity-50 italic">
+                {watched.studentId ? "Nenhuma avaliação encontrada." : "Selecione um aluno para ver o histórico."}
+              </div>
+            )}
           </ScrollArea>
         </CardContent>
       </Card>
@@ -316,9 +354,25 @@ export function AssessmentForm() {
               <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-primary tracking-widest">Nome Completo do Aluno</Label>
-                    <Input {...form.register("fullName")} placeholder="Digite o nome..." className="h-12 rounded-xl" />
+                    <Label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                      <Users className="h-3 w-3" /> Selecionar Aluno
+                    </Label>
+                    {isProfessor ? (
+                      <Select value={watched.studentId} onValueChange={(v) => form.setValue("studentId", v)}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue placeholder="Escolha um aluno cadastrado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students?.map(student => (
+                            <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={watched.fullName} readOnly className="h-12 rounded-xl bg-muted" />
+                    )}
                   </div>
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs font-black uppercase text-primary tracking-widest">Nascimento</Label>
@@ -341,7 +395,7 @@ export function AssessmentForm() {
                 <Button 
                   type="button" 
                   onClick={() => setStep(2)} 
-                  disabled={!watched.fullName || !watched.birthDate}
+                  disabled={!watched.studentId || !watched.birthDate}
                   className="w-full h-16 rounded-full text-lg font-black bg-primary gap-2 shadow-xl hover:scale-[1.01] transition-transform"
                 >
                   INICIAR MEDIDAS <ChevronRight className="h-6 w-6" />
@@ -349,6 +403,17 @@ export function AssessmentForm() {
               </div>
             ) : (
               <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                {/* Cabeçalho de Identificação Rápida */}
+                <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                   <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-black">
+                      {watched.fullName?.[0]}
+                   </div>
+                   <div>
+                      <p className="text-sm font-black text-primary uppercase">{watched.fullName}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{watched.gender === 'male' ? 'Masculino' : 'Feminino'} | {results.age} anos</p>
+                   </div>
+                </div>
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">IMC</p>
