@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -17,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { EXERCISE_LIST, TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
 import { Badge } from '@/components/ui/badge';
 import { differenceInYears } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 interface TrainingManagerProps {
   studentId: string;
