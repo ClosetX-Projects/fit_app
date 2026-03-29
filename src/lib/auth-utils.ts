@@ -52,24 +52,28 @@ export async function linkExistingProfile(firestore: any, authUid: string, email
 
   for (const sub of subcollections) {
     const colRef = collection(firestore, 'users', oldId, sub);
-    const snap = await getDocs(colRef);
-    
-    for (const sDoc of snap.docs) {
-      const data = sDoc.data();
-      // Garante que o userId interno nos documentos aponte para o novo ID
-      await setDoc(doc(firestore, 'users', authUid, sub, sDoc.id), {
-        ...data,
-        userId: authUid
-      });
+    try {
+      const snap = await getDocs(colRef);
       
-      // Caso especial: trainingPrograms tem subcoleção de exercícios
-      if (sub === 'trainingPrograms') {
-        const exRef = collection(firestore, 'users', oldId, sub, sDoc.id, 'prescribedExercises');
-        const exSnap = await getDocs(exRef);
-        for (const eDoc of exSnap.docs) {
-          await setDoc(doc(firestore, 'users', authUid, sub, sDoc.id, 'prescribedExercises', eDoc.id), eDoc.data());
+      for (const sDoc of snap.docs) {
+        const data = sDoc.data();
+        // Garante que o userId interno nos documentos aponte para o novo ID
+        await setDoc(doc(firestore, 'users', authUid, sub, sDoc.id), {
+          ...data,
+          userId: authUid
+        });
+        
+        // Caso especial: trainingPrograms tem subcoleção de exercícios
+        if (sub === 'trainingPrograms') {
+          const exRef = collection(firestore, 'users', oldId, sub, sDoc.id, 'prescribedExercises');
+          const exSnap = await getDocs(exRef);
+          for (const eDoc of exSnap.docs) {
+            await setDoc(doc(firestore, 'users', authUid, sub, sDoc.id, 'prescribedExercises', eDoc.id), eDoc.data());
+          }
         }
       }
+    } catch (err) {
+      console.warn(`Aviso: Falha ao migrar subcoleção ${sub}. Certifique-se que as Regras de Segurança permitem leitura via e-mail.`);
     }
   }
 
@@ -89,5 +93,10 @@ export async function linkExistingProfile(firestore: any, authUid: string, email
   }
 
   // 4. Deletar o perfil temporário antigo para evitar duplicidade
-  await deleteDoc(doc(firestore, 'users', oldId));
+  // Isso requer 'allow delete' nas regras para o novo UID do aluno (que tem o mesmo email)
+  try {
+    await deleteDoc(doc(firestore, 'users', oldId));
+  } catch (e) {
+    console.error("Erro ao deletar perfil antigo:", e);
+  }
 }

@@ -17,20 +17,32 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/professors/$(request.auth.uid)/students/$(studentId));
     }
 
-    // Verifica se o professor foi quem criou o perfil do aluno (útil para evitar race conditions em novos cadastros)
-    function isCreatorOfStudent(studentId) {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(studentId)).data.createdBy == request.auth.uid;
-    }
-
     function canAccessStudentData(studentId) {
-      return isOwner(studentId) || isProfessorOfStudent(studentId) || isCreatorOfStudent(studentId);
+      // 1. O dono da conta sempre tem acesso
+      if (isOwner(studentId)) return true;
+      
+      // 2. O professor vinculado tem acesso
+      if (isProfessorOfStudent(studentId)) return true;
+
+      // 3. Verificação por E-mail (Crucial para Migração/Reivindicação de perfil)
+      // Permite que o aluno acesse dados criados pelo professor antes do vínculo de UID ser estabelecido
+      let userDocPath = /databases/$(database)/documents/users/$(studentId);
+      if (exists(userDocPath)) {
+        let userDoc = get(userDocPath).data;
+        // Permite se o e-mail coincidir ou se o usuário foi quem criou o registro
+        return (isSignedIn() && request.auth.token.email != null && userDoc.email.lower() == request.auth.token.email.lower()) ||
+               (userDoc.createdBy == request.auth.uid);
+      }
+      
+      return false;
     }
 
     // Perfis de usuários e subcoleções
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if canAccessStudentData(userId);
+      // Adicionado 'delete' para permitir que o aluno limpe o perfil temporário após migrar dados
+      allow update, delete: if canAccessStudentData(userId);
 
       // Regra genérica para todas as subcoleções (physicalAssessments, notifications, workoutHistory_flat, etc.)
       match /{allSubcollections=**} {
