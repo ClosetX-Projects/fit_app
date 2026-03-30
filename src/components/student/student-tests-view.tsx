@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -9,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlayCircle, Zap, Dumbbell, Activity, Timer, Ruler, Loader2, CheckCircle2, ChevronRight } from 'lucide-react';
+import { PlayCircle, Zap, Dumbbell, Activity, Timer, Ruler, Loader2, CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
