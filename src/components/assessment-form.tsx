@@ -13,9 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from "@/firebase"
-import { doc, collection, serverTimestamp, query, orderBy } from "firebase/firestore"
+import { doc, collection, serverTimestamp, query, orderBy, deleteDoc } from "firebase/firestore"
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
-import { Loader2, Save, Activity, Scale, Ruler, ChevronRight, Calculator, Users, Mail, UserPlus, Info } from "lucide-react"
+import { Loader2, Save, Activity, Scale, Ruler, ChevronRight, Calculator, Users, Mail, UserPlus, Info, Trash2 } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -94,25 +94,28 @@ const DEFAULT_VALUES: AssessmentValues = {
   midLeg: 0,
 }
 
-export function AssessmentForm() {
+interface AssessmentFormProps {
+  initialStudentId?: string;
+  initialAssessmentId?: string;
+}
+
+export function AssessmentForm({ initialStudentId, initialAssessmentId }: AssessmentFormProps) {
   const { toast } = useToast()
   const { firestore } = useFirebase()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [step, setStep] = useState(initialAssessmentId ? 2 : 1)
+  const [selectedId, setSelectedId] = useState<string | null>(initialAssessmentId || null)
   const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
     setIsClient(true)
   }, [])
 
-  // Identificação do Perfil do Professor
   const profileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: profile } = useDoc(profileRef);
   const isProfessor = profile?.userType === 'professor';
 
-  // Buscar lista de alunos vinculados
   const studentsRef = useMemoFirebase(() => 
     (user && isProfessor) ? collection(firestore, 'professors', user.uid, 'students') : null
   , [firestore, user, isProfessor]);
@@ -120,24 +123,24 @@ export function AssessmentForm() {
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
-    defaultValues: DEFAULT_VALUES
+    defaultValues: {
+      ...DEFAULT_VALUES,
+      studentId: initialStudentId || ""
+    }
   })
 
   const watched = form.watch()
   const isNewStudent = watched.studentId === "new_student";
 
-  // Buscar histórico de avaliações do aluno selecionado
   const historyQuery = useMemoFirebase(() => {
     if (!isClient) return null;
     const targetId = isProfessor ? watched.studentId : user?.uid;
-    // Evitar consulta se targetId for inválido ou se estivermos no meio de um novo cadastro
     if (!targetId || targetId === "new_student" || targetId === "") return null;
     return query(collection(firestore, "users", targetId, "physicalAssessments"), orderBy("date", "desc"));
   }, [firestore, user, isProfessor, watched.studentId, isClient])
 
   const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
 
-  // Sincronização de dados ao trocar de aluno no seletor
   useEffect(() => {
     if (isProfessor && watched.studentId && watched.studentId !== "new_student" && students) {
       const student = students.find(s => s.id === watched.studentId);
@@ -154,7 +157,6 @@ export function AssessmentForm() {
     }
   }, [watched.studentId, students, isProfessor, user, profile, form, isClient]);
 
-  // Carregar dados de uma avaliação histórica selecionada
   useEffect(() => {
     if (selectedId && history) {
       const a = history.find(item => item.id === selectedId)
@@ -271,6 +273,19 @@ export function AssessmentForm() {
     setStep(1)
   }
 
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const targetId = isProfessor ? watched.studentId : user?.uid;
+    if (!firestore || !targetId || !confirm("Deseja realmente excluir este registro permanentemente?")) return;
+    try {
+      await deleteDoc(doc(firestore, "users", targetId, "physicalAssessments", id));
+      toast({ title: "Registro excluído com sucesso." });
+      if (selectedId === id) handleNewRecord();
+    } catch (err) {
+      toast({ variant: "destructive", title: "Erro ao excluir." });
+    }
+  };
+
   const onSubmit = async (values: AssessmentValues) => {
     if (!user || !firestore || !values.studentId) return
     setLoading(true)
@@ -311,7 +326,7 @@ export function AssessmentForm() {
       studentId: targetUserId,
       id: assessmentRef.id,
       userId: targetUserId,
-      date: new Date().toISOString(),
+      date: selectedId ? values.date : new Date().toISOString(),
       updatedAt: serverTimestamp(),
       calculatedResults: results,
       assessedBy: user.uid,
@@ -349,11 +364,10 @@ export function AssessmentForm() {
             {isHistoryLoading ? (
               <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>
             ) : history && history.length > 0 ? history.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
+                className={`w-full text-left p-4 transition-all hover:bg-primary/5 flex items-center justify-between group border-b border-primary/5 cursor-pointer ${selectedId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
                 onClick={() => setSelectedId(item.id)}
-                className={`w-full text-left p-4 transition-all hover:bg-primary/5 flex items-center justify-between group border-b border-primary/5 ${selectedId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
               >
                 <div>
                   <p className="text-xs font-bold">{format(new Date(item.date), "dd/MM/yyyy")}</p>
@@ -361,8 +375,18 @@ export function AssessmentForm() {
                     {item.calculatedResults?.imc} IMC | {item.calculatedResults?.fatPerc}% Gordura
                   </p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
+                    onClick={(e) => handleDelete(item.id, e)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
             )) : (
               <div className="p-8 text-center text-[10px] uppercase font-bold text-muted-foreground opacity-50 italic">
                 {watched.studentId === "new_student" ? "Cadastrando novo aluno..." : watched.studentId ? "Nenhuma avaliação encontrada." : "Selecione um aluno para ver o histórico."}
@@ -377,7 +401,7 @@ export function AssessmentForm() {
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <CardTitle className="text-2xl font-black text-primary uppercase tracking-tighter">Avaliação Antropométrica</CardTitle>
-              <CardDescription>Gerenciamento técnico de composição corporal e riscos à saúde.</CardDescription>
+              <CardDescription>{selectedId ? "Editando registro histórico." : "Gerenciamento técnico de composição corporal e riscos à saúde."}</CardDescription>
             </div>
             {step === 2 && (
               <div className="bg-primary/10 text-primary px-4 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-primary/20 flex items-center gap-2">
@@ -398,7 +422,11 @@ export function AssessmentForm() {
                         <Users className="h-3 w-3" /> Selecionar Aluno
                       </Label>
                       {isProfessor ? (
-                        <Select value={watched.studentId} onValueChange={(v) => form.setValue("studentId", v)}>
+                        <Select 
+                          value={watched.studentId} 
+                          onValueChange={(v) => form.setValue("studentId", v)}
+                          disabled={!!initialStudentId}
+                        >
                           <SelectTrigger className="h-12 rounded-xl">
                             <SelectValue placeholder="Escolha um aluno cadastrado..." />
                           </SelectTrigger>
@@ -576,7 +604,7 @@ export function AssessmentForm() {
                 <div className="flex gap-4">
                   <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1 h-16 rounded-full font-bold">VOLTAR</Button>
                   <Button type="submit" disabled={loading} className="flex-[2] h-16 rounded-full text-xl font-black bg-primary gap-2 shadow-xl">
-                    {loading ? <Loader2 className="animate-spin" /> : <Save className="h-6 w-6" />} {isNewStudent ? "CADASTRAR E SALVAR" : "SALVAR AVALIAÇÃO"}
+                    {loading ? <Loader2 className="animate-spin" /> : <Save className="h-6 w-6" />} {selectedId ? "SALVAR ALTERAÇÕES" : isNewStudent ? "CADASTRAR E SALVAR" : "SALVAR AVALIAÇÃO"}
                   </Button>
                 </div>
               </div>

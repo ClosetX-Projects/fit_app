@@ -20,6 +20,9 @@ export function ProfessorView() {
   const [activeTab, setActiveTab] = useState('assessments');
   const [showAssessmentWizard, setShowAssessmentWizard] = useState(false);
   const [initialDetailsTab, setInitialDetailsTab] = useState('assessments');
+  
+  // Estado para Edição específica de Antropometria
+  const [editContext, setEditContext] = useState<{ studentId: string, assessmentId: string } | null>(null);
 
   const studentsRef = useMemoFirebase(() => 
     user ? collection(firestore, 'professors', user.uid, 'students') : null
@@ -32,13 +35,26 @@ export function ProfessorView() {
     setSelectedStudentId(id);
   };
 
+  const handleEditAntropometry = (studentId: string, assessmentId: string) => {
+    setEditContext({ studentId, assessmentId });
+    setShowAssessmentWizard(true);
+  };
+
+  const handleCloseWizard = () => {
+    setShowAssessmentWizard(false);
+    setEditContext(null);
+  };
+
   if (showAssessmentWizard) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => setShowAssessmentWizard(false)} className="rounded-full gap-2 text-primary font-bold">
+        <Button variant="ghost" onClick={handleCloseWizard} className="rounded-full gap-2 text-primary font-bold">
           <ArrowLeft className="h-4 w-4" /> Voltar ao Painel
         </Button>
-        <AssessmentForm />
+        <AssessmentForm 
+          initialStudentId={editContext?.studentId} 
+          initialAssessmentId={editContext?.assessmentId} 
+        />
       </div>
     );
   }
@@ -49,6 +65,7 @@ export function ProfessorView() {
         studentId={selectedStudentId} 
         onBack={() => setSelectedStudentId(null)} 
         defaultTab={initialDetailsTab}
+        onEditAntropometry={(assessmentId) => handleEditAntropometry(selectedStudentId, assessmentId)}
       />
     );
   }

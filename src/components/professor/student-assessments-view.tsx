@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -28,7 +29,8 @@ import {
   Trophy,
   History,
   TrendingUp,
-  Stethoscope
+  Stethoscope,
+  Edit3
 } from 'lucide-react';
 import { format, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -39,6 +41,7 @@ import { getIAFG } from '@/lib/sft-scoring';
 
 interface StudentAssessmentsViewProps {
   studentId: string;
+  onEditAntropometry?: (assessmentId: string) => void;
 }
 
 const INITIAL_FORM_DATA = {
@@ -94,7 +97,7 @@ const INITIAL_FORM_DATA = {
   tugTime: 0,
 };
 
-export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProps) {
+export function StudentAssessmentsView({ studentId, onEditAntropometry }: StudentAssessmentsViewProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
@@ -134,14 +137,11 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
       systolic, diastolic 
     } = formData;
     
-    // IMC
     const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0;
     
-    // 1RM Est. (Brzycki)
     const oneRm = tenRmReps > 0 ? (tenRmWeight / (1.0278 - (0.0278 * tenRmReps))) : 0;
     const oneRmTable = [95, 90, 85, 80, 75, 70, 60, 50].map(p => ({ perc: p, val: (oneRm * (p / 100)).toFixed(1) }));
 
-    // VO2 Max
     const vo2Cooper = cooperDistance > 0 ? (cooperDistance - 504.9) / 44.73 : 0;
     const vo2YoYo = yoYoDistance > 0 ? (yoYoDistance * 0.0084) + 36.4 : 0;
     let vo2Bruce = 0;
@@ -151,7 +151,6 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
         : (4.38 * bruceTime - 3.9);
     }
 
-    // SFT Pontuação (IAFG) - Apenas se for idoso
     const iafg = isElderly ? getIAFG(gender, age, {
       chairStandReps: Number(chairStandReps),
       armCurlReps: Number(armCurlReps),
@@ -194,9 +193,18 @@ export function StudentAssessmentsView({ studentId }: StudentAssessmentsViewProp
               <p className="text-[10px] font-bold uppercase text-muted-foreground">Sessão: {format(new Date(assessment.date), 'dd/MM/yyyy')}</p>
             </div>
           </div>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-primary rounded-full h-12 px-8 font-black shadow-xl shadow-primary/20">
-            {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-5 w-5" />} SALVAR TUDO
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => onEditAntropometry?.(selectedAssessmentId)}
+              className="rounded-full h-12 border-primary/20 text-primary font-bold px-6"
+            >
+              <Edit3 className="mr-2 h-4 w-4" /> EDITAR ANTROPOMETRIA
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} className="bg-primary rounded-full h-12 px-8 font-black shadow-xl shadow-primary/20">
+              {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-5 w-5" />} SALVAR TUDO
+            </Button>
+          </div>
         </div>
 
         {/* Dash de Resultados Rápidos */}
