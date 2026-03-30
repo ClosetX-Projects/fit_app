@@ -70,20 +70,3 @@
 .nubank-button {
   @apply rounded-full px-6 py-3 font-bold transition-all active:scale-95;
 }
-
-/* Custom Calendar Adjustments for V9 */
-.rdp-month_grid {
-  @apply w-full border-separate border-spacing-1;
-}
-
-.rdp-day_button {
-  @apply rounded-full font-bold transition-colors !important;
-}
-
-.rdp-selected .rdp-day_button {
-  @apply bg-primary text-primary-foreground !important;
-}
-
-.rdp-today .rdp-day_button {
-  @apply border-2 border-accent text-accent-foreground !important;
-}
