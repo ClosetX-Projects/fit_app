@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -16,15 +15,17 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
-  // Hydration guard to prevent SSR issues with react-day-picker v9
-  // RangeError: Invalid count value: -2 often happens if rendering DayPicker on server
   const [isMounted, setIsMounted] = React.useState(false)
+
   React.useEffect(() => {
     setIsMounted(true)
   }, [])
 
+  // Previne erro RangeError: -2 ao evitar renderização no servidor
   if (!isMounted) {
-    return <div className={cn("p-3 h-[350px] w-[280px] bg-muted/5 animate-pulse rounded-md", className)} />
+    return (
+      <div className={cn("p-3 h-[350px] w-[280px] bg-muted/5 animate-pulse rounded-md", className)} />
+    )
   }
 
   return (

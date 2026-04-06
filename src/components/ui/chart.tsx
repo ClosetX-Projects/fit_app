@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -52,6 +51,7 @@ const ChartContainer = React.forwardRef<
     setIsMounted(true)
   }, [])
 
+  // Previne erro RangeError: -2 ao evitar renderização de ResponsiveContainer no servidor
   if (!isMounted) {
     return (
       <div 
