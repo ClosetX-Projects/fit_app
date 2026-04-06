@@ -12,9 +12,19 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>
 function Calendar({
   className,
   classNames,
-  showOutsideDays = false,
+  showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  // Hydration guard to prevent SSR issues with react-day-picker v9
+  const [isMounted, setIsMounted] = React.useState(false)
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  if (!isMounted) {
+    return <div className={cn("p-3 h-[350px] w-[280px]", className)} />
+  }
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}

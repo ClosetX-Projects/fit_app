@@ -1,24 +1,28 @@
+"use client"
 
-'use client';
-
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { format, isSameDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock, Zap } from 'lucide-react';
-import { FEELING_SCALE_MESSAGES } from '@/lib/constants';
+import { useState, useMemo, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Calendar } from "@/components/ui/calendar"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
+import { collection } from "firebase/firestore"
+import { format, isSameDay } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock, Zap } from "lucide-react"
+import { FEELING_SCALE_MESSAGES } from "@/lib/constants"
 
 export function WorkoutCalendar() {
-  const { user } = useUser();
-  const { firestore } = useFirebase();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [isSessionDetailOpen, setIsSessionDetailOpen] = useState(false);
+  const { user } = useUser()
+  const { firestore } = useFirebase()
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [isSessionDetailOpen, setIsSessionDetailOpen] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Histórico de Sessões
   const sessionsRef = useMemoFirebase(() => 
@@ -49,7 +53,7 @@ export function WorkoutCalendar() {
     return sessions.filter(s => isSameDay(new Date(s.date), selectedDate));
   }, [selectedDate, sessions]);
 
-  if (isSessionsLoading) {
+  if (!isClient || isSessionsLoading) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
