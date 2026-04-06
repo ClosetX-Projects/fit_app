@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -121,7 +122,11 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   }, [rawSessions]);
 
   if (!isClient || loadingSessions || loadingExercises || loadingAssessments) {
-    return <div className="flex justify-center p-24"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex justify-center p-24">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
