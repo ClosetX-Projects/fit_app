@@ -3,12 +3,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Area, AreaChart, Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
+import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Area, AreaChart, Legend } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { Loader2, Zap, LayoutGrid, TrendingUp, Dumbbell, PieChart as PieIcon, Activity, Battery, BrainCircuit, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react';
-import { format, getWeek, startOfMonth, parseISO } from 'date-fns';
+import { Loader2, Zap, TrendingUp, Dumbbell, Activity, BrainCircuit, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { EXERCISE_METADATA } from '@/lib/constants';
 
@@ -53,11 +53,14 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   // 1. Evolução PSE vs PSR (Controle Biopsicossocial)
   const subjectiveData = useMemo(() => {
     if (!rawSessions) return [];
-    return rawSessions.map(s => ({
-      date: format(parseISO(s.date), 'dd/MM'),
-      pse: s.pseSession || 0,
-      psr: s.recoveryPerception || 0,
-    })).slice(-15);
+    return rawSessions
+      .filter(s => isValid(parseISO(s.date)))
+      .map(s => ({
+        date: format(parseISO(s.date), 'dd/MM'),
+        pse: s.pseSession || 0,
+        psr: s.recoveryPerception || 0,
+      }))
+      .slice(-15);
   }, [rawSessions]);
 
   // 2. Evolução Mensal de Volume Total (Tonelagem)
@@ -66,8 +69,10 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
     const monthlyMap: Record<string, number> = {};
     
     rawExercises.forEach(ex => {
-      if (!ex.createdAt) return;
+      if (!ex.createdAt || !ex.createdAt.toDate) return;
       const date = ex.createdAt.toDate();
+      if (!isValid(date)) return;
+      
       const monthKey = format(date, 'MMM/yy', { locale: ptBR });
       
       const reps = Number(ex.reps?.toString().split(/[^0-9]/)[0]) || 0;
@@ -81,7 +86,7 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
     return Object.entries(monthlyMap).map(([month, volume]) => ({
       month,
       volume: Math.round(volume)
-    })).slice(-6); // Últimos 6 meses
+    })).slice(-6);
   }, [rawExercises]);
 
   // 3. Comparativo de Avaliações
@@ -121,7 +126,6 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="nubank-card border-primary/20 bg-primary/5">
           <CardHeader className="p-4 pb-2">
@@ -157,7 +161,6 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Gráfico PSE vs PSR */}
         <Card className="rounded-[2.5rem] border-primary/10 overflow-hidden shadow-xl bg-card">
           <CardHeader className="bg-primary/5">
             <CardTitle className="text-sm font-black text-primary flex items-center gap-2 uppercase tracking-tighter">
@@ -173,14 +176,13 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
                 <YAxis domain={[0, 10]} hide />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
-                <Line type="monotone" dataKey="pse" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4 }} name="Esforço (PSE)" />
-                <Line type="monotone" dataKey="psr" stroke="hsl(var(--accent))" strokeWidth={3} dot={{ r: 4 }} name="Recuperação (PSR)" />
+                <Line type="monotone" dataKey="pse" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4 }} name="pse" />
+                <Line type="monotone" dataKey="psr" stroke="hsl(var(--accent))" strokeWidth={3} dot={{ r: 4 }} name="psr" />
               </LineChart>
             </ChartContainer>
           </CardContent>
         </Card>
 
-        {/* Evolução de Volume (Tonelagem) */}
         <Card className="rounded-[2.5rem] border-primary/10 overflow-hidden shadow-xl bg-card">
           <CardHeader className="bg-primary/5">
             <CardTitle className="text-sm font-black text-primary flex items-center gap-2 uppercase tracking-tighter">
@@ -195,14 +197,13 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
                 <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                 <YAxis hide />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[10, 10, 0, 0]} name="Volume (kg)" />
+                <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[10, 10, 0, 0]} name="volume" />
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Comparativo de Avaliações */}
       <Card className="rounded-[3rem] border-primary/10 overflow-hidden shadow-2xl bg-card">
         <CardHeader className="bg-primary/5 p-8 border-b">
           <div className="flex items-center gap-4">
@@ -245,7 +246,6 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
         </CardContent>
       </Card>
 
-      {/* Gráfico de Distribuição de Estímulos */}
       <div className="nubank-card bg-primary text-primary-foreground p-10 flex flex-col md:flex-row items-center justify-between gap-8">
          <div className="flex items-center gap-6">
             <div className="h-16 w-16 rounded-[2rem] bg-white/20 flex items-center justify-center shadow-inner">

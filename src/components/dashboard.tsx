@@ -8,7 +8,7 @@ import type { ChartConfig } from "@/components/ui/chart"
 import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Activity, LayoutGrid, Flame } from "lucide-react"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy, limit, doc } from "firebase/firestore"
-import { format, startOfMonth, endOfMonth, differenceInMinutes } from "date-fns"
+import { format, startOfMonth, endOfMonth, differenceInMinutes, isValid } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AICoach } from "./ai-coach"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -60,7 +60,10 @@ export function Dashboard() {
     
     const now = new Date()
     const startOfCurrentMonth = startOfMonth(now)
-    const thisMonth = rawSessions.filter(s => new Date(s.date) >= startOfCurrentMonth)
+    const thisMonth = rawSessions.filter(s => {
+      const d = new Date(s.date);
+      return isValid(d) && d >= startOfCurrentMonth;
+    })
     const totalLoad = rawSessions.reduce((acc, curr) => acc + (curr.internalLoad || 0), 0)
     const totalKcal = thisMonth.reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0)
     
@@ -70,11 +73,13 @@ export function Dashboard() {
       return acc + (r * (Number(ex.sets) || 0));
     }, 0) || 0;
 
+    const lastSessDate = rawSessions[0] ? new Date(rawSessions[0].date) : null;
+
     return {
       total: rawSessions.length,
       frequency: thisMonth.length,
-      lastSession: rawSessions[0] ? format(new Date(rawSessions[0].date), 'dd/MM') : 'Nenhum',
-      avgLoad: Math.round(totalLoad / rawSessions.length),
+      lastSession: lastSessDate && isValid(lastSessDate) ? format(lastSessDate, 'dd/MM') : 'Nenhum',
+      avgLoad: Math.round(totalLoad / (rawSessions.length || 1)),
       totalSeries,
       totalReps,
       totalKcal
@@ -100,10 +105,13 @@ export function Dashboard() {
         return dateA - dateB;
       })
       .slice(-10)
-      .map(ex => ({
-        date: ex.createdAt?.toDate ? format(ex.createdAt.toDate(), 'dd/MM') : '--',
-        load: (Number(ex.weight) || 0) * (Number(ex.sets) || 0)
-      }));
+      .map(ex => {
+        const d = ex.createdAt?.toDate ? ex.createdAt.toDate() : null;
+        return {
+          date: d && isValid(d) ? format(d, 'dd/MM') : '--',
+          load: (Number(ex.weight) || 0) * (Number(ex.sets) || 0)
+        }
+      });
   }, [rawExercises]);
 
   if (!isClient || isAssessmentsLoading || isSessionsLoading || isExercisesLoading) {

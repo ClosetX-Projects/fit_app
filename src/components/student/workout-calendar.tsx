@@ -42,15 +42,21 @@ export function WorkoutCalendar() {
     return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [rawSessions]);
 
-  // Dias com treino para o calendário
+  // Dias com treino para o calendário - Filtrando datas inválidas para evitar RangeError -2
   const workoutDays = useMemo(() => {
-    return sessions.map(s => new Date(s.date));
+    if (!sessions) return [];
+    return sessions
+      .map(s => new Date(s.date))
+      .filter(d => d instanceof Date && !isNaN(d.getTime()));
   }, [sessions]);
 
   // Sessões do dia selecionado
   const selectedDaySessions = useMemo(() => {
     if (!selectedDate || !sessions) return [];
-    return sessions.filter(s => isSameDay(new Date(s.date), selectedDate));
+    return sessions.filter(s => {
+      const d = new Date(s.date);
+      return !isNaN(d.getTime()) && isSameDay(d, selectedDate);
+    });
   }, [selectedDate, sessions]);
 
   if (!isClient || isSessionsLoading) {
@@ -129,12 +135,12 @@ export function WorkoutCalendar() {
                             setSelectedDate(new Date(session.date));
                             setIsSessionDetailOpen(true);
                           }}
-                          className={`nubank-card cursor-pointer group flex items-center justify-between py-5 px-6 hover:border-accent/50 transition-all ${isSameDay(new Date(session.date), selectedDate || new Date()) ? 'border-accent bg-accent/5' : ''}`}
+                          className={`nubank-card cursor-pointer group flex items-center justify-between py-5 px-6 hover:border-accent/50 transition-all ${selectedDate && !isNaN(new Date(session.date).getTime()) && isSameDay(new Date(session.date), selectedDate) ? 'border-accent bg-accent/5' : ''}`}
                         >
                           <div className="flex items-center gap-4">
                             <div className="h-12 w-12 rounded-2xl bg-primary flex flex-col items-center justify-center shadow-md">
-                              <span className="text-sm font-black text-white">{format(new Date(session.date), 'dd')}</span>
-                              <span className="text-[8px] font-bold text-white uppercase">{format(new Date(session.date), 'MMM', { locale: ptBR })}</span>
+                              <span className="text-sm font-black text-white">{!isNaN(new Date(session.date).getTime()) ? format(new Date(session.date), 'dd') : '--'}</span>
+                              <span className="text-[8px] font-bold text-white uppercase">{!isNaN(new Date(session.date).getTime()) ? format(new Date(session.date), 'MMM', { locale: ptBR }) : '--'}</span>
                             </div>
                             <div>
                               <p className="font-black text-sm group-hover:text-primary transition-colors">Sessão de Treino</p>
@@ -169,7 +175,7 @@ export function WorkoutCalendar() {
                 <Dumbbell className="h-8 w-8 text-accent" /> PERFORMANCE
               </DialogTitle>
               <DialogDescription className="font-black uppercase text-[11px] tracking-[0.2em] text-white/80">
-                {selectedDate && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
+                {selectedDate && !isNaN(selectedDate.getTime()) && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
               </DialogDescription>
             </DialogHeader>
           </div>
