@@ -21,8 +21,8 @@ function Calendar({
     setMounted(true)
   }, [])
 
-  // Previne erro RangeError: -2 ao evitar renderização do DayPicker no servidor
-  // O erro ocorre no Turbopack/Next.js 15 quando a grade tenta calcular repetições de strings
+  // Previne erro RangeError: -2 ao evitar renderização do DayPicker no servidor.
+  // O erro ocorre no Turbopack/Next.js 15 quando a grade tenta calcular repetições de strings com valores negativos.
   if (!mounted) {
     return (
       <div className={cn("p-3 h-[300px] w-[280px] bg-muted/5 animate-pulse rounded-md", className)} />

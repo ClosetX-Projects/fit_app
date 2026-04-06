@@ -51,7 +51,8 @@ const ChartContainer = React.forwardRef<
     setMounted(true)
   }, [])
 
-  // Previne erro RangeError: -2 ao evitar renderização de ResponsiveContainer no servidor
+  // Previne erro RangeError: -2 ao evitar renderização de ResponsiveContainer no servidor.
+  // Recharts utiliza String.repeat para calcular grades e eixos, o que falha com dimensões 0 no SSR.
   if (!mounted) {
     return (
       <div 
