@@ -51,14 +51,17 @@ const ChartContainer = React.forwardRef<
     setMounted(true)
   }, [])
 
-  // Essencial para evitar o RangeError: -2. 
-  // Gráficos Recharts calculam eixos baseados em String.repeat. No servidor, onde a largura é 0, o cálculo falha.
+  // ESSENCIAL: Evita o erro RangeError: -2.
+  // Gráficos Recharts calculam eixos baseados em String.repeat. No servidor (SSR),
+  // a largura é 0, o que resulta em valores negativos e quebra a inicialização.
   if (!mounted) {
     return (
       <div 
-        className={cn("flex aspect-video justify-center bg-muted/10 animate-pulse rounded-lg", className)} 
+        className={cn("flex aspect-video justify-center bg-muted/5 animate-pulse rounded-lg items-center text-[10px] font-black uppercase text-muted-foreground", className)} 
         {...props} 
-      />
+      >
+        Processando Gráfico...
+      </div>
     )
   }
 
