@@ -21,9 +21,6 @@ function Calendar({
     setMounted(true)
   }, [])
 
-  // ESSENCIAL: Impede que o DayPicker execute no servidor.
-  // O erro RangeError: -2 ocorre porque o DayPicker v9 tenta calcular grades matemáticas
-  // durante o SSR onde as dimensões são zero.
   if (!mounted) {
     return (
       <div className={cn("p-3 h-[300px] w-[280px] bg-muted/5 animate-pulse rounded-md flex items-center justify-center text-[10px] font-black uppercase text-muted-foreground", className)}>
