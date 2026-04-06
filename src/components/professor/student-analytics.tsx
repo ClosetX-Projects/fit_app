@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Area, AreaChart, Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
@@ -26,6 +25,11 @@ const chartConfig = {
 
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
   const { firestore } = useFirebase();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Buscar Sessões (Histórico de Carga e Subjectivos)
   const sessionsRef = useMemoFirebase(() => 
@@ -111,7 +115,7 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
     return (total / rawSessions.length).toFixed(1);
   }, [rawSessions]);
 
-  if (loadingSessions || loadingExercises || loadingAssessments) {
+  if (!isClient || loadingSessions || loadingExercises || loadingAssessments) {
     return <div className="flex justify-center p-24"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
