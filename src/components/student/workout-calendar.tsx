@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -9,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
-import { format, isSameDay } from "date-fns"
+import { format, isSameDay, isValid } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock, Zap } from "lucide-react"
 import { FEELING_SCALE_MESSAGES } from "@/lib/constants"
@@ -19,10 +18,10 @@ export function WorkoutCalendar() {
   const { firestore } = useFirebase()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [isSessionDetailOpen, setIsSessionDetailOpen] = useState(false)
-  const [isClient, setIsClient] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setIsClient(true)
+    setMounted(true)
   }, [])
 
   // Histórico de Sessões
@@ -48,7 +47,7 @@ export function WorkoutCalendar() {
     if (!sessions) return [];
     return sessions
       .map(s => new Date(s.date))
-      .filter(d => d instanceof Date && !isNaN(d.getTime()));
+      .filter(d => isValid(d));
   }, [sessions]);
 
   // Sessões do dia selecionado
@@ -56,11 +55,11 @@ export function WorkoutCalendar() {
     if (!selectedDate || !sessions) return [];
     return sessions.filter(s => {
       const d = new Date(s.date);
-      return !isNaN(d.getTime()) && isSameDay(d, selectedDate);
+      return isValid(d) && isSameDay(d, selectedDate);
     });
   }, [selectedDate, sessions]);
 
-  if (!isClient || isSessionsLoading) {
+  if (!mounted || isSessionsLoading) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -136,12 +135,12 @@ export function WorkoutCalendar() {
                             setSelectedDate(new Date(session.date));
                             setIsSessionDetailOpen(true);
                           }}
-                          className={`nubank-card cursor-pointer group flex items-center justify-between py-5 px-6 hover:border-accent/50 transition-all ${selectedDate && !isNaN(new Date(session.date).getTime()) && isSameDay(new Date(session.date), selectedDate) ? 'border-accent bg-accent/5' : ''}`}
+                          className={`nubank-card cursor-pointer group flex items-center justify-between py-5 px-6 hover:border-accent/50 transition-all ${selectedDate && isValid(new Date(session.date)) && isSameDay(new Date(session.date), selectedDate) ? 'border-accent bg-accent/5' : ''}`}
                         >
                           <div className="flex items-center gap-4">
                             <div className="h-12 w-12 rounded-2xl bg-primary flex flex-col items-center justify-center shadow-md">
-                              <span className="text-sm font-black text-white">{!isNaN(new Date(session.date).getTime()) ? format(new Date(session.date), 'dd') : '--'}</span>
-                              <span className="text-[8px] font-bold text-white uppercase">{!isNaN(new Date(session.date).getTime()) ? format(new Date(session.date), 'MMM', { locale: ptBR }) : '--'}</span>
+                              <span className="text-sm font-black text-white">{isValid(new Date(session.date)) ? format(new Date(session.date), 'dd') : '--'}</span>
+                              <span className="text-[8px] font-bold text-white uppercase">{isValid(new Date(session.date)) ? format(new Date(session.date), 'MMM', { locale: ptBR }) : '--'}</span>
                             </div>
                             <div>
                               <p className="font-black text-sm group-hover:text-primary transition-colors">Sessão de Treino</p>
@@ -176,7 +175,7 @@ export function WorkoutCalendar() {
                 <Dumbbell className="h-8 w-8 text-accent" /> PERFORMANCE
               </DialogTitle>
               <DialogDescription className="font-black uppercase text-[11px] tracking-[0.2em] text-white/80">
-                {selectedDate && !isNaN(selectedDate.getTime()) && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
+                {selectedDate && isValid(selectedDate) && format(selectedDate, "eeee, d 'de' MMMM", { locale: ptBR })}
               </DialogDescription>
             </DialogHeader>
           </div>

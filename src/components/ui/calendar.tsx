@@ -15,16 +15,17 @@ function Calendar({
   showOutsideDays = false,
   ...props
 }: CalendarProps) {
-  const [isMounted, setIsMounted] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    setIsMounted(true)
+    setMounted(true)
   }, [])
 
   // Previne erro RangeError: -2 ao evitar renderização do DayPicker no servidor
-  if (!isMounted) {
+  // O erro ocorre no Turbopack/Next.js 15 quando a grade tenta calcular repetições de strings
+  if (!mounted) {
     return (
-      <div className={cn("p-3 h-[350px] w-[280px] bg-muted/5 animate-pulse rounded-md", className)} />
+      <div className={cn("p-3 h-[300px] w-[280px] bg-muted/5 animate-pulse rounded-md", className)} />
     )
   }
 

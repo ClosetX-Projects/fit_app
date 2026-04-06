@@ -45,14 +45,14 @@ const ChartContainer = React.forwardRef<
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
-  const [isMounted, setIsMounted] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    setIsMounted(true)
+    setMounted(true)
   }, [])
 
   // Previne erro RangeError: -2 ao evitar renderização de ResponsiveContainer no servidor
-  if (!isMounted) {
+  if (!mounted) {
     return (
       <div 
         className={cn("flex aspect-video justify-center bg-muted/10 animate-pulse rounded-lg", className)} 
