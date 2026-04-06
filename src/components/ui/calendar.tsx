@@ -12,7 +12,7 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>
 function Calendar({
   className,
   classNames,
-  showOutsideDays = false,
+  showOutsideDays = true,
   ...props
 }: CalendarProps) {
   const [mounted, setMounted] = React.useState(false)
@@ -23,7 +23,7 @@ function Calendar({
 
   if (!mounted) {
     return (
-      <div className={cn("p-3 h-[300px] w-[280px] bg-muted/5 animate-pulse rounded-md flex items-center justify-center text-[10px] font-black uppercase text-muted-foreground", className)}>
+      <div className={cn("p-3 h-[350px] w-full bg-muted/5 animate-pulse rounded-md flex items-center justify-center text-[10px] font-black uppercase text-muted-foreground", className)}>
         Carregando Calendário...
       </div>
     )
