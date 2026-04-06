@@ -12,7 +12,7 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>
 function Calendar({
   className,
   classNames,
-  showOutsideDays = true,
+  showOutsideDays = false,
   ...props
 }: CalendarProps) {
   const [isMounted, setIsMounted] = React.useState(false)
@@ -21,7 +21,7 @@ function Calendar({
     setIsMounted(true)
   }, [])
 
-  // Previne erro RangeError: -2 ao evitar renderização no servidor
+  // Previne erro RangeError: -2 ao evitar renderização do DayPicker no servidor
   if (!isMounted) {
     return (
       <div className={cn("p-3 h-[350px] w-[280px] bg-muted/5 animate-pulse rounded-md", className)} />
