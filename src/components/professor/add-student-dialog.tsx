@@ -49,7 +49,6 @@ export function AddStudentDialog() {
         data: {
           nome: studentName,
           email: studentEmail.toLowerCase().trim(),
-          senha: 'senha Padrao A Mudar', // Mock senha placeholder
           biotipo: 'masculino', // Default
           data_nascimento: '1990-01-01', // Default
           professor_id: professor.id

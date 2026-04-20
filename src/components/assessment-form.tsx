@@ -315,7 +315,6 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
         const payload = {
           nome: values.fullName,
           email: values.email?.toLowerCase().trim(),
-          senha: 'senha Padrao A Mudar', // Mock senha placeholder
           biotipo: values.gender === 'male' ? 'masculino' : 'feminino',
           data_nascimento: values.birthDate || '1990-01-01',
           professor_id: user.id,
