@@ -112,7 +112,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   }, [])
 
   const isProfessor = user?.role === 'professor';
-  const { data: students } = useApi<any[]>(isProfessor ? `/users/alunos/?professor_id=${user?.id}` : null);
+  const { data: students } = useApi<any[]>(isProfessor ? `/users/alunos?professor_id=${user?.id}` : null);
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
