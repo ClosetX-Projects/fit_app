@@ -148,7 +148,7 @@ export function AddStudentDialog() {
               <div className="p-4 bg-accent/5 rounded-2xl border border-accent/10 flex items-start gap-3">
                 <Mail className="h-4 w-4 text-accent mt-0.5 shrink-0" />
                 <p className="text-[11px] text-muted-foreground leading-tight">
-                  Ao cadastrar manualmente, você já pode começar a prescrever treinos. O aluno poderá "reivindicar" esta conta depois ao se cadastrar com o mesmo e-mail.
+                  Ao cadastrar manualmente, o aluno receberá um **e-mail com uma senha temporária**. Ao logar pela primeira vez, ele será solicitado a criar uma senha definitiva.
                 </p>
               </div>
               <Button type="submit" className="w-full h-12 rounded-xl font-bold" disabled={loading}>

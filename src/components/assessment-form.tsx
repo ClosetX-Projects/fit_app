@@ -126,7 +126,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   const isNewStudent = watched.studentId === "new_student";
 
   const targetId = isProfessor ? watched.studentId : user?.id;
-  const { data: history, loading: isHistoryLoading, mutate: mutateHistory } = useApi<any[]>(targetId && targetId !== 'new_student' ? '/avaliacoes_antropo/' : null);
+  const { data: history, loading: isHistoryLoading, mutate: mutateHistory } = useApi<any[]>(targetId && targetId !== 'new_student' ? `/avaliacoes_antropo/aluno/${targetId}` : null);
 
   useEffect(() => {
     if (isProfessor && watched.studentId && watched.studentId !== "new_student" && students) {

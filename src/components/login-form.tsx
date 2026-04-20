@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/auth-provider';
 import { fetchApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from './icons';
 import { Loader2, LockKeyhole } from 'lucide-react';
+import { ResetPasswordForm } from './reset-password-form';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -28,6 +29,13 @@ export function LoginForm() {
   const { toast } = useToast();
   const { login } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isFirstAccess = searchParams.get('primeiroacesso') === 'true';
+
+  const handleBackToLogin = () => {
+    // Remove o parâmetro ?primeiroacesso=true da URL
+    router.push('/login');
+  };
   
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -61,8 +69,12 @@ export function LoginForm() {
     }
   }
 
+  if (isFirstAccess) {
+    return <ResetPasswordForm onBackToLogin={handleBackToLogin} />;
+  }
+
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full max-w-md animate-in fade-in duration-500">
       <Card className="border-primary/20 shadow-2xl">
         <CardHeader className="items-center text-center">
           <Logo className="mb-6 scale-125" />
@@ -104,12 +116,23 @@ export function LoginForm() {
               </Button>
             </form>
           </Form>
-          <p className="text-center text-sm text-muted-foreground">
-            Novo por aqui?{' '}
-            <Link href="/signup" className="text-primary font-bold hover:underline">
-              Crie sua conta
-            </Link>
-          </p>
+          <div className="space-y-4">
+            <p className="text-center text-sm text-muted-foreground">
+              Novo por aqui?{' '}
+              <Link href="/signup" className="text-primary font-bold hover:underline">
+                Crie sua conta
+              </Link>
+            </p>
+            <div className="pt-2 border-t border-primary/5">
+              <Button 
+                variant="link" 
+                className="w-full text-xs text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => router.push('/login?primeiroacesso=true')}
+              >
+                Recebeu uma senha temporária? Clique aqui.
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
