@@ -36,7 +36,10 @@ export function Dashboard() {
     setIsClient(true)
   }, [])
 
-  const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>('/avaliacoes_antropo/')
+  const isAluno = user?.role === 'aluno';
+  const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>(
+    isAluno ? `/avaliacoes_antropo/aluno/${user.id}` : '/avaliacoes_antropo/'
+  )
   const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>('/treinos/')
   const { data: rawExercises, loading: isExercisesLoading } = useApi<any[]>('/exercicios/')
 
@@ -46,58 +49,61 @@ export function Dashboard() {
     const now = new Date()
     const startOfCurrentMonth = startOfMonth(now)
     const thisMonth = rawSessions.filter(s => {
-      const d = new Date(s.date);
+      // s.created_at or s.date
+      const d = new Date(s.created_at || s.date || Date.now());
       return isValid(d) && d >= startOfCurrentMonth;
     })
-    const totalLoad = rawSessions.reduce((acc, curr) => acc + (curr.internalLoad || 0), 0)
-    const totalKcal = thisMonth.reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0)
     
-    const totalSeries = rawExercises?.reduce((acc, ex) => acc + (Number(ex.sets) || 0), 0) || 0;
-    const totalReps = rawExercises?.reduce((acc, ex) => {
-      const r = Number(ex.reps.toString().split(/[^0-9]/)[0]) || 0;
-      return acc + (r * (Number(ex.sets) || 0));
-    }, 0) || 0;
+    // Na API v2, volume está no próprio treino vinculado ao programa
+    // s.series, s.reps_tempo etc.
+    const totalSeries = rawSessions.reduce((acc, s) => acc + (Number(s.series) || 0), 0);
+    const totalReps = rawSessions.reduce((acc, s) => {
+      const repsStr = s.reps_tempo?.toString() || "";
+      const r = Number(repsStr.split(/[^0-9]/)[0]) || 0;
+      return acc + (r * (Number(s.series) || 0));
+    }, 0);
 
-    const lastSessDate = rawSessions[0] ? new Date(rawSessions[0].date) : null;
+    const lastSessDate = rawSessions[0] ? new Date(rawSessions[0].created_at || rawSessions[0].date) : null;
 
     return {
       total: rawSessions.length,
       frequency: thisMonth.length,
       lastSession: lastSessDate && isValid(lastSessDate) ? format(lastSessDate, 'dd/MM') : 'Nenhum',
-      avgLoad: Math.round(totalLoad / (rawSessions.length || 1)),
+      avgLoad: 0, // Mockado até termos logs de carga real
       totalSeries,
       totalReps,
-      totalKcal
+      totalKcal: 0
     }
   }, [rawSessions, rawExercises, isClient])
 
   const volumeByGroup = useMemo(() => {
-    if (!rawExercises) return [];
+    if (!rawSessions || !isClient) return [];
     const groups: Record<string, number> = {};
-    rawExercises.slice(-20).forEach(ex => {
-      const group = EXERCISE_METADATA[ex.name]?.group || "Outros";
-      groups[group] = (groups[group] || 0) + (Number(ex.sets) || 0);
+    rawSessions.slice(-20).forEach(s => {
+      const exName = s.exercicios?.nome || s.nome || "Outros";
+      const group = EXERCISE_METADATA[exName]?.group || "Geral";
+      groups[group] = (groups[group] || 0) + (Number(s.series) || 0);
     });
     return Object.entries(groups).map(([name, value]) => ({ name, value }));
-  }, [rawExercises]);
+  }, [rawSessions, isClient]);
 
   const loadProgression = useMemo(() => {
-    if (!rawExercises) return [];
-    return [...rawExercises]
+    if (!rawSessions || !isClient) return [];
+    return [...rawSessions]
       .sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
         return dateA - dateB;
       })
       .slice(-10)
-      .map(ex => {
-        const d = ex.createdAt?.toDate ? ex.createdAt.toDate() : null;
+      .map(s => {
+        const d = new Date(s.created_at || s.date);
         return {
           date: d && isValid(d) ? format(d, 'dd/MM') : '--',
-          load: (Number(ex.weight) || 0) * (Number(ex.sets) || 0)
+          load: (Number(s.series) || 0) * (Number(s.pct_1rm) || 0) // Estimativa de esforço
         }
       });
-  }, [rawExercises]);
+  }, [rawSessions, isClient]);
 
   if (!isClient || isAssessmentsLoading || isSessionsLoading || isExercisesLoading) {
     return (
