@@ -78,14 +78,26 @@ export function ProgramLibrary() {
     if (!user || !selectedTemplateId || !exName) return;
     setLoading(true);
     try {
+      // Buscar o exercicio_id pelo nome no catálogo
+      const searchResults = await fetchApi(`/exercicios/busca?nome=${encodeURIComponent(exName)}`);
+      let exercicioId: string;
+      if (searchResults && searchResults.length > 0) {
+        exercicioId = searchResults[0].id;
+      } else {
+        // Criamos se não existir no catálogo
+        const newEx = await fetchApi('/exercicios/', { method: 'POST', data: { nome: exName } });
+        exercicioId = newEx.id;
+      }
+      const currentExercises = exercises || [];
       await fetchApi('/treinos/', {
         method: 'POST',
         data: {
           programa_id: selectedTemplateId,
-          ordem: 1,
-          series: Number(exSets),
-          reps_tempo: exReps,
-          pct_1rm: Number(exRm),
+          ordem: currentExercises.length + 1,
+          exercicio_id: exercicioId,
+          series: Number(exSets) || 3,
+          reps_tempo: exReps || '3x10',
+          pct_1rm: Number(exRm) || 0,
         }
       });
       toast({ title: "Exercício adicionado", description: `${exName} faz parte do template agora.` });
@@ -123,7 +135,7 @@ export function ProgramLibrary() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h3 className="text-xl font-black text-primary uppercase tracking-tighter">{selectedTemplate.name}</h3>
+            <h3 className="text-xl font-black text-primary uppercase tracking-tighter">{selectedTemplate.nome}</h3>
             <div className="flex flex-wrap gap-2 mt-1">
                <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedTemplate.metodo}</span>
                <span className="text-[9px] font-black uppercase bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">Progresso {selectedTemplate.progressao}</span>
@@ -183,12 +195,12 @@ export function ProgramLibrary() {
                 <div key={ex.id} className="nubank-card group flex items-center justify-between py-4 px-6">
                   <div className="flex gap-6 items-center">
                     <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black">
-                      {ex.sets}x
+                      {ex.series}x
                     </div>
                     <div>
-                      <p className="font-bold text-lg">Exercício Cadastrado</p>
+                      <p className="font-bold text-lg">{ex.exercicios?.nome || 'Exercício'}</p>
                       <p className="text-xs text-muted-foreground font-black uppercase tracking-tight">
-                        {ex.reps_tempo} reps | {ex.pct_1rm || 0}% do 1RM
+                        {ex.reps_tempo} | {ex.pct_1rm || 0}% do 1RM
                       </p>
                     </div>
                   </div>

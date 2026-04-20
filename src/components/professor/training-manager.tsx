@@ -52,7 +52,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
   const [hiitRestTime, setHiitEffortRestTime] = useState('60');
   const [hiitRestSpeed, setHiitRestSpeed] = useState('5.0');
 
-  const { data: lastAssessments } = useApi<any[]>(`/avaliacoes_antropo/aluno/${studentId}`);
+  const { data: lastAssessments } = useApi<any[]>(`/avaliacoes_antropo/?aluno_id=${studentId}`);
   const lastAssessment = lastAssessments?.[lastAssessments.length - 1];
 
   const { data: student } = useApi<any>(`/users/alunos/${studentId}`);
@@ -91,11 +91,9 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
     if (!newProgramName) return;
     setLoading(true);
     try {
-      await fetchApi(`/programas/`, {
+      const progRes = await fetchApi(`/programas/`, {
         method: 'POST',
         data: {
-          professor_id: professor?.id,
-          aluno_id: studentId,
           nome: newProgramName,
           descricao: newProgramDesc,
           metodo: mapMethod(newMethod),
@@ -103,6 +101,13 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
           semanas: Number(newDuration),
         }
       });
+      // Vincular programa ao aluno
+      if (progRes?.id) {
+        await fetchApi('/programa_alunos/', {
+          method: 'POST',
+          data: { programa_id: progRes.id, aluno_id: studentId }
+        });
+      }
       toast({ title: "Programa criado", description: "O novo programa de treinamento foi adicionado." });
       mutatePrograms();
       setNewProgramName('');
@@ -132,16 +137,26 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
     if (!selectedProgramId || !exName) return;
     setLoading(true);
     try {
+      // Buscar o exercicio_id pelo nome no catálogo
+      const searchResults = await fetchApi(`/exercicios/busca?nome=${encodeURIComponent(exName)}`);
+      let exercicioId: string;
+      if (searchResults && searchResults.length > 0) {
+        exercicioId = searchResults[0].id;
+      } else {
+        // Criamos o exercício no catálogo se não existir
+        const newEx = await fetchApi('/exercicios/', { method: 'POST', data: { nome: exName } });
+        exercicioId = newEx.id;
+      }
+      const currentExercises = exercises || [];
       await fetchApi(`/treinos/`, {
         method: 'POST',
         data: {
           programa_id: selectedProgramId,
-          ordem: 1,
-          nome: exName,
-          series: Number(exSets),
-          reps_tempo: exReps,
-          pct_1rm: Number(exRm),
-          tipo: 'forca',
+          ordem: currentExercises.length + 1,
+          exercicio_id: exercicioId,
+          series: Number(exSets) || 3,
+          reps_tempo: exReps || '3x10',
+          pct_1rm: Number(exRm) || 0,
         }
       });
       mutateExercises();
@@ -204,8 +219,8 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h3 className="text-xl font-black text-primary uppercase tracking-tighter">{selectedProgram.name}</h3>
-              <p className="text-[10px] font-black uppercase text-muted-foreground">{selectedProgram.method} | {selectedProgram.durationWeeks} Semanas</p>
+              <h3 className="text-xl font-black text-primary uppercase tracking-tighter">{selectedProgram.nome}</h3>
+              <p className="text-[10px] font-black uppercase text-muted-foreground">{selectedProgram.metodo} | {selectedProgram.semanas} Semanas</p>
             </div>
           </div>
           {vo2RefValue > 0 && (
@@ -308,15 +323,13 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
             {exercises?.map((ex) => (
               <div key={ex.id} className="nubank-card group flex items-center justify-between py-4 px-6">
                 <div className="flex gap-6 items-center">
-                  <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center font-black", ex.type?.startsWith('aerobic') ? 'bg-accent/20 text-accent-foreground' : 'bg-primary/10 text-primary')}>
-                    {ex.type === 'aerobic_hiit' ? <Timer className="h-6 w-6" /> : ex.type === 'aerobic_continuo' ? <Activity className="h-6 w-6" /> : `${ex.sets}x`}
+                  <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center font-black", 'bg-primary/10 text-primary')}>
+                    {`${ex.series}x`}
                   </div>
                   <div>
-                    <p className="font-bold text-lg">{ex.name}</p>
+                    <p className="font-bold text-lg">{ex.exercicios?.nome || ex.nome || 'Exercício'}</p>
                     <p className="text-[10px] text-muted-foreground font-black uppercase tracking-tight">
-                      {ex.type === 'aerobic_continuo' ? `${ex.duration} min a ${ex.speed} km/h` : 
-                       ex.type === 'aerobic_hiit' ? `${ex.intervals} tiros | Esforço: ${ex.effortSpeed} km/h` :
-                       `${ex.reps} reps | ${ex.oneRmPercentage}% do 1RM`}
+                      {`${ex.series}x | ${ex.reps_tempo}${ex.pct_1rm ? ` | ${ex.pct_1rm}% 1RM` : ''}`}
                     </p>
                   </div>
                 </div>
@@ -358,7 +371,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
                   <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
                      {templates?.map((t) => (
                         <div key={t.id} className="nubank-card flex items-center justify-between py-4 px-6 hover:bg-primary/5 cursor-pointer" onClick={() => handleImportTemplate(t)}>
-                           <div className="flex-1"><p className="font-black text-lg text-primary">{t.name}</p><p className="text-[9px] font-black uppercase text-muted-foreground">{t.method} | {t.durationWeeks} Sem.</p></div>
+                           <div className="flex-1"><p className="font-black text-lg text-primary">{t.nome}</p><p className="text-[9px] font-black uppercase text-muted-foreground">{t.metodo} | {t.semanas} Sem.</p></div>
                            <Button size="icon" variant="ghost" disabled={isImporting} className="rounded-full">{isImporting ? <Loader2 className="animate-spin" /> : <Plus className="h-5 w-5" />}</Button>
                         </div>
                      ))}
@@ -375,8 +388,8 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
              <Card key={program.id} className="nubank-card group cursor-pointer" onClick={() => setSelectedProgramId(program.id)}>
                <div className="flex items-center justify-between">
                  <div className="flex-1">
-                   <div className="flex items-center gap-2 mb-1"><p className="text-lg font-black text-foreground group-hover:text-primary transition-colors">{program.name}</p>{program.importedFrom && <Badge className="bg-accent/20 text-accent-foreground border-none text-[8px] font-black uppercase">Template</Badge>}</div>
-                   <div className="flex gap-3"><p className="text-[10px] font-black uppercase text-muted-foreground">{program.method} | {program.durationWeeks} Semanas</p></div>
+                   <div className="flex items-center gap-2 mb-1"><p className="text-lg font-black text-foreground group-hover:text-primary transition-colors">{program.nome}</p></div>
+                   <div className="flex gap-3"><p className="text-[10px] font-black uppercase text-muted-foreground">{program.metodo} | {program.semanas} Semanas</p></div>
                  </div>
                  <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100 rounded-full" onClick={(e) => { e.stopPropagation(); handleDeleteProgram(program.id); }}><Trash2 className="h-4 w-4" /></Button><ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-all" /></div>
                </div>

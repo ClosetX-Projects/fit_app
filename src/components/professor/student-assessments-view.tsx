@@ -218,8 +218,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
         method: 'POST',
         data: {
           aluno_id: studentId,
-          professor_id: user?.id,
-          data_sessao: new Date().toISOString(),
+          data_sessao: new Date().toISOString().split('T')[0],
           avaliacao_antropometrica_id: selectedAssessmentId
         }
       });
