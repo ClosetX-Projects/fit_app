@@ -13,7 +13,7 @@ import { Plus, Trash2, Dumbbell, Save, Loader2, ArrowLeft, ChevronRight, BookOpe
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { EXERCISE_LIST, TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
+import { TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
 import { Badge } from '@/components/ui/badge';
 import { differenceInYears } from 'date-fns';
 import { cn } from "@/lib/utils";
@@ -76,6 +76,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
   const { data: exercises, loading: isLoadingExercises, mutate: mutateExercises } = useApi<any[]>(selectedProgramId ? `/treinos/?programa_id=${selectedProgramId}` : null);
 
   const { data: templates } = useApi<any[]>('/programas/');
+  const { data: catalogExercises } = useApi<any[]>('/exercicios/');
 
   const mapMethod = (m: string) => {
     const map: Record<string, string> = {
@@ -260,7 +261,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
               <div className="grid gap-4">
                 <Select value={exName} onValueChange={setExName}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Escolha o exercício..." /></SelectTrigger>
-                  <SelectContent>{EXERCISE_LIST.map(ex => <SelectItem key={ex} value={ex}>{ex}</SelectItem>)}</SelectContent>
+                  <SelectContent>{(catalogExercises || []).map((ex: any) => <SelectItem key={ex.id} value={ex.nome}>{ex.nome}</SelectItem>)}</SelectContent>
                 </Select>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">Séries</Label><Input type="number" value={exSets} onChange={e => setExSets(e.target.value)} /></div>

@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Dumbbell, Loader2, ArrowLeft, ChevronRight, BookOpen, Search, Timer, TrendingUp, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EXERCISE_LIST, TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
+import { TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
 
 export function ProgramLibrary() {
   const { user } = useUser();
@@ -37,6 +37,7 @@ export function ProgramLibrary() {
   const { data: templates, loading: isLoadingTemplates, mutate: mutateTemplates } = useApi<any[]>('/programas/');
   const selectedTemplate = templates?.find((t: any) => t.id === selectedTemplateId);
   const { data: exercises, loading: isLoadingExercises, mutate: mutateExercises } = useApi<any[]>(selectedTemplateId ? `/treinos/?programa_id=${selectedTemplateId}` : null);
+  const { data: catalogExercises } = useApi<any[]>('/exercicios/');
 
   const mapMethod = (m: string) => {
     const map: Record<string, string> = {
@@ -157,8 +158,8 @@ export function ProgramLibrary() {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {EXERCISE_LIST.map(ex => (
-                      <SelectItem key={ex} value={ex}>{ex}</SelectItem>
+                    {(catalogExercises || []).map((ex: any) => (
+                      <SelectItem key={ex.id} value={ex.nome}>{ex.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
