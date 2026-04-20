@@ -132,10 +132,10 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
     if (isProfessor && watched.studentId && watched.studentId !== "new_student" && students) {
       const student = students.find(s => s.id === watched.studentId);
       if (student) {
-        form.setValue("fullName", student.nome || student.name || "");
+        form.setValue("fullName", student.nome || "");
         form.setValue("email", student.email || "");
-        if (student.biotipo || student.gender) form.setValue("gender", student.biotipo || student.gender);
-        if (student.data_nascimento || student.birthDate) form.setValue("birthDate", student.data_nascimento || student.birthDate);
+        if (student.biotipo) form.setValue("gender", student.biotipo);
+        if (student.data_nascimento) form.setValue("birthDate", student.data_nascimento);
       }
     } else if (!isProfessor && user && isClient) {
       form.setValue("studentId", user.id || "");

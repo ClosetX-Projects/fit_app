@@ -73,11 +73,11 @@ export function WorkoutSessionForm() {
   const [glycemiaPre, setGlycemiaPre] = useState('');
   const [glycemiaPost, setGlycemiaPost] = useState('');
 
-  const { data: profile } = useApi<any>(user ? `/users/alunos/${(user as any).id || (user as any).uid}` : null);
+  const { data: profile } = useApi<any>(user ? `/users/alunos/${user.id}` : null);
   const isHypertensive = profile?.isHypertensive || profile?.is_hypertensive || false;
   const isDiabetic = profile?.isDiabetic || profile?.is_diabetic || false;
 
-  const { data: programs } = useApi<any[]>(user ? `/programas/?aluno_id=${(user as any).id || (user as any).uid}` : null);
+  const { data: programs } = useApi<any[]>(user ? `/programas/?aluno_id=${user.id}` : null);
   const { data: prescribedExercises } = useApi<any[]>(selectedProgramId ? `/treinos/?programa_id=${selectedProgramId}` : null);
 
   useEffect(() => {
@@ -178,7 +178,7 @@ export function WorkoutSessionForm() {
       const finalKcal = Math.round(Math.max(0, kcal));
 
       const sessionData = {
-        userId: (user as any).id || (user as any).uid,
+        userId: user.id,
         trainingProgramId: selectedProgramId,
         date: new Date().toISOString(),
         recoveryPerception: recovery,
@@ -205,7 +205,7 @@ export function WorkoutSessionForm() {
         await fetchApi('/exercicios/', {
           method: 'POST',
           data: {
-            userId: (user as any).id || (user as any).uid,
+            userId: user.id,
             workoutSessionId: createdSessionId,
             name: prescribedEx?.name || 'Exercício',
             sets: Number(log.sets),
