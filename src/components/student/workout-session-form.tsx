@@ -77,7 +77,7 @@ export function WorkoutSessionForm() {
   const isHypertensive = profile?.isHypertensive || profile?.is_hypertensive || false;
   const isDiabetic = profile?.isDiabetic || profile?.is_diabetic || false;
 
-  const { data: programs } = useApi<any[]>(user ? `/programas/?aluno_id=${user.id}` : null);
+  const { data: programs } = useApi<any[]>(user ? `/programas/aluno/${user.id}` : null);
   const { data: prescribedExercises } = useApi<any[]>(selectedProgramId ? `/treinos/?programa_id=${selectedProgramId}` : null);
 
   useEffect(() => {

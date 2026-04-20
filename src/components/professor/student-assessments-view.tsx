@@ -103,7 +103,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<any>(INITIAL_FORM_DATA);
-  const { data: assessments, loading: isLoadingList, mutate: mutateAssessments } = useApi<any[]>(`/avaliacoes_antropo/?aluno_id=${studentId}`);
+  const { data: assessments, loading: isLoadingList, mutate: mutateAssessments } = useApi<any[]>(`/avaliacoes_antropo/aluno/${studentId}`);
   const { data: student } = useApi<any>(`/users/alunos/${studentId}`);
   const assessment = assessments?.find((a: any) => a.id === selectedAssessmentId);
 
@@ -572,7 +572,6 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
               method: 'POST',
               data: {
                 aluno_id: studentId,
-                professor_id: user?.id,
                 data_avaliacao: new Date().toISOString(),
                 peso_corporal_kg: 0, estatura_cm: 0,
                 imc: 0, rcq: 0, percentual_gordura: 0, massa_magra_kg: 0, peso_gordura_kg: 0,

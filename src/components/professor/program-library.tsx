@@ -56,7 +56,6 @@ export function ProgramLibrary() {
       await fetchApi('/programas/', {
         method: 'POST',
         data: {
-          professor_id: user.id,
           nome: newTemplateName,
           descricao: newTemplateDesc,
           metodo: mapMethod(newMethod),

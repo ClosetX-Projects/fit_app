@@ -52,7 +52,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
   const [hiitRestTime, setHiitEffortRestTime] = useState('60');
   const [hiitRestSpeed, setHiitRestSpeed] = useState('5.0');
 
-  const { data: lastAssessments } = useApi<any[]>(`/avaliacoes_antropo/?aluno_id=${studentId}`);
+  const { data: lastAssessments } = useApi<any[]>(`/avaliacoes_antropo/aluno/${studentId}`);
   const lastAssessment = lastAssessments?.[lastAssessments.length - 1];
 
   const { data: student } = useApi<any>(`/users/alunos/${studentId}`);
@@ -71,7 +71,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
     });
   }, [vo2RefValue, fcMax]);
 
-  const { data: programs, loading: isLoadingPrograms, mutate: mutatePrograms } = useApi<any[]>(`/programas/?aluno_id=${studentId}`);
+  const { data: programs, loading: isLoadingPrograms, mutate: mutatePrograms } = useApi<any[]>(`/programas/aluno/${studentId}`);
   const selectedProgram = programs?.find((p: any) => p.id === selectedProgramId);
   const { data: exercises, loading: isLoadingExercises, mutate: mutateExercises } = useApi<any[]>(selectedProgramId ? `/treinos/?programa_id=${selectedProgramId}` : null);
 

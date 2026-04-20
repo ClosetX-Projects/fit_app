@@ -112,7 +112,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   }, [])
 
   const isProfessor = user?.role === 'professor';
-  const { data: students } = useApi<any[]>(isProfessor ? `/users/alunos?professor_id=${user?.id}` : null);
+  const { data: students } = useApi<any[]>(isProfessor ? `/users/alunos` : null);
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
@@ -318,7 +318,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
           senha: 'senha Padrao A Mudar', // Mock senha placeholder
           biotipo: values.gender === 'male' ? 'masculino' : 'feminino',
           data_nascimento: values.birthDate || '1990-01-01',
-          professor_id: user.id
+          professor_id: user.id,
         };
         const res = await fetchApi('/users/register/aluno', {
           method: 'POST',
@@ -329,7 +329,6 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
       const apiPayload = {
         aluno_id: targetUserId,
-        professor_id: isProfessor ? user.id : null,
         data_avaliacao: new Date().toISOString(),
         peso_corporal_kg: values.weight,
         estatura_cm: values.height,

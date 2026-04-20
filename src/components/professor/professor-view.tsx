@@ -20,8 +20,8 @@ export function ProfessorView() {
   const [initialDetailsTab, setInitialDetailsTab] = useState('assessments');
   const [editContext, setEditContext] = useState<{ studentId: string, assessmentId: string } | null>(null);
 
-  // Passando explicitamente o professor_id para respeitar isolamento
-  const { data: students, loading: isLoading } = useApi<any[]>(user ? `/users/alunos?professor_id=${user.id}` : null);
+  // A API já filtra automaticamente pelo token do professor logado
+  const { data: students, loading: isLoading } = useApi<any[]>(user ? `/users/alunos` : null);
 
   const handleSelectStudent = (id: string, tab: string = 'assessments') => {
     setInitialDetailsTab(tab);
