@@ -19,7 +19,7 @@ import { Loader2, Lock, UserRound, GraduationCap } from 'lucide-react';
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
-  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
+  password: z.string().min(8, { message: 'A senha deve ter pelo menos 8 caracteres.' }),
   userType: z.enum(['student', 'professor'], { required_error: 'Selecione o tipo de usuário.' }),
 });
 

@@ -20,8 +20,8 @@ export function ProfessorView() {
   const [initialDetailsTab, setInitialDetailsTab] = useState('assessments');
   const [editContext, setEditContext] = useState<{ studentId: string, assessmentId: string } | null>(null);
 
-  // Todo: Validar endpoint real se o swagger traz os alunos do professor no futuro
-  const { data: students, loading: isLoading } = useApi<any[]>('/users/alunos');
+  // Passando explicitamente o professor_id para respeitar isolamento
+  const { data: students, loading: isLoading } = useApi<any[]>(user ? `/users/alunos/?professor_id=${user.id}` : null);
 
   const handleSelectStudent = (id: string, tab: string = 'assessments') => {
     setInitialDetailsTab(tab);
