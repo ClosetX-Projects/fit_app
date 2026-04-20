@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, serverTimestamp, addDoc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useApi } from '@/hooks/use-api';
+import { useUser } from '@/contexts/auth-provider';
+import { fetchApi } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -98,26 +98,67 @@ const INITIAL_FORM_DATA = {
 };
 
 export function StudentAssessmentsView({ studentId, onEditAntropometry }: StudentAssessmentsViewProps) {
-  const { firestore } = useFirebase();
+  const { user } = useUser();
   const { toast } = useToast();
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<any>(INITIAL_FORM_DATA);
-
-  const assessmentsRef = useMemoFirebase(() => 
-    query(collection(firestore, 'users', studentId, 'physicalAssessments'), orderBy('date', 'desc'))
-  , [firestore, studentId]);
-
-  const { data: assessments, isLoading: isLoadingList } = useCollection(assessmentsRef);
-  const { data: student } = useDoc(useMemoFirebase(() => doc(firestore, 'users', studentId), [firestore, studentId]));
-  const { data: assessment } = useDoc(useMemoFirebase(() => 
-    selectedAssessmentId ? doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId) : null
-  , [firestore, studentId, selectedAssessmentId]));
+  const { data: assessments, loading: isLoadingList, mutate: mutateAssessments } = useApi<any[]>(`/avaliacoes_antropo/?aluno_id=${studentId}`);
+  const { data: student } = useApi<any>(`/users/alunos/${studentId}`);
+  const assessment = assessments?.find((a: any) => a.id === selectedAssessmentId);
 
   useEffect(() => {
-    if (assessment) setFormData({ ...INITIAL_FORM_DATA, ...assessment });
-    else if (student) setFormData({ ...INITIAL_FORM_DATA, fullName: student.name, gender: student.gender || 'male', birthDate: student.birthDate || '' });
-  }, [assessment, student]);
+    async function loadTestSession() {
+      if (!selectedAssessmentId) {
+        if (student) setFormData({ ...INITIAL_FORM_DATA, fullName: student.nome || '', gender: student.biotipo || 'male', birthDate: student.data_nascimento || '' });
+        return;
+      }
+      
+      let newData = { ...INITIAL_FORM_DATA, ...assessment };
+      if (student) {
+        newData.fullName = student.nome || '';
+        newData.gender = student.biotipo || 'male';
+        newData.birthDate = student.data_nascimento || '';
+      }
+
+      try {
+        const sessoes = await fetchApi(`/sessoes_bateria/?avaliacao_antropometrica_id=${selectedAssessmentId}`);
+        if (sessoes && sessoes.length > 0) {
+          const sessao_id = sessoes[sessoes.length - 1].id;
+          
+          const [nm, ae, pf] = await Promise.all([
+            fetchApi(`/testes_neuromotor/?sessao_id=${sessao_id}`).catch(()=>[]),
+            fetchApi(`/testes_aerobico_limiar/?sessao_id=${sessao_id}`).catch(()=>[]),
+            fetchApi(`/testes_performance/?sessao_id=${sessao_id}`).catch(()=>[])
+          ]);
+
+          if (nm && nm.length > 0) {
+            newData.tenRmWeight = Number(nm[nm.length-1].carga_utilizada_kg || 0);
+            newData.tenRmReps = Number(nm[nm.length-1].repeticoes || 0);
+            const exMap: any = { 'supino_reto': 'Supino Reto', 'agachamento': 'Agachamento', 'leg_press': 'Leg Press', 'levantamento_terra': 'Levantamento Terra'};
+            newData.tenRmExercise = exMap[nm[nm.length-1].exercicio] || 'Supino Reto';
+          }
+          if (ae && ae.length > 0) {
+            newData.cooperDistance = Number(ae[ae.length-1].cooper_distancia_m || 0);
+            newData.yoYoDistance = Number(ae[ae.length-1].yoyo_distancia_final_m || 0);
+            newData.bruceTime = Number(ae[ae.length-1].bruce_tempo_rampa_min || 0);
+            newData.conconiSpeed = Number(ae[ae.length-1].conconi_velocidade_limiar || 0);
+            newData.conconiHR = Number(ae[ae.length-1].conconi_fc_limiar || 0);
+          }
+          if (pf && pf.length > 0) {
+            newData.verticalJump = Number(pf[pf.length-1].impulsao_vertical_cm || 0);
+            newData.horizontalJump = Number(pf[pf.length-1].impulsao_horizontal_cm || 0);
+            newData.sitUpReps = Number(pf[pf.length-1].abdominais_1min || 0);
+            newData.pushUpReps = Number(pf[pf.length-1].flexoes_bracos || 0);
+            newData.wellsDistance = Number(pf[pf.length-1].banco_wells_cm || 0);
+          }
+        }
+      } catch (e) {}
+      
+      setFormData(newData);
+    }
+    loadTestSession();
+  }, [assessment, student, selectedAssessmentId]);
 
   const age = useMemo(() => {
     if (!formData.birthDate) return 30;
@@ -170,11 +211,67 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
   }, [formData, age, isElderly]);
 
   const handleSave = async () => {
-    if (!selectedAssessmentId || !firestore) return;
+    if (!selectedAssessmentId) return;
     setIsSaving(true);
-    const assessmentRef = doc(firestore, 'users', studentId, 'physicalAssessments', selectedAssessmentId);
-    setDocumentNonBlocking(assessmentRef, { ...formData, calculatedResults: results, updatedAt: serverTimestamp() }, { merge: true });
-    toast({ title: "Avaliação Técnica Atualizada!" });
+    try {
+      const sessaoRes = await fetchApi('/sessoes_bateria/', {
+        method: 'POST',
+        data: {
+          aluno_id: studentId,
+          professor_id: user?.id,
+          data_sessao: new Date().toISOString(),
+          avaliacao_antropometrica_id: selectedAssessmentId
+        }
+      });
+      const sessao_id = sessaoRes.id;
+
+      if (formData.tenRmWeight > 0) {
+        await fetchApi('/testes_neuromotor/', {
+          method: 'POST',
+          data: {
+            sessao_id,
+            tipo_teste: 'predicao_1rm_10rm',
+            exercicio: formData.tenRmExercise === 'Agachamento' ? 'agachamento' : formData.tenRmExercise === 'Leg Press' ? 'leg_press' : formData.tenRmExercise === 'Levantamento Terra' ? 'levantamento_terra' : 'supino_reto',
+            carga_utilizada_kg: Number(formData.tenRmWeight),
+            repeticoes: Number(formData.tenRmReps)
+          }
+        });
+      }
+
+      if (formData.cooperDistance > 0 || formData.bruceTime > 0) {
+        await fetchApi('/testes_aerobico_limiar/', {
+          method: 'POST',
+          data: {
+             sessao_id,
+             cooper_distancia_m: Number(formData.cooperDistance),
+             cooper_vo2: Number(results.vo2Cooper),
+             yoyo_distancia_final_m: Number(formData.yoYoDistance),
+             bruce_tempo_rampa_min: Number(formData.bruceTime),
+             conconi_velocidade_limiar: Number(formData.conconiSpeed),
+             conconi_fc_limiar: Number(formData.conconiHR)
+          }
+        });
+      }
+
+      if (formData.verticalJump > 0 || formData.horizontalJump > 0 || formData.sitUpReps > 0) {
+        await fetchApi('/testes_performance/', {
+          method: 'POST',
+          data: {
+             sessao_id,
+             impulsao_vertical_cm: Number(formData.verticalJump),
+             impulsao_horizontal_cm: Number(formData.horizontalJump),
+             abdominais_1min: Number(formData.sitUpReps),
+             flexoes_bracos: Number(formData.pushUpReps),
+             banco_wells_cm: Number(formData.wellsDistance)
+          }
+        });
+      }
+
+      toast({ title: "Bateria de Testes Físicos Salva!" });
+      mutateAssessments();
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Erro ao salvar bateria." });
+    }
     setIsSaving(false);
   };
 
@@ -190,7 +287,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
             </Button>
             <div>
               <h3 className="font-black uppercase text-lg text-primary tracking-tighter">Bateria de Testes Físicos</h3>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Sessão: {format(new Date(assessment.date), 'dd/MM/yyyy')}</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Sessão: {format(new Date(assessment.data_avaliacao || assessment.date || new Date().toISOString()), 'dd/MM/yyyy')}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -471,8 +568,25 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-black text-primary uppercase tracking-tighter">Histórico de Avaliações</h3>
         <Button onClick={async () => {
-          const docRef = await addDoc(collection(firestore, 'users', studentId, 'physicalAssessments'), { userId: studentId, date: new Date().toISOString(), createdAt: serverTimestamp() });
-          setSelectedAssessmentId(docRef.id);
+          try {
+            const res = await fetchApi('/avaliacoes_antropo/', {
+              method: 'POST',
+              data: {
+                aluno_id: studentId,
+                professor_id: user?.id,
+                data_avaliacao: new Date().toISOString(),
+                peso_corporal_kg: 0, estatura_cm: 0,
+                imc: 0, rcq: 0, percentual_gordura: 0, massa_magra_kg: 0, peso_gordura_kg: 0,
+                circ_pescoco_cm: 0, circ_ombro_cm: 0, circ_torax_cm: 0, circ_cintura_cm: 0, circ_abdomen_cm: 0, circ_quadril_cm: 0, circ_coxa_dir_cm: 0, circ_coxa_esq_cm: 0, circ_perna_dir_cm: 0, circ_perna_esq_cm: 0,
+                circ_braco_relax_dir_cm: 0, circ_braco_relax_esq_cm: 0, circ_braco_contr_dir_cm: 0, circ_braco_contr_esq_cm: 0, circ_antebraco_dir_cm: 0, circ_antebraco_esq_cm: 0,
+                dobra_subescapular_mm: 0, dobra_tricipital_mm: 0, dobra_bicipital_mm: 0, dobra_axilar_media_mm: 0, dobra_peitoral_mm: 0, dobra_abdominal_mm: 0, dobra_suprailiaca_mm: 0, dobra_coxa_mm: 0, dobra_perna_medial_mm: 0
+              }
+            });
+            setSelectedAssessmentId(res.id);
+            mutateAssessments();
+          } catch(e) {
+            toast({ variant: "destructive", title: "Erro ao criar avaliação." })
+          }
         }} className="bg-primary rounded-full px-6 font-black h-12 shadow-lg shadow-primary/20">+ NOVA AVALIAÇÃO</Button>
       </div>
 
@@ -482,13 +596,13 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center">
-                  <span className="text-sm font-black text-primary">{format(new Date(a.date), 'dd')}</span>
-                  <span className="text-[8px] font-bold text-primary uppercase">{format(new Date(a.date), 'MMM', { locale: ptBR })}</span>
+                  <span className="text-sm font-black text-primary">{format(new Date(a.data_avaliacao || a.date || new Date().toISOString()), 'dd')}</span>
+                  <span className="text-[8px] font-bold text-primary uppercase">{format(new Date(a.data_avaliacao || a.date || new Date().toISOString()), 'MMM', { locale: ptBR })}</span>
                 </div>
                 <div>
                   <p className="font-black text-base group-hover:text-primary transition-colors">Relatório Técnico Antropométrico</p>
                   <div className="flex items-center gap-3 mt-1">
-                    <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">IMC: {a.calculatedResults?.imc}</Badge>
+                    <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">IMC: {a.imc || a.calculatedResults?.imc || '--'}</Badge>
                     {a.calculatedResults?.bpClassification && (
                       <Badge className={cn("text-[8px] font-black uppercase border-none", a.calculatedResults.bpClassification.color, a.calculatedResults.bpClassification.textColor)}>
                         {a.calculatedResults.bpClassification.label}

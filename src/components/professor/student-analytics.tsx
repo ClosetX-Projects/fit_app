@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Area, AreaChart, Legend } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useApi } from '@/hooks/use-api';
 import { Loader2, Zap, TrendingUp, Dumbbell, Activity, BrainCircuit, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,31 +24,9 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
-  const { firestore } = useFirebase();
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Buscar Sessões (Histórico de Carga e Subjectivos)
-  const sessionsRef = useMemoFirebase(() => 
-    query(collection(firestore!, 'users', studentId, 'workoutHistory_flat'), orderBy('date', 'asc'))
-  , [firestore, studentId]);
-
-  // Buscar Exercícios (Para cálculo de Volume Total)
-  const exercisesRef = useMemoFirebase(() => 
-    collection(firestore!, 'users', studentId, 'exerciseHistory_flat')
-  , [firestore, studentId]);
-
-  // Buscar Avaliações (Para comparativo)
-  const assessmentsRef = useMemoFirebase(() => 
-    query(collection(firestore!, 'users', studentId, 'physicalAssessments'), orderBy('date', 'desc'), limit(2))
-  , [firestore, studentId]);
-
-  const { data: rawSessions, isLoading: loadingSessions } = useCollection(sessionsRef);
-  const { data: rawExercises, isLoading: loadingExercises } = useCollection(exercisesRef);
-  const { data: assessments, isLoading: loadingAssessments } = useCollection(assessmentsRef);
+  const { data: rawSessions, loading: loadingSessions } = useApi<any[]>(`/treinos/aluno/${studentId}`);
+  const { data: rawExercises, loading: loadingExercises } = useApi<any[]>(`/exercicios/aluno/${studentId}`);
+  const { data: assessments, loading: loadingAssessments } = useApi<any[]>(`/avaliacoes_antropo/aluno/${studentId}`);
 
   // 1. Evolução PSE vs PSR (Controle Biopsicossocial)
   const subjectiveData = useMemo(() => {
@@ -121,7 +98,7 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
     return (total / rawSessions.length).toFixed(1);
   }, [rawSessions]);
 
-  if (!isClient || loadingSessions || loadingExercises || loadingAssessments) {
+  if (loadingSessions || loadingExercises || loadingAssessments) {
     return (
       <div className="flex justify-center p-24">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

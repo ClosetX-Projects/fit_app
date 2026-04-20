@@ -2,9 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirebase } from '@/firebase';
-import { doc, collection, serverTimestamp } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/contexts/auth-provider';
+import { fetchApi } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,15 +16,13 @@ import { AssessmentForm } from '@/components/assessment-form';
 
 export function StudentOnboarding() {
   const { user } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  
   const [basicInfo, setBasicInfo] = useState({
-    name: user?.displayName || '',
+    name: (user as any)?.nome || '',
     birthDate: '',
-    gender: 'male',
+    gender: 'masculino',
   });
 
   const [method, setSelectedMethod] = useState<'manual' | 'bio' | 'scan' | null>(null);
@@ -36,15 +33,19 @@ export function StudentOnboarding() {
         toast({ variant: 'destructive', title: "Campos obrigatórios", description: "Preencha seus dados básicos." });
         return;
       }
-      // Atualizar perfil básico no Firestore
       if (user) {
-        const userRef = doc(firestore, 'users', user.uid);
-        setDocumentNonBlocking(userRef, {
-          name: basicInfo.name,
-          birthDate: basicInfo.birthDate,
-          gender: basicInfo.gender,
-          onboardingStarted: true,
-        }, { merge: true });
+        try {
+          await fetchApi(`/users/alunos/${user.id}`, {
+            method: 'PUT',
+            data: {
+              nome: basicInfo.name,
+              data_nascimento: basicInfo.birthDate,
+              biotipo: basicInfo.gender,
+            }
+          });
+        } catch (e) {
+          console.error(e);
+        }
       }
       setStep(2);
     }
@@ -105,9 +106,8 @@ export function StudentOnboarding() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="male">Masculino</SelectItem>
-                      <SelectItem value="female">Feminino</SelectItem>
-                      <SelectItem value="other">Outro</SelectItem>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="feminino">Feminino</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

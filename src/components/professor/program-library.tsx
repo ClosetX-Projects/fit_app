@@ -2,9 +2,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/contexts/auth-provider';
+import { useApi } from '@/hooks/use-api';
+import { fetchApi } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EXERCISE_LIST, TRAINING_METHODS, PROGRESSION_TYPES } from "@/lib/constants";
 
 export function ProgramLibrary() {
-  const { firestore } = useFirebase();
   const { user } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -30,83 +29,90 @@ export function ProgramLibrary() {
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-  // Estados para novo exercício no template
   const [exName, setExName] = useState('');
   const [exSets, setExSets] = useState('');
   const [exReps, setExReps] = useState('');
   const [exRm, setExRm] = useState('');
 
-  const templatesRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'programTemplates') : null
-  , [firestore, user]);
-  
-  const { data: templates, isLoading: isLoadingTemplates } = useCollection(templatesRef);
+  const { data: templates, loading: isLoadingTemplates, mutate: mutateTemplates } = useApi<any[]>('/programas/');
+  const selectedTemplate = templates?.find((t: any) => t.id === selectedTemplateId);
+  const { data: exercises, loading: isLoadingExercises, mutate: mutateExercises } = useApi<any[]>(selectedTemplateId ? `/treinos/?programa_id=${selectedTemplateId}` : null);
 
-  const selectedTemplate = templates?.find(t => t.id === selectedTemplateId);
-
-  const exercisesRef = useMemoFirebase(() => 
-    (user && selectedTemplateId) ? collection(firestore, 'users', user.uid, 'programTemplates', selectedTemplateId, 'templateExercises') : null
-  , [firestore, user, selectedTemplateId]);
-
-  const { data: exercises, isLoading: isLoadingExercises } = useCollection(exercisesRef);
+  const mapMethod = (m: string) => {
+    const map: Record<string, string> = {
+      'Múltiplas Séries': 'multiplas_series', 'Bi-Set': 'bi_set', 'Tri-Set': 'tri_set',
+      'Pirâmide': 'piramide', 'Drop-Set': 'drop_set', 'Cluster Set': 'cluster_set',
+      'GVT': 'gvt', 'Rest-Pause': 'rest_pause'
+    };
+    return map[m] || 'multiplas_series';
+  };
+  const mapProgression = (p: string) => p === 'Ondulatória' ? 'ondulatoria' : 'linear';
 
   const handleCreateTemplate = async () => {
-    if (!newTemplateName || !user || !firestore) return;
+    if (!newTemplateName || !user) return;
     setLoading(true);
-
-    const templateRef = doc(collection(firestore, 'users', user.uid, 'programTemplates'));
-    setDocumentNonBlocking(templateRef, {
-      id: templateRef.id,
-      name: newTemplateName,
-      description: newTemplateDesc,
-      method: newMethod,
-      progressionType: newProgression,
-      durationWeeks: Number(newDuration),
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-
-    toast({ title: "Template criado", description: "O programa base foi adicionado à sua biblioteca." });
-    setNewTemplateName('');
-    setNewTemplateDesc('');
-    setLoading(false);
-    setShowEditor(false);
-  };
-
-  const handleAddExercise = () => {
-    if (!user || !selectedTemplateId || !exName || !firestore) return;
-    setLoading(true);
-
-    const exerciseRef = doc(collection(firestore, 'users', user.uid, 'programTemplates', selectedTemplateId, 'templateExercises'));
-    setDocumentNonBlocking(exerciseRef, {
-      id: exerciseRef.id,
-      name: exName,
-      sets: Number(exSets),
-      reps: exReps,
-      oneRmPercentage: Number(exRm),
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-
-    toast({ title: "Exercício adicionado", description: `${exName} faz parte do template agora.` });
-    setExName('');
-    setExSets('');
-    setExReps('');
-    setExRm('');
+    try {
+      await fetchApi('/programas/', {
+        method: 'POST',
+        data: {
+          professor_id: (user as any).id || (user as any).uid,
+          nome: newTemplateName,
+          descricao: newTemplateDesc,
+          metodo: mapMethod(newMethod),
+          progressao: mapProgression(newProgression),
+          semanas: Number(newDuration),
+        }
+      });
+      toast({ title: "Template criado", description: "O programa base foi adicionado à sua biblioteca." });
+      mutateTemplates();
+      setNewTemplateName('');
+      setNewTemplateDesc('');
+      setShowEditor(false);
+    } catch {
+      toast({ variant: 'destructive', title: "Erro", description: "Erro ao criar template" });
+    }
     setLoading(false);
   };
 
-  const handleDeleteExercise = (exerciseId: string) => {
-    if (!user || !selectedTemplateId || !firestore) return;
-    const exerciseRef = doc(firestore, 'users', user.uid, 'programTemplates', selectedTemplateId, 'templateExercises', exerciseId);
-    deleteDoc(exerciseRef);
-    toast({ title: "Exercício removido" });
+  const handleAddExercise = async () => {
+    if (!user || !selectedTemplateId || !exName) return;
+    setLoading(true);
+    try {
+      await fetchApi('/treinos/', {
+        method: 'POST',
+        data: {
+          programa_id: selectedTemplateId,
+          ordem: 1,
+          series: Number(exSets),
+          reps_tempo: exReps,
+          pct_1rm: Number(exRm),
+        }
+      });
+      toast({ title: "Exercício adicionado", description: `${exName} faz parte do template agora.` });
+      mutateExercises();
+      setExName(''); setExSets(''); setExReps(''); setExRm('');
+    } catch {
+      toast({ variant: 'destructive', title: "Erro" });
+    }
+    setLoading(false);
   };
 
-  const handleDeleteTemplate = (templateId: string) => {
-    if (!user || !firestore) return;
-    const templateRef = doc(firestore, 'users', user.uid, 'programTemplates', templateId);
-    deleteDoc(templateRef);
-    toast({ title: "Template excluído" });
-    if (selectedTemplateId === templateId) setSelectedTemplateId(null);
+  const handleDeleteExercise = async (exerciseId: string) => {
+    if (!selectedTemplateId) return;
+    try {
+      await fetchApi(`/treinos/${exerciseId}`, { method: 'DELETE' });
+      toast({ title: "Exercício removido" });
+      mutateExercises();
+    } catch {}
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    try {
+      await fetchApi(`/programas/${templateId}`, { method: 'DELETE' });
+      toast({ title: "Template excluído" });
+      mutateTemplates();
+      if (selectedTemplateId === templateId) setSelectedTemplateId(null);
+    } catch {}
   };
 
   if (selectedTemplateId && selectedTemplate) {
@@ -119,9 +125,9 @@ export function ProgramLibrary() {
           <div className="flex-1">
             <h3 className="text-xl font-black text-primary uppercase tracking-tighter">{selectedTemplate.name}</h3>
             <div className="flex flex-wrap gap-2 mt-1">
-               <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedTemplate.method}</span>
-               <span className="text-[9px] font-black uppercase bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">Progresso {selectedTemplate.progressionType}</span>
-               <span className="text-[9px] font-black uppercase bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{selectedTemplate.durationWeeks} Semanas</span>
+               <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedTemplate.metodo}</span>
+               <span className="text-[9px] font-black uppercase bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">Progresso {selectedTemplate.progressao}</span>
+               <span className="text-[9px] font-black uppercase bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{selectedTemplate.semanas} Semanas</span>
             </div>
           </div>
         </div>
@@ -180,9 +186,9 @@ export function ProgramLibrary() {
                       {ex.sets}x
                     </div>
                     <div>
-                      <p className="font-bold text-lg">{ex.name}</p>
+                      <p className="font-bold text-lg">Exercício Cadastrado</p>
                       <p className="text-xs text-muted-foreground font-black uppercase tracking-tight">
-                        {ex.reps} reps | {ex.oneRmPercentage}% do 1RM
+                        {ex.reps_tempo} reps | {ex.pct_1rm || 0}% do 1RM
                       </p>
                     </div>
                   </div>
@@ -289,12 +295,12 @@ export function ProgramLibrary() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors">{template.name}</h3>
+                  <h3 className="text-lg font-black text-foreground group-hover:text-primary transition-colors">{template.nome}</h3>
                   <div className="flex gap-2 flex-wrap">
-                     <span className="text-[8px] font-black uppercase bg-primary/10 text-primary px-2 rounded-full">{template.method}</span>
-                     <span className="text-[8px] font-black uppercase bg-accent/20 text-accent-foreground px-2 rounded-full">{template.durationWeeks} Sem.</span>
+                     <span className="text-[8px] font-black uppercase bg-primary/10 text-primary px-2 rounded-full">{template.metodo}</span>
+                     <span className="text-[8px] font-black uppercase bg-accent/20 text-accent-foreground px-2 rounded-full">{template.semanas} Sem.</span>
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 font-medium">{template.description}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2 font-medium">{template.descricao}</p>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-primary/5">
                    <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest">Editar Estrutura</p>

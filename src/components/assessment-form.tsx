@@ -12,9 +12,9 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from "@/firebase"
-import { doc, collection, serverTimestamp, query, orderBy, deleteDoc } from "firebase/firestore"
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
+import { useUser } from "@/contexts/auth-provider"
+import { useApi } from "@/hooks/use-api"
+import { fetchApi } from "@/lib/api-client"
 import { Loader2, Save, Activity, Scale, Ruler, ChevronRight, Calculator, Users, Mail, UserPlus, Info, Trash2 } from "lucide-react"
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -101,7 +101,6 @@ interface AssessmentFormProps {
 
 export function AssessmentForm({ initialStudentId, initialAssessmentId }: AssessmentFormProps) {
   const { toast } = useToast()
-  const { firestore } = useFirebase()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(initialAssessmentId ? 2 : 1)
@@ -112,14 +111,8 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
     setIsClient(true)
   }, [])
 
-  const profileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: profile } = useDoc(profileRef);
-  const isProfessor = profile?.userType === 'professor';
-
-  const studentsRef = useMemoFirebase(() => 
-    (user && isProfessor) ? collection(firestore, 'professors', user.uid, 'students') : null
-  , [firestore, user, isProfessor]);
-  const { data: students } = useCollection(studentsRef);
+  const isProfessor = user?.role === 'professor';
+  const { data: students } = useApi<any[]>('/users/alunos');
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
@@ -132,36 +125,60 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   const watched = form.watch()
   const isNewStudent = watched.studentId === "new_student";
 
-  const historyQuery = useMemoFirebase(() => {
-    if (!isClient) return null;
-    const targetId = isProfessor ? watched.studentId : user?.uid;
-    if (!targetId || targetId === "new_student" || targetId === "") return null;
-    return query(collection(firestore, "users", targetId, "physicalAssessments"), orderBy("date", "desc"));
-  }, [firestore, user, isProfessor, watched.studentId, isClient])
-
-  const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery)
+  const targetId = isProfessor ? watched.studentId : user?.id;
+  const { data: history, loading: isHistoryLoading, mutate: mutateHistory } = useApi<any[]>(targetId && targetId !== 'new_student' ? '/avaliacoes_antropo/' : null);
 
   useEffect(() => {
     if (isProfessor && watched.studentId && watched.studentId !== "new_student" && students) {
       const student = students.find(s => s.id === watched.studentId);
       if (student) {
-        form.setValue("fullName", student.name || "");
+        form.setValue("fullName", student.nome || student.name || "");
         form.setValue("email", student.email || "");
-        if (student.gender) form.setValue("gender", student.gender);
-        if (student.birthDate) form.setValue("birthDate", student.birthDate);
+        if (student.biotipo || student.gender) form.setValue("gender", student.biotipo || student.gender);
+        if (student.data_nascimento || student.birthDate) form.setValue("birthDate", student.data_nascimento || student.birthDate);
       }
     } else if (!isProfessor && user && isClient) {
-      form.setValue("studentId", user.uid);
-      form.setValue("fullName", profile?.name || user.displayName || "");
-      form.setValue("email", profile?.email || user.email || "");
+      form.setValue("studentId", user.id || "");
+      form.setValue("fullName", user.nome || "");
+      form.setValue("email", user.email || "");
     }
-  }, [watched.studentId, students, isProfessor, user, profile, form, isClient]);
+  }, [watched.studentId, students, isProfessor, user, form, isClient]);
 
   useEffect(() => {
     if (selectedId && history) {
       const a = history.find(item => item.id === selectedId)
       if (a) {
-        form.reset({ ...DEFAULT_VALUES, ...a })
+        form.reset({
+          ...DEFAULT_VALUES,
+          studentId: a.aluno_id || "",
+          weight: a.peso_corporal_kg || 0,
+          height: a.estatura_cm || 0,
+          neck: a.circ_pescoco_cm || 0,
+          shoulder: a.circ_ombro_cm || 0,
+          chest: a.circ_torax_cm || 0,
+          waist: a.circ_cintura_cm || 0,
+          abdomen: a.circ_abdomen_cm || 0,
+          hip: a.circ_quadril_cm || 0,
+          thighR: a.circ_coxa_dir_cm || 0,
+          thighL: a.circ_coxa_esq_cm || 0,
+          legR: a.circ_perna_dir_cm || 0,
+          legL: a.circ_perna_esq_cm || 0,
+          armRelaxedR: a.circ_braco_relax_dir_cm || 0,
+          armRelaxedL: a.circ_braco_relax_esq_cm || 0,
+          armContractedR: a.circ_braco_contr_dir_cm || 0,
+          armContractedL: a.circ_braco_contr_esq_cm || 0,
+          forearmR: a.circ_antebraco_dir_cm || 0,
+          forearmL: a.circ_antebraco_esq_cm || 0,
+          subscapular: a.dobra_subescapular_mm || 0,
+          triceps: a.dobra_tricipital_mm || 0,
+          biceps: a.dobra_bicipital_mm || 0,
+          midAxillary: a.dobra_axilar_media_mm || 0,
+          pectoral: a.dobra_peitoral_mm || 0,
+          abdominal: a.dobra_abdominal_mm || 0,
+          suprailiac: a.dobra_suprailiaca_mm || 0,
+          thigh: a.dobra_coxa_mm || 0,
+          midLeg: a.dobra_perna_medial_mm || 0,
+        })
         setStep(2)
       }
     }
@@ -275,11 +292,11 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const targetId = isProfessor ? watched.studentId : user?.uid;
-    if (!firestore || !targetId || !confirm("Deseja realmente excluir este registro permanentemente?")) return;
+    if (!confirm("Deseja realmente excluir este registro permanentemente?")) return;
     try {
-      await deleteDoc(doc(firestore, "users", targetId, "physicalAssessments", id));
+      await fetchApi(`/avaliacoes_antropo/${id}`, { method: 'DELETE' });
       toast({ title: "Registro excluído com sucesso." });
+      mutateHistory();
       if (selectedId === id) handleNewRecord();
     } catch (err) {
       toast({ variant: "destructive", title: "Erro ao excluir." });
@@ -287,56 +304,80 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   };
 
   const onSubmit = async (values: AssessmentValues) => {
-    if (!user || !firestore || !values.studentId) return
+    if (!user || !values.studentId) return
     setLoading(true)
     
-    let targetUserId = values.studentId;
+    try {
+      let targetUserId = values.studentId;
 
-    if (isNewStudent) {
-      const newStudentId = doc(collection(firestore, 'users')).id;
-      targetUserId = newStudentId;
+      if (isNewStudent) {
+        // Criar aluno via API se for professor
+        const payload = {
+          nome: values.fullName,
+          email: values.email?.toLowerCase().trim(),
+          senha: 'senha Padrao A Mudar', // Mock senha placeholder
+          biotipo: values.gender === 'male' ? 'masculino' : 'feminino',
+          data_nascimento: values.birthDate || '1990-01-01',
+          professor_id: user.id
+        };
+        const res = await fetchApi('/users/register/aluno', {
+          method: 'POST',
+          data: payload
+        });
+        targetUserId = res?.id || targetUserId;
+      }
 
-      const userRef = doc(firestore, 'users', newStudentId);
-      setDocumentNonBlocking(userRef, {
-        id: newStudentId,
-        name: values.fullName,
-        email: values.email?.toLowerCase().trim(),
-        userType: 'student',
-        birthDate: values.birthDate,
-        gender: values.gender,
-        createdAt: new Date().toISOString(),
-        createdBy: user.uid,
-      }, { merge: true });
+      const apiPayload = {
+        aluno_id: targetUserId,
+        professor_id: isProfessor ? user.id : null,
+        data_avaliacao: new Date().toISOString(),
+        peso_corporal_kg: values.weight,
+        estatura_cm: values.height,
+        imc: results.imc || 0,
+        rcq: results.rcq || 0,
+        risco_rcq: results.rcqRisk || '',
+        percentual_gordura: results.bf || 0,
+        massa_magra_kg: results.lbm || 0,
+        peso_gordura_kg: results.fm || 0,
+        circ_pescoco_cm: values.neck,
+        circ_ombro_cm: values.shoulder,
+        circ_torax_cm: values.chest,
+        circ_cintura_cm: values.waist,
+        circ_abdomen_cm: values.abdomen,
+        circ_quadril_cm: values.hip,
+        circ_coxa_dir_cm: values.thighR,
+        circ_coxa_esq_cm: values.thighL,
+        circ_perna_dir_cm: values.legR,
+        circ_perna_esq_cm: values.legL,
+        circ_braco_relax_dir_cm: values.armRelaxedR,
+        circ_braco_relax_esq_cm: values.armRelaxedL,
+        circ_braco_contr_dir_cm: values.armContractedR,
+        circ_braco_contr_esq_cm: values.armContractedL,
+        circ_antebraco_dir_cm: values.forearmR,
+        circ_antebraco_esq_cm: values.forearmL,
+        dobra_subescapular_mm: values.subscapular,
+        dobra_tricipital_mm: values.triceps,
+        dobra_bicipital_mm: values.biceps,
+        dobra_axilar_media_mm: values.midAxillary,
+        dobra_peitoral_mm: values.pectoral,
+        dobra_abdominal_mm: values.abdominal,
+        dobra_suprailiaca_mm: values.suprailiac,
+        dobra_coxa_mm: values.thigh,
+        dobra_perna_medial_mm: values.midLeg,
+      };
 
-      const linkRef = doc(firestore, 'professors', user.uid, 'students', newStudentId);
-      setDocumentNonBlocking(linkRef, {
-        id: newStudentId,
-        name: values.fullName,
-        email: values.email?.toLowerCase().trim(),
-        linkedAt: new Date().toISOString(),
-      }, { merge: true });
-    }
+      await fetchApi(selectedId ? `/avaliacoes_antropo/${selectedId}` : '/avaliacoes_antropo/', {
+        method: selectedId ? 'PUT' : 'POST',
+        data: apiPayload
+      });
 
-    const assessmentRef = selectedId
-      ? doc(firestore, "users", targetUserId, "physicalAssessments", selectedId)
-      : doc(collection(firestore, "users", targetUserId, "physicalAssessments"))
-
-    setDocumentNonBlocking(assessmentRef, {
-      ...values,
-      studentId: targetUserId,
-      id: assessmentRef.id,
-      userId: targetUserId,
-      date: selectedId ? values.date : new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-      calculatedResults: results,
-      assessedBy: user.uid,
-    }, { merge: true })
-
-    toast({ title: isNewStudent ? "Aluno cadastrado e avaliação salva!" : "Avaliação salva com sucesso!" })
-    setSelectedId(assessmentRef.id)
-    setLoading(false)
-    if (isNewStudent) {
-      form.setValue("studentId", targetUserId);
+      toast({ title: isNewStudent ? "Aluno cadastrado e avaliação salva!" : "Avaliação salva com sucesso!" });
+      mutateHistory();
+      if (isNewStudent) form.setValue("studentId", targetUserId);
+    } catch(err) {
+      toast({ variant: 'destructive', title: 'Erro ao salvar avaliação.' });
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -370,9 +411,9 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                 onClick={() => setSelectedId(item.id)}
               >
                 <div>
-                  <p className="text-xs font-bold">{format(new Date(item.date), "dd/MM/yyyy")}</p>
+                  <p className="text-xs font-bold">{format(new Date(item.data_avaliacao || item.date || new Date().toISOString()), "dd/MM/yyyy")}</p>
                   <p className="text-[10px] uppercase font-black text-muted-foreground mt-1">
-                    {item.calculatedResults?.imc} IMC | {item.calculatedResults?.fatPerc}% Gordura
+                    {item.imc || item.calculatedResults?.imc || 0} IMC | {item.percentual_gordura || item.calculatedResults?.fatPerc || 0}% Gordura
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -437,7 +478,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                               </div>
                             </SelectItem>
                             {students?.map(student => (
-                              <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                              <SelectItem key={student.id} value={student.id}>{student.nome || student.name || 'Sem nome'}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

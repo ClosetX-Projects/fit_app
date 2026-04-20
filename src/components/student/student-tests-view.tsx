@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useFirebase, useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, collection, serverTimestamp } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/contexts/auth-provider';
+import { fetchApi } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +21,6 @@ const TEST_PROTOCOLS = [
 
 export function StudentTestsView() {
   const { user } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [activeTest, setActiveTest] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,14 +30,17 @@ export function StudentTestsView() {
     if (!user || !activeTest) return;
     setLoading(true);
     
-    const testRef = doc(collection(firestore, 'users', user.uid, 'physicalTests'));
-    setDocumentNonBlocking(testRef, {
-      ...testData,
-      testId: activeTest,
-      userId: user.uid,
-      date: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    }, { merge: true });
+    try {
+      await fetchApi('/physical-tests', {
+        method: 'POST',
+        data: {
+          ...testData,
+          testId: activeTest,
+          userId: (user as any).id,
+          date: new Date().toISOString()
+        }
+      });
+    } catch {}
 
     toast({ title: "Teste registrado!", description: "Seu professor já pode analisar o resultado." });
     setLoading(false);

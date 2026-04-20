@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/contexts/auth-provider';
+import { useApi } from '@/hooks/use-api';
+import { fetchApi } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,6 @@ const INTENTION_QUESTIONS = [
 ];
 
 export function WorkoutSessionForm() {
-  const { firestore } = useFirebase();
   const { user } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -74,17 +73,12 @@ export function WorkoutSessionForm() {
   const [glycemiaPre, setGlycemiaPre] = useState('');
   const [glycemiaPost, setGlycemiaPost] = useState('');
 
-  const profileRef = useMemoFirebase(() => user ? doc(firestore, "users", user.uid) : null, [firestore, user])
-  const { data: profile } = useDoc(profileRef)
+  const { data: profile } = useApi<any>(user ? `/users/alunos/${(user as any).id || (user as any).uid}` : null);
+  const isHypertensive = profile?.isHypertensive || profile?.is_hypertensive || false;
+  const isDiabetic = profile?.isDiabetic || profile?.is_diabetic || false;
 
-  const isHypertensive = profile?.isHypertensive || false;
-  const isDiabetic = profile?.isDiabetic || false;
-
-  const programsRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'trainingPrograms') : null, [firestore, user]);
-  const { data: programs } = useCollection(programsRef);
-
-  const prescribedExercisesRef = useMemoFirebase(() => (user && selectedProgramId) ? collection(firestore, 'users', user.uid, 'trainingPrograms', selectedProgramId, 'prescribedExercises') : null, [firestore, user, selectedProgramId]);
-  const { data: prescribedExercises } = useCollection(prescribedExercisesRef);
+  const { data: programs } = useApi<any[]>(user ? `/programas/?aluno_id=${(user as any).id || (user as any).uid}` : null);
+  const { data: prescribedExercises } = useApi<any[]>(selectedProgramId ? `/treinos/?programa_id=${selectedProgramId}` : null);
 
   useEffect(() => {
     let interval: any;
@@ -159,12 +153,11 @@ export function WorkoutSessionForm() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !firestore || !startTime) return;
+    if (!user || !startTime) return;
     setLoading(true);
     const durationMin = Math.round(elapsedTime / 60);
 
     try {
-      const sessionId = doc(collection(firestore, 'dummy')).id;
       const internalLoad = durationMin * sessionPse;
       
       const numExercises = Object.keys(exerciseLogs).length;
@@ -185,8 +178,7 @@ export function WorkoutSessionForm() {
       const finalKcal = Math.round(Math.max(0, kcal));
 
       const sessionData = {
-        id: sessionId,
-        userId: user.uid,
+        userId: (user as any).id || (user as any).uid,
         trainingProgramId: selectedProgramId,
         date: new Date().toISOString(),
         recoveryPerception: recovery,
@@ -202,29 +194,27 @@ export function WorkoutSessionForm() {
           isDiabetic,
           pa: { start: paStart, mid: paMid, end: paEnd },
           glycemia: { pre: glycemiaPre, post: glycemiaPost }
-        },
-        createdAt: serverTimestamp(),
+        }
       };
 
-      const flatSessionRef = doc(firestore, 'users', user.uid, 'workoutHistory_flat', sessionId);
-      setDocumentNonBlocking(flatSessionRef, sessionData, { merge: true });
+      const sessionRes = await fetchApi('/treinos/', { method: 'POST', data: sessionData });
+      const createdSessionId = sessionRes.id || Math.random().toString();
 
-      Object.entries(exerciseLogs).forEach(([exId, log]) => {
-        const prescribedEx = prescribedExercises?.find(p => p.id === exId);
-        const exerciseId = doc(collection(firestore, 'dummy')).id;
-        const flatExRef = doc(firestore, 'users', user.uid, 'exerciseHistory_flat', exerciseId);
-        setDocumentNonBlocking(flatExRef, {
-          id: exerciseId,
-          userId: user.uid,
-          workoutSessionId: sessionId,
-          name: prescribedEx?.name || 'Exercício',
-          sets: Number(log.sets),
-          reps: log.reps,
-          weight: Number(log.weight),
-          pseExercise: log.pse,
-          createdAt: serverTimestamp(),
-        }, { merge: true });
-      });
+      await Promise.all(Object.entries(exerciseLogs).map(async ([exId, log]) => {
+        const prescribedEx = prescribedExercises?.find((p: any) => p.id === exId);
+        await fetchApi('/exercicios/', {
+          method: 'POST',
+          data: {
+            userId: (user as any).id || (user as any).uid,
+            workoutSessionId: createdSessionId,
+            name: prescribedEx?.name || 'Exercício',
+            sets: Number(log.sets),
+            reps: log.reps,
+            weight: Number(log.weight),
+            pseExercise: log.pse,
+          }
+        });
+      }));
 
       toast({ title: "Treino Finalizado!", description: `Carga Interna: ${internalLoad} AU | Gasto: ${finalKcal} kcal.` });
       setIsStarted(false);

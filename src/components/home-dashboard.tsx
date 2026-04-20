@@ -1,15 +1,12 @@
-
 'use client';
 
-import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser } from '@/contexts/auth-provider';
 import { ProfessorView } from '@/components/professor/professor-view';
 import { StudentView } from '@/components/student/student-view';
 import { Logo } from '@/components/icons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { User, LogOut, Loader2, Copy, Check } from 'lucide-react';
-import { signOut } from 'firebase/auth';
+import { User as UserIcon, LogOut, Loader2, Copy, Check } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -18,27 +15,20 @@ import { EditProfileDialog } from '@/components/edit-profile-dialog';
 import { NotificationsDropdown } from '@/components/notifications-dropdown';
 
 export function HomeDashboard() {
-  const { user, isUserLoading } = useUser();
-  const { auth, firestore } = useFirebase();
+  const { user, isUserLoading, logout } = useUser();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const userAvatarPlaceholder = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
-  const userProfileRef = useMemoFirebase(() => 
-    user ? doc(firestore, 'users', user.uid) : null
-  , [firestore, user]);
-  
-  const { data: profile, isLoading: isProfileLoading } = useDoc(userProfileRef);
-
-  const isProfessor = profile?.userType === 'professor';
+  const isProfessor = user?.role === 'professor';
 
   const handleSignOut = () => {
-    signOut(auth);
+    logout();
   };
 
   const handleCopyId = () => {
-    if (user?.uid) {
-      navigator.clipboard.writeText(user.uid);
+    if (user?.id) {
+      navigator.clipboard.writeText(user.id);
       setCopied(true);
       toast({
         title: 'ID Copiado!',
@@ -48,7 +38,7 @@ export function HomeDashboard() {
     }
   };
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -56,7 +46,8 @@ export function HomeDashboard() {
     );
   }
 
-  const currentPhotoUrl = profile?.photoUrl || user?.photoURL || userAvatarPlaceholder?.imageUrl;
+  // O Backend ainda não envia foto, então usamos o placeholder
+  const currentPhotoUrl = userAvatarPlaceholder?.imageUrl;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background selection:bg-primary/30">
@@ -69,7 +60,7 @@ export function HomeDashboard() {
         
         <div className="ml-auto flex items-center gap-2 md:gap-4">
           <div className="hidden md:flex flex-col items-end mr-2">
-            <p className="text-sm font-semibold leading-none mb-1">{profile?.name || user?.displayName}</p>
+            <p className="text-sm font-semibold leading-none mb-1">{user?.nome}</p>
             <div className="flex items-center gap-2">
               <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                 {isProfessor ? 'Professor' : 'Aluno'}
@@ -81,7 +72,7 @@ export function HomeDashboard() {
                 onClick={handleCopyId}
               >
                 {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                ID: {user?.uid.substring(0, 6)}
+                ID: {user?.id?.substring(0, 6)}
               </Button>
             </div>
           </div>
@@ -91,12 +82,12 @@ export function HomeDashboard() {
           <Avatar className="h-9 w-9 border-2 border-primary/20">
             <AvatarImage src={currentPhotoUrl} />
             <AvatarFallback className="bg-primary/10 text-primary">
-              <User className="h-5 w-5" />
+              <UserIcon className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>
 
           <div className="flex items-center gap-1">
-            <EditProfileDialog profile={profile} />
+            <EditProfileDialog profile={user} />
             <Button 
               variant="ghost" 
               size="icon" 

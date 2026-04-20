@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useApi } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ClipboardList, Dumbbell, History, LineChart, ShieldAlert, Heart, Target, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { ArrowLeft, ClipboardList, Dumbbell, History, TrendingUp, ShieldAlert, Heart, Target } from 'lucide-react';
 import { TrainingManager } from './training-manager';
 import { StudentAnalytics } from './student-analytics';
 import { StudentAssessmentsView } from './student-assessments-view';
@@ -20,9 +19,7 @@ interface StudentDetailsProps {
 }
 
 export function StudentDetails({ studentId, onBack, defaultTab = 'assessments', onEditAntropometry }: StudentDetailsProps) {
-  const { firestore } = useFirebase();
-  const studentRef = useMemoFirebase(() => doc(firestore, 'users', studentId), [firestore, studentId]);
-  const { data: student } = useDoc(studentRef);
+  const { data: student } = useApi<any>(`/users/alunos/${studentId}`);
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
@@ -34,10 +31,10 @@ export function StudentDetails({ studentId, onBack, defaultTab = 'assessments', 
           </Button>
           <div className="flex items-center gap-4">
              <div className="h-16 w-16 rounded-3xl bg-primary flex items-center justify-center text-white text-2xl font-black">
-                {student?.name?.[0]}
+                {student?.nome?.[0]}
              </div>
              <div>
-                <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">{student?.name || 'Carregando...'}</h2>
+                <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">{student?.nome || 'Carregando...'}</h2>
                 <p className="text-sm text-muted-foreground font-medium">{student?.email}</p>
              </div>
           </div>
@@ -78,7 +75,7 @@ export function StudentDetails({ studentId, onBack, defaultTab = 'assessments', 
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted rounded-2xl mb-8">
           <TabsTrigger value="assessments" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><ClipboardList className="h-4 w-4" /> Avaliações</TabsTrigger>
           <TabsTrigger value="training" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><Dumbbell className="h-4 w-4" /> Prescrição</TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><TrendingUp className="h-4 w-4" /> Evolução</TrendingUp></TabsTrigger>
+          <TabsTrigger value="analytics" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><TrendingUp className="h-4 w-4" /> Evolução</TabsTrigger>
           <TabsTrigger value="history" className="rounded-xl py-3 gap-2 text-xs font-bold uppercase"><History className="h-4 w-4" /> Treinos</TabsTrigger>
         </TabsList>
 

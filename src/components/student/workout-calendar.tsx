@@ -6,8 +6,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { useUser } from "@/contexts/auth-provider"
+import { useApi } from "@/hooks/use-api"
 import { format, isSameDay, isValid } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Calendar as CalendarIcon, Dumbbell, Activity, Smile, Loader2, ChevronRight, Clock, Zap } from "lucide-react"
@@ -15,7 +15,6 @@ import { FEELING_SCALE_MESSAGES } from "@/lib/constants"
 
 export function WorkoutCalendar() {
   const { user } = useUser()
-  const { firestore } = useFirebase()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [isSessionDetailOpen, setIsSessionDetailOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -24,18 +23,8 @@ export function WorkoutCalendar() {
     setMounted(true)
   }, [])
 
-  // Histórico de Sessões
-  const sessionsRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'workoutHistory_flat') : null
-  , [firestore, user]);
-  
-  const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsRef);
-
-  // Histórico de Exercícios para detalhes
-  const exercisesRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'exerciseHistory_flat') : null
-  , [firestore, user]);
-  const { data: allExercises } = useCollection(exercisesRef);
+  const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>(user ? `/treinos/aluno/${user.id}` : null);
+  const { data: allExercises } = useApi<any[]>(user ? `/exercicios/aluno/${user.id}` : null);
 
   const sessions = useMemo(() => {
     if (!rawSessions) return [];

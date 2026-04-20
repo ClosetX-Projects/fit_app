@@ -6,14 +6,11 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Bar, BarChart, Area, AreaChart } from "recharts"
 import type { ChartConfig } from "@/components/ui/chart"
 import { Dumbbell, Scale, Loader2, TrendingUp, CalendarDays, Zap, Clock, Activity, LayoutGrid, Flame } from "lucide-react"
-import { useFirebase, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, limit, doc } from "firebase/firestore"
-import { format, startOfMonth, endOfMonth, differenceInMinutes, isValid } from "date-fns"
+import { useUser } from "@/contexts/auth-provider"
+import { useApi } from "@/hooks/use-api"
+import { format, startOfMonth, isValid } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AICoach } from "./ai-coach"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
 import { useToast } from "@/hooks/use-toast"
@@ -32,7 +29,6 @@ const chartConfig = {
 
 export function Dashboard() {
   const { user } = useUser()
-  const { firestore } = useFirebase()
   const { toast } = useToast()
   const [isClient, setIsClient] = useState(false)
 
@@ -40,20 +36,9 @@ export function Dashboard() {
     setIsClient(true)
   }, [])
 
-  const assessmentsRef = useMemoFirebase(() => 
-    user ? query(collection(firestore, 'users', user.uid, 'physicalAssessments'), orderBy('date', 'asc'), limit(20)) : null
-  , [firestore, user])
-  const { data: assessments, isLoading: isAssessmentsLoading } = useCollection(assessmentsRef)
-
-  const sessionsRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'workoutHistory_flat') : null
-  , [firestore, user])
-  const { data: rawSessions, isLoading: isSessionsLoading } = useCollection(sessionsRef)
-
-  const exercisesRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'exerciseHistory_flat') : null
-  , [firestore, user]);
-  const { data: rawExercises, isLoading: isExercisesLoading } = useCollection(exercisesRef);
+  const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>('/avaliacoes_antropo/')
+  const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>('/treinos/')
+  const { data: rawExercises, loading: isExercisesLoading } = useApi<any[]>('/exercicios/')
 
   const stats = useMemo(() => {
     if (!isClient || !rawSessions || rawSessions.length === 0) return { total: 0, frequency: 0, lastSession: 'Nenhum', avgLoad: 0, totalReps: 0, totalSeries: 0, totalKcal: 0 }

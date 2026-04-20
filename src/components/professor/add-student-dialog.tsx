@@ -2,8 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirebase } from '@/firebase';
-import { doc, collection, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/contexts/auth-provider';
+import { fetchApi } from '@/lib/api-client';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,14 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Link as LinkIcon, Copy, Check, UserPlus, UserCheck, Loader2, Mail } from 'lucide-react';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export function AddStudentDialog() {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { user: professor } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
 
   // Estados para Cadastro Manual
@@ -26,7 +24,7 @@ export function AddStudentDialog() {
   const [studentEmail, setStudentEmail] = useState('');
 
   const inviteLink = typeof window !== 'undefined' 
-    ? `${window.location.origin}/signup?role=student&invitedBy=${professor?.uid}`
+    ? `${window.location.origin}/signup?role=student&invitedBy=${professor?.id}`
     : '';
 
   const handleCopy = () => {
@@ -42,33 +40,21 @@ export function AddStudentDialog() {
 
   const handleManualRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!professor || !firestore || !studentName || !studentEmail) return;
+    if (!professor || !studentName || !studentEmail) return;
 
     setLoading(true);
     try {
-      // 1. Gerar um ID temporário para o aluno (já que não temos o UID do Auth ainda)
-      // Usaremos um ID aleatório para o documento do usuário
-      const studentId = doc(collection(firestore, 'users')).id;
-
-      // 2. Criar perfil básico do aluno
-      const userRef = doc(firestore, 'users', studentId);
-      setDocumentNonBlocking(userRef, {
-        id: studentId,
-        name: studentName,
-        email: studentEmail.toLowerCase().trim(),
-        userType: 'student',
-        createdAt: new Date().toISOString(),
-        createdBy: professor.uid,
-      }, { merge: true });
-
-      // 3. Vincular ao professor
-      const linkRef = doc(firestore, 'professors', professor.uid, 'students', studentId);
-      setDocumentNonBlocking(linkRef, {
-        id: studentId,
-        name: studentName,
-        email: studentEmail.toLowerCase().trim(),
-        linkedAt: new Date().toISOString(),
-      }, { merge: true });
+      await fetchApi('/users/register/aluno', {
+        method: 'POST',
+        data: {
+          nome: studentName,
+          email: studentEmail.toLowerCase().trim(),
+          senha: 'senha Padrao A Mudar', // Mock senha placeholder
+          biotipo: 'masculino', // Default
+          data_nascimento: '1990-01-01', // Default
+          professor_id: professor.id
+        }
+      });
 
       toast({
         title: "Aluno Cadastrado!",

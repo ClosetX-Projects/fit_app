@@ -2,7 +2,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/firebase';
+import { AuthProvider } from '@/contexts/auth-provider';
 
 export const metadata: Metadata = {
   title: 'FitAssist AI',
@@ -41,10 +41,10 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="font-body antialiased selection:bg-primary selection:text-primary-foreground">
-        <FirebaseClientProvider>
+        <AuthProvider>
           {children}
           <Toaster />
-        </FirebaseClientProvider>
+        </AuthProvider>
       </body>
     </html>
   );

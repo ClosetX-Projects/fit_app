@@ -6,30 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Sparkles, BrainCircuit } from "lucide-react"
 import { getAIGoalRecommendations } from "@/lib/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useFirebase, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, limit, doc } from "firebase/firestore"
+import { useUser } from "@/contexts/auth-provider"
+import { useApi } from "@/hooks/use-api"
 import type { PersonalizedGoalRecommendationsInput } from "@/ai/flows/personalized-goal-recommendations"
 
 export function GoalRecommender() {
     const { user } = useUser()
-    const { firestore } = useFirebase()
     const [loading, setLoading] = useState(false)
     const [goals, setGoals] = useState<string[]>([])
     const [error, setError] = useState<string | null>(null)
 
-    // Buscar Perfil Real
-    const profileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user])
-    const { data: profile } = useDoc(profileRef)
-
-    // Buscar Última Avaliação Real
-    const lastAssessmentRef = useMemoFirebase(() => 
-        user ? query(collection(firestore, 'users', user.uid, 'physicalAssessments'), orderBy('date', 'desc'), limit(1)) : null
-    , [firestore, user])
-    const { data: lastAssessments } = useCollection(lastAssessmentRef)
-    const lastAssessment = lastAssessments?.[0]
+    const { data: assessments } = useApi<any[]>('/avaliacoes_antropo/')
+    const lastAssessment = assessments?.[assessments?.length - 1]
 
     const handleGenerateGoals = async () => {
-        if (!profile || !user) {
+        if (!user) {
             setError("Perfil não carregado.")
             return
         }
@@ -41,13 +32,13 @@ export function GoalRecommender() {
         // Garantir conversão estrita para Number para evitar erros de validação da IA
         const inputData: PersonalizedGoalRecommendationsInput = {
             userData: {
-                name: String(profile.name || user.displayName || 'Usuário'),
-                age: Number(profile.age || 0),
-                gender: String(profile.gender || 'Não informado'),
-                weight: Number(lastAssessment?.weight || profile.weight || 0),
-                height: Number(lastAssessment?.height || profile.height || 0),
+                name: String(user.nome || 'Usuário'),
+                age: 30, // Mocked for AI
+                gender: String(user.biotipo || 'Não informado'),
+                weight: Number(lastAssessment?.weight || 0),
+                height: Number(lastAssessment?.height || 0),
                 email: String(user.email || ''),
-                whatsapp: String(profile.whatsapp || '')
+                whatsapp: ''
             },
             bodyComposition: {
                 weight: Number(lastAssessment?.weight || 0),
@@ -56,9 +47,9 @@ export function GoalRecommender() {
                 skinfolds: {},
             },
             bioimpedanceData: {
-                age: Number(profile.age || 0),
+                age: 30,
                 height: Number(lastAssessment?.height || 0),
-                gender: String(profile.gender || ''),
+                gender: String(user.biotipo || ''),
                 totalBodyWater: 0,
                 protein: 0,
                 mineralContent: 0,
@@ -99,7 +90,7 @@ export function GoalRecommender() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Button onClick={handleGenerateGoals} disabled={loading || !profile} className="w-full h-12 text-lg">
+                    <Button onClick={handleGenerateGoals} disabled={loading} className="w-full h-12 text-lg">
                         {loading ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />

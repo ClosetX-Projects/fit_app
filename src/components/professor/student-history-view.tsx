@@ -2,8 +2,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useApi } from '@/hooks/use-api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,21 +20,10 @@ interface StudentHistoryViewProps {
 }
 
 export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
-  const { firestore } = useFirebase();
+  const { data: rawExercises, loading: loadingExercises } = useApi<any[]>(`/exercicios/aluno/${studentId}`);
+  const { data: rawSessions, loading: loadingSessions } = useApi<any[]>(`/treinos/aluno/${studentId}`);
   const [insightLoading, setInsightLoading] = useState<string | null>(null);
   const [currentInsight, setCurrentInsight] = useState<{ id: string, text: string } | null>(null);
-
-  // Buscar exercícios e sessões para exibir resumo completo
-  const rawExercisesRef = useMemoFirebase(() => 
-    collection(firestore!, 'users', studentId, 'exerciseHistory_flat')
-  , [firestore, studentId]);
-
-  const rawSessionsRef = useMemoFirebase(() => 
-    collection(firestore!, 'users', studentId, 'workoutHistory_flat')
-  , [firestore, studentId]);
-
-  const { data: rawExercises, isLoading: loadingExercises } = useCollection(rawExercisesRef);
-  const { data: rawSessions, isLoading: loadingSessions } = useCollection(rawSessionsRef);
 
   // Ordenar exercícios e sessões
   const exercises = useMemo(() => {

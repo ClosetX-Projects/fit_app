@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState } from 'react';
-import { useFirebase, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { useUser } from '@/contexts/auth-provider';
+import { useApi } from '@/hooks/use-api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -15,20 +14,14 @@ import { AssessmentForm } from '@/components/assessment-form';
 
 export function ProfessorView() {
   const { user } = useUser();
-  const { firestore } = useFirebase();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('assessments');
   const [showAssessmentWizard, setShowAssessmentWizard] = useState(false);
   const [initialDetailsTab, setInitialDetailsTab] = useState('assessments');
-  
-  // Estado para Edição específica de Antropometria
   const [editContext, setEditContext] = useState<{ studentId: string, assessmentId: string } | null>(null);
 
-  const studentsRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'professors', user.uid, 'students') : null
-  , [firestore, user]);
-  
-  const { data: students, isLoading } = useCollection(studentsRef);
+  // Todo: Validar endpoint real se o swagger traz os alunos do professor no futuro
+  const { data: students, loading: isLoading } = useApi<any[]>('/users/alunos');
 
   const handleSelectStudent = (id: string, tab: string = 'assessments') => {
     setInitialDetailsTab(tab);
@@ -112,10 +105,10 @@ export function ProfessorView() {
                         <div key={student.id} onClick={() => handleSelectStudent(student.id, 'assessments')} className="nubank-card cursor-pointer group flex items-center justify-between py-4 border-l-4 border-l-primary/30 hover:border-l-primary">
                            <div className="flex items-center gap-4">
                               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg font-black">
-                                 {student.name?.[0]}
+                                 {student.nome?.[0]}
                               </div>
                               <div>
-                                 <p className="font-black text-base text-foreground group-hover:text-primary transition-colors">{student.name}</p>
+                                 <p className="font-black text-base text-foreground group-hover:text-primary transition-colors">{student.nome}</p>
                                  <p className="text-[9px] text-muted-foreground uppercase font-bold">Ver ficha técnica</p>
                               </div>
                            </div>
@@ -150,10 +143,10 @@ export function ProfessorView() {
               {students?.map(student => (
                 <div key={student.id} onClick={() => handleSelectStudent(student.id, 'assessments')} className="nubank-card cursor-pointer group flex items-center gap-4">
                   <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl font-black">
-                    {student.name?.[0]}
+                    {student.nome?.[0]}
                   </div>
                   <div className="flex-1">
-                    <p className="font-black text-foreground group-hover:text-primary transition-colors">{student.name}</p>
+                    <p className="font-black text-foreground group-hover:text-primary transition-colors">{student.nome}</p>
                     <p className="text-[10px] text-muted-foreground uppercase font-bold">{student.email}</p>
                   </div>
                 </div>

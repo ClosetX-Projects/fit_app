@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@/firebase';
+import { useUser } from '@/contexts/auth-provider';
 import { HomeDashboard } from '@/components/home-dashboard';
 import { LandingPage } from '@/components/landing-page';
 import { Loader2 } from 'lucide-react';

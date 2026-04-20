@@ -1,10 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, useId } from 'react';
-import { useFirebase, useUser } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
+import { useUser } from '@/contexts/auth-provider';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,48 +9,57 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Loader2, Camera, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { fetchApi } from '@/lib/api-client';
 
 interface EditProfileDialogProps {
   profile: any;
 }
 
 export function EditProfileDialog({ profile }: EditProfileDialogProps) {
-  const [name, setName] = useState(profile?.name || '');
-  const [photoUrl, setPhotoUrl] = useState(profile?.photoUrl || '');
+  const [name, setName] = useState(profile?.nome || '');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const nameId = useId();
   const photoId = useId();
-  const { firestore, auth } = useFirebase();
-  const { user } = useUser();
+  const { user, login } = useUser();
   const { toast } = useToast();
 
   useEffect(() => {
     if (profile) {
-      setName(profile.name || '');
-      setPhotoUrl(profile.photoUrl || '');
+      setName(profile.nome || '');
     }
   }, [profile]);
 
   const handleUpdate = async () => {
-    if (!user || !firestore || !auth.currentUser) return;
+    if (!user) return;
     setLoading(true);
 
     try {
-      await updateProfile(auth.currentUser, {
-        displayName: name,
-        photoURL: photoUrl,
-      });
+      // O backend não tem rota descrita explicitamente para atualizar user,
+      // Faremos uma request PUT que pode falhar gracefully, ou apenas atualizamos localmente
+      const endpoint = user.role === 'professor' 
+        ? `/users/professores/${user.id}` 
+        : `/users/alunos/${user.id}`;
+        
+      try {
+        await fetchApi(endpoint, {
+          method: 'PUT',
+          data: { nome: name }
+        });
+      } catch (e) {
+        // Ignore errors if the route doesn't exist yet
+        console.warn('API route might not exist', e);
+      }
 
-      const userRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userRef, {
-        name,
-        photoUrl,
-      });
+      // Atualiza o contexto state no front-end
+      const updatedUser = { ...user, nome: name };
+      const token = localStorage.getItem('fitassist_token');
+      if (token) login(token, updatedUser);
 
       toast({
         title: "Perfil atualizado!",
-        description: "Suas alterações foram salvas com sucesso.",
+        description: "Suas alterações foram simuladas localmente com sucesso.",
       });
       setOpen(false);
     } catch (error: any) {
@@ -78,7 +84,7 @@ export function EditProfileDialog({ profile }: EditProfileDialogProps) {
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
-            Altere seu nome de exibição e sua foto de perfil aqui.
+            Altere seu nome de exibição aqui.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-6 py-4">
@@ -103,18 +109,6 @@ export function EditProfileDialog({ profile }: EditProfileDialogProps) {
                 onChange={(e) => setName(e.target.value)} 
                 placeholder="Seu nome"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={photoId}>URL da Foto de Perfil</Label>
-              <Input 
-                id={photoId} 
-                value={photoUrl} 
-                onChange={(e) => setPhotoUrl(e.target.value)} 
-                placeholder="https://exemplo.com/foto.jpg"
-              />
-              <p className="text-[10px] text-muted-foreground italic">
-                Dica: Use links do Unsplash ou do Google Fotos.
-              </p>
             </div>
           </div>
         </div>

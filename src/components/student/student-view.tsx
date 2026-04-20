@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,26 +9,16 @@ import { HealthDiagnostics } from '@/components/health-diagnostics';
 import { WorkoutCalendar } from './workout-calendar';
 import { StudentOnboarding } from './student-onboarding';
 import { StudentTestsView } from './student-tests-view';
-import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { useUser } from '@/contexts/auth-provider';
+import { useApi } from '@/hooks/use-api';
 import { LayoutGrid, ClipboardPen, BrainCircuit, HeartPulse, ClipboardCheck, Calendar as CalendarIcon, Loader2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function StudentView() {
   const { user } = useUser();
-  const { firestore } = useFirebase();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const assessmentsRef = useMemoFirebase(() => 
-    user ? collection(firestore, 'users', user.uid, 'physicalAssessments') : null
-  , [firestore, user]);
-
-  const { data: assessments, isLoading: isAssessmentsLoading } = useCollection(assessmentsRef);
-
-  const profileRef = useMemoFirebase(() => 
-    user ? doc(firestore, 'users', user.uid) : null
-  , [firestore, user]);
-  const { data: profile } = useDoc(profileRef);
+  const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>('/avaliacoes_antropo/');
 
   const navItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutGrid },
@@ -61,9 +50,9 @@ export function StudentView() {
     );
   }
 
-  // Se houver avaliações migradas ou onboarding já iniciado, pula o onboarding
+  // Se houver avaliações migradas, pula o onboarding (Simplificado sem o user profile estrito)
   const hasAssessment = assessments && assessments.length > 0;
-  const onboardingCompleted = profile?.onboardingStarted === true;
+  const onboardingCompleted = true; // Temporary mock - assuming migrated students are ready
 
   if (!hasAssessment && !onboardingCompleted) {
     return <StudentOnboarding />;

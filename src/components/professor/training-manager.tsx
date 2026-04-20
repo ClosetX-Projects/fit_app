@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useFirebase, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, serverTimestamp, deleteDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/contexts/auth-provider';
+import { useApi } from '@/hooks/use-api';
+import { fetchApi } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,6 @@ interface TrainingManagerProps {
 }
 
 export function TrainingManager({ studentId }: TrainingManagerProps) {
-  const { firestore } = useFirebase();
   const { user: professor } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -53,100 +52,75 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
   const [hiitRestTime, setHiitEffortRestTime] = useState('60');
   const [hiitRestSpeed, setHiitRestSpeed] = useState('5.0');
 
-  // Buscar Última Avaliação para referências de VO2 e FC
-  const lastAssessmentRef = useMemoFirebase(() => 
-    query(collection(firestore, 'users', studentId, 'physicalAssessments'), orderBy('date', 'desc'), limit(1))
-  , [firestore, studentId]);
-  const { data: lastAssessments } = useCollection(lastAssessmentRef);
-  const lastAssessment = lastAssessments?.[0];
+  const { data: lastAssessments } = useApi<any[]>(`/avaliacoes_antropo/aluno/${studentId}`);
+  const lastAssessment = lastAssessments?.[lastAssessments.length - 1];
 
-  const studentRef = useMemoFirebase(() => doc(firestore, 'users', studentId), [firestore, studentId]);
-  const { data: student } = useDoc(studentRef);
+  const { data: student } = useApi<any>(`/users/alunos/${studentId}`);
 
   const vo2RefValue = Number(lastAssessment?.calculatedResults?.vo2Cooper || lastAssessment?.calculatedResults?.vo2Bruce || 0);
-  const age = student?.birthDate ? differenceInYears(new Date(), new Date(student.birthDate)) : 30;
+  const age = student?.data_nascimento ? differenceInYears(new Date(), new Date(student.data_nascimento)) : 30;
   const fcMax = 220 - age;
 
   const vo2Table = useMemo(() => {
     if (!vo2RefValue) return [];
     return [50, 60, 70, 80, 90, 100].map(perc => {
       const vo2Target = vo2RefValue * (perc / 100);
-      // Fórmula simplificada para esteira plana: Velocidade (km/h) = ((VO2 - 3.5) / 0.2) * 0.06
       const speed = Math.max(0, ((vo2Target - 3.5) / 0.2) * 0.06).toFixed(1);
       const fc = Math.round(fcMax * (perc / 100));
       return { perc, speed, fc };
     });
   }, [vo2RefValue, fcMax]);
 
-  const programsRef = useMemoFirebase(() => 
-    collection(firestore, 'users', studentId, 'trainingPrograms')
-  , [firestore, studentId]);
-  
-  const { data: programs, isLoading: isLoadingPrograms } = useCollection(programsRef);
+  const { data: programs, loading: isLoadingPrograms, mutate: mutatePrograms } = useApi<any[]>(`/programas/?aluno_id=${studentId}`);
+  const selectedProgram = programs?.find((p: any) => p.id === selectedProgramId);
+  const { data: exercises, loading: isLoadingExercises, mutate: mutateExercises } = useApi<any[]>(selectedProgramId ? `/treinos/?programa_id=${selectedProgramId}` : null);
 
-  const selectedProgram = programs?.find(p => p.id === selectedProgramId);
+  const { data: templates } = useApi<any[]>('/programas/');
 
-  const exercisesRef = useMemoFirebase(() => 
-    selectedProgramId ? collection(firestore, 'users', studentId, 'trainingPrograms', selectedProgramId, 'prescribedExercises') : null
-  , [firestore, studentId, selectedProgramId]);
-
-  const { data: exercises, isLoading: isLoadingExercises } = useCollection(exercisesRef);
-
-  const templatesRef = useMemoFirebase(() => 
-    professor ? collection(firestore, 'users', professor.uid, 'programTemplates') : null
-  , [firestore, professor]);
-  const { data: templates } = useCollection(templatesRef);
+  const mapMethod = (m: string) => {
+    const map: Record<string, string> = {
+      'Múltiplas Séries': 'multiplas_series', 'Bi-Set': 'bi_set', 'Tri-Set': 'tri_set',
+      'Pirâmide': 'piramide', 'Drop-Set': 'drop_set', 'Cluster Set': 'cluster_set',
+      'GVT': 'gvt', 'Rest-Pause': 'rest_pause'
+    };
+    return map[m] || 'multiplas_series';
+  };
+  const mapProgression = (p: string) => p === 'Ondulatória' ? 'ondulatoria' : 'linear';
 
   const handleCreateProgram = async () => {
-    if (!newProgramName || !firestore) return;
+    if (!newProgramName) return;
     setLoading(true);
-
-    const programRef = doc(collection(firestore, 'users', studentId, 'trainingPrograms'));
-    setDocumentNonBlocking(programRef, {
-      id: programRef.id,
-      userId: studentId,
-      name: newProgramName,
-      description: newProgramDesc,
-      method: newMethod,
-      progressionType: newProgression,
-      durationWeeks: Number(newDuration),
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-
-    toast({ title: "Programa criado", description: "O novo programa de treinamento foi adicionado." });
-    setNewProgramName('');
-    setNewProgramDesc('');
+    try {
+      await fetchApi(`/programas/`, {
+        method: 'POST',
+        data: {
+          professor_id: professor?.id,
+          aluno_id: studentId,
+          nome: newProgramName,
+          descricao: newProgramDesc,
+          metodo: mapMethod(newMethod),
+          progressao: mapProgression(newProgression),
+          semanas: Number(newDuration),
+        }
+      });
+      toast({ title: "Programa criado", description: "O novo programa de treinamento foi adicionado." });
+      mutatePrograms();
+      setNewProgramName('');
+      setNewProgramDesc('');
+    } catch { toast({ variant: "destructive", title: "Erro" }) }
     setLoading(false);
   };
 
   const handleImportTemplate = async (template: any) => {
-    if (!firestore || !professor || !studentId) return;
+    if (!professor || !studentId) return;
     setIsImporting(true);
-
     try {
-      const programRef = doc(collection(firestore, 'users', studentId, 'trainingPrograms'));
-      setDocumentNonBlocking(programRef, {
-        id: programRef.id,
-        userId: studentId,
-        name: template.name,
-        description: template.description,
-        method: template.method || 'Múltiplas Séries',
-        progressionType: template.progressionType || 'Linear',
-        durationWeeks: template.durationWeeks || 4,
-        importedFrom: template.id,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-
-      const templateExRef = collection(firestore, 'users', professor.uid, 'programTemplates', template.id, 'templateExercises');
-      const exSnapshot = await getDocs(templateExRef);
-
-      exSnapshot.forEach((exDoc) => {
-        const exData = exDoc.data();
-        const studentExRef = doc(collection(firestore, 'users', studentId, 'trainingPrograms', programRef.id, 'prescribedExercises'));
-        setDocumentNonBlocking(studentExRef, { ...exData, id: studentExRef.id, createdAt: serverTimestamp() }, { merge: true });
+      await fetchApi(`/programa_alunos/`, {
+        method: 'POST',
+        data: { programa_id: template.id, aluno_id: studentId }
       });
-
       toast({ title: "Template Importado!", description: `${template.name} foi atribuído com sucesso.` });
+      mutatePrograms();
     } catch (error) {
       toast({ variant: "destructive", title: "Erro na importação" });
     } finally {
@@ -154,77 +128,71 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
     }
   };
 
-  const handleAddExercise = () => {
-    if (!selectedProgramId || !exName || !firestore) return;
+  const handleAddExercise = async () => {
+    if (!selectedProgramId || !exName) return;
     setLoading(true);
-
-    const exerciseRef = doc(collection(firestore, 'users', studentId, 'trainingPrograms', selectedProgramId, 'prescribedExercises'));
-    setDocumentNonBlocking(exerciseRef, {
-      id: exerciseRef.id,
-      name: exName,
-      sets: Number(exSets),
-      reps: exReps,
-      oneRmPercentage: Number(exRm),
-      type: 'strength',
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-
-    setExName(''); setExSets(''); setExReps(''); setExRm('');
+    try {
+      await fetchApi(`/treinos/`, {
+        method: 'POST',
+        data: {
+          programa_id: selectedProgramId,
+          ordem: 1,
+          nome: exName,
+          series: Number(exSets),
+          reps_tempo: exReps,
+          pct_1rm: Number(exRm),
+          tipo: 'forca',
+        }
+      });
+      mutateExercises();
+      setExName(''); setExSets(''); setExReps(''); setExRm('');
+    } catch { toast({ variant: 'destructive', title: 'Erro' })}
     setLoading(false);
   };
 
-  const handleAddAerobic = (type: 'continuo' | 'hiit') => {
-    if (!selectedProgramId || !firestore) return;
+  const handleAddAerobic = async (type: 'continuo' | 'hiit') => {
+    if (!selectedProgramId) return;
     setLoading(true);
+    try {
+      const payload = type === 'continuo' ? {
+        programa_id: selectedProgramId,
+        tipo: 'continuo',
+        continuo_duracao_min: Number(aerobicDuration),
+        continuo_velocidade_kmh: Number(aerobicSpeed),
+      } : {
+        programa_id: selectedProgramId,
+        tipo: 'hiit',
+        hiit_num_tiros: Number(hiitIntervals),
+        hiit_vel_esforco: Number(hiitEffortSpeed),
+        hiit_tempo_esforco_seg: Number(hiitEffortTime),
+        hiit_pausa_seg: Number(hiitRestTime),
+        hiit_vel_recuperacao: Number(hiitRestSpeed)
+      };
 
-    const exerciseRef = doc(collection(firestore, 'users', studentId, 'trainingPrograms', selectedProgramId, 'prescribedExercises'));
-    
-    const aerobicData = type === 'continuo' ? {
-      name: 'Aeróbio Contínuo',
-      type: 'aerobic_continuo',
-      duration: Number(aerobicDuration),
-      speed: Number(aerobicSpeed),
-      structure: {
-        warmup: "5 min a 5.0 km/h",
-        main: `${aerobicDuration} min a ${aerobicSpeed} km/h`,
-        cooldown: "5 min a 4.0 km/h"
-      }
-    } : {
-      name: 'HIIT Aeróbio',
-      type: 'aerobic_hiit',
-      intervals: Number(hiitIntervals),
-      effortSpeed: Number(hiitEffortSpeed),
-      effortTime: Number(hiitEffortTime),
-      restTime: Number(hiitRestTime),
-      restSpeed: Number(hiitRestSpeed),
-      structure: {
-        warmup: "5 min a 5.0 km/h",
-        main: `${hiitIntervals} tiros de ${hiitEffortTime}s (${hiitEffortSpeed} km/h) por ${hiitRestTime}s (${hiitRestSpeed} km/h)`,
-        cooldown: "5 min a 4.0 km/h"
-      }
-    };
-
-    setDocumentNonBlocking(exerciseRef, {
-      ...aerobicData,
-      id: exerciseRef.id,
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-
+      await fetchApi(`/prescricao_aerobio/`, {
+        method: 'POST',
+        data: payload
+      });
+      toast({ title: "Treino Aeróbio Prescrito" });
+      mutateExercises();
+    } catch { toast({ variant: 'destructive', title: 'Erro' }) }
     setLoading(false);
-    toast({ title: "Treino Aeróbio Prescrito" });
   };
 
-  const handleDeleteExercise = (exerciseId: string) => {
-    if (!selectedProgramId || !firestore) return;
-    const exerciseRef = doc(firestore, 'users', studentId, 'trainingPrograms', selectedProgramId, 'prescribedExercises', exerciseId);
-    deleteDoc(exerciseRef);
+  const handleDeleteExercise = async (exerciseId: string) => {
+    if (!selectedProgramId) return;
+    try {
+      await fetchApi(`/treinos/${exerciseId}`, { method: 'DELETE' });
+      mutateExercises();
+    } catch {}
   };
 
-  const handleDeleteProgram = (programId: string) => {
-    if (!firestore) return;
-    const programRef = doc(firestore, 'users', studentId, 'trainingPrograms', programId);
-    deleteDoc(programRef);
-    if (selectedProgramId === programId) setSelectedProgramId(null);
+  const handleDeleteProgram = async (programId: string) => {
+    try {
+      await fetchApi(`/programas/${programId}`, { method: 'DELETE' });
+      mutatePrograms();
+      if (selectedProgramId === programId) setSelectedProgramId(null);
+    } catch {}
   };
 
   if (selectedProgramId && selectedProgram) {
