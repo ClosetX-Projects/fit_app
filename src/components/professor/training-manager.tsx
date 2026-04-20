@@ -138,23 +138,13 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
     if (!selectedProgramId || !exName) return;
     setLoading(true);
     try {
-      // Buscar o exercicio_id pelo nome no catálogo
-      const searchResults = await fetchApi(`/exercicios/busca?nome=${encodeURIComponent(exName)}`);
-      let exercicioId: string;
-      if (searchResults && searchResults.length > 0) {
-        exercicioId = searchResults[0].id;
-      } else {
-        // Criamos o exercício no catálogo se não existir
-        const newEx = await fetchApi('/exercicios/', { method: 'POST', data: { nome: exName } });
-        exercicioId = newEx.id;
-      }
       const currentExercises = exercises || [];
       await fetchApi(`/treinos/`, {
         method: 'POST',
         data: {
           programa_id: selectedProgramId,
           ordem: currentExercises.length + 1,
-          exercicio_id: exercicioId,
+          exercicio_id: exName, // exName agora guarda o UUID do exercício selecionado
           series: Number(exSets) || 3,
           reps_tempo: exReps || '3x10',
           pct_1rm: Number(exRm) || 0,
@@ -261,7 +251,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
               <div className="grid gap-4">
                 <Select value={exName} onValueChange={setExName}>
                   <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Escolha o exercício..." /></SelectTrigger>
-                  <SelectContent>{(catalogExercises || []).map((ex: any) => <SelectItem key={ex.id} value={ex.nome}>{ex.nome}</SelectItem>)}</SelectContent>
+                  <SelectContent>{(catalogExercises || []).map((ex: any) => <SelectItem key={ex.id} value={ex.id}>{ex.nome}</SelectItem>)}</SelectContent>
                 </Select>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">Séries</Label><Input type="number" value={exSets} onChange={e => setExSets(e.target.value)} /></div>

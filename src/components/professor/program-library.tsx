@@ -79,29 +79,19 @@ export function ProgramLibrary() {
     if (!user || !selectedTemplateId || !exName) return;
     setLoading(true);
     try {
-      // Buscar o exercicio_id pelo nome no catálogo
-      const searchResults = await fetchApi(`/exercicios/busca?nome=${encodeURIComponent(exName)}`);
-      let exercicioId: string;
-      if (searchResults && searchResults.length > 0) {
-        exercicioId = searchResults[0].id;
-      } else {
-        // Criamos se não existir no catálogo
-        const newEx = await fetchApi('/exercicios/', { method: 'POST', data: { nome: exName } });
-        exercicioId = newEx.id;
-      }
       const currentExercises = exercises || [];
       await fetchApi('/treinos/', {
         method: 'POST',
         data: {
           programa_id: selectedTemplateId,
           ordem: currentExercises.length + 1,
-          exercicio_id: exercicioId,
+          exercicio_id: exName, // exName guarda o UUID do exercício selecionado
           series: Number(exSets) || 3,
           reps_tempo: exReps || '3x10',
           pct_1rm: Number(exRm) || 0,
         }
       });
-      toast({ title: "Exercício adicionado", description: `${exName} faz parte do template agora.` });
+      toast({ title: "Exercício adicionado" });
       mutateExercises();
       setExName(''); setExSets(''); setExReps(''); setExRm('');
     } catch {
@@ -159,7 +149,7 @@ export function ProgramLibrary() {
                   </SelectTrigger>
                   <SelectContent>
                     {(catalogExercises || []).map((ex: any) => (
-                      <SelectItem key={ex.id} value={ex.nome}>{ex.nome}</SelectItem>
+                      <SelectItem key={ex.id} value={ex.id}>{ex.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
