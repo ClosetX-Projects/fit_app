@@ -20,25 +20,34 @@ interface StudentHistoryViewProps {
 }
 
 export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
-  const { data: rawExercises, loading: loadingExercises } = useApi<any[]>(`/exercicios/aluno/${studentId}`);
-  const { data: rawSessions, loading: loadingSessions } = useApi<any[]>(`/treinos/aluno/${studentId}`);
+  // Alinhamento com API v2: Buscar programas primeiro para obter o contexto do treino
+  const { data: programs, loading: loadingPrograms } = useApi<any[]>(`/programas/aluno/${studentId}`);
+  const activeProgramId = programs?.[0]?.id;
+
+  const { data: rawExercises, loading: loadingExercises } = useApi<any[]>(
+    activeProgramId ? `/treinos/?programa_id=${activeProgramId}` : null
+  );
+  const { data: rawSessions, loading: loadingSessions } = useApi<any[]>(`/checkins_recuperacao/`); 
+
   const [insightLoading, setInsightLoading] = useState<string | null>(null);
   const [currentInsight, setCurrentInsight] = useState<{ id: string, text: string } | null>(null);
 
   // Ordenar exercícios e sessões
   const exercises = useMemo(() => {
-    if (!rawExercises) return null;
+    if (!rawExercises) return [];
     return [...rawExercises].sort((a, b) => {
-      const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
-      const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
       return timeB - timeA;
     });
   }, [rawExercises]);
 
   const sessions = useMemo(() => {
     if (!rawSessions) return [];
-    return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [rawSessions]);
+    return [...rawSessions]
+      .filter(s => s.aluno_id === studentId) // Filtro manual se necessário, mas o backend já isola
+      .sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
+  }, [rawSessions, studentId]);
 
   const handleGetAIInsight = async (ex: any) => {
     setInsightLoading(ex.id);
@@ -64,7 +73,7 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
     }
   };
 
-  if (loadingExercises || loadingSessions) {
+  if (loadingExercises || loadingSessions || loadingPrograms) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -74,10 +83,10 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
 
   return (
     <div className="space-y-8">
-      {/* Resumo de Sessões com Gasto Calórico */}
+      {/* Resumo de Sessões - Usando Check-ins como histórico de atividade */}
       <section className="space-y-4">
         <h3 className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
-          <History className="h-4 w-4" /> Histórico de Sessões Completas
+          <History className="h-4 w-4" /> Histórico de Atividade (Check-ins)
         </h3>
         <div className="grid gap-4">
           {sessions.slice(0, 10).map((session) => (
@@ -88,21 +97,17 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
                     <Clock className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">{format(new Date(session.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black">{session.duration} minutos de treino</p>
+                    <p className="text-sm font-bold">{format(new Date(session.created_at || session.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">Check-in de Recuperação</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
                     <div className="flex items-center gap-1 justify-end">
-                      <Flame className="h-3 w-3 text-orange-500" />
-                      <span className="text-sm font-black">{session.caloriesBurned || 0} kcal</span>
+                      <span className="text-sm font-black">Status: {session.valor || 0}/10</span>
                     </div>
-                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Gasto Estimado</p>
+                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Nível de Recuperação</p>
                   </div>
-                  <Badge variant="outline" className="border-primary/20 text-primary font-black uppercase text-[9px]">
-                    Carga: {session.internalLoad || (session.duration * (session.pseSession || 7))}
-                  </Badge>
                 </div>
               </div>
             </Card>
@@ -112,58 +117,38 @@ export function StudentHistoryView({ studentId }: StudentHistoryViewProps) {
 
       <section className="space-y-4">
         <h3 className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
-          <Dumbbell className="h-4 w-4" /> Performance por Exercício
+          <Dumbbell className="h-4 w-4" /> Prescrição Atual
         </h3>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-bold">Registro de Execuções</CardTitle>
-            <CardDescription>Analise a evolução de cargas e percepção de esforço por movimento.</CardDescription>
+            <CardTitle className="text-sm font-bold">Exercícios do Programa</CardTitle>
+            <CardDescription aria-level={2}>Lista de movimentos prescritos para o aluno.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead className="w-[120px]">Data</TableHead>
+                    <TableHead className="w-[120px]">Data Criada</TableHead>
                     <TableHead>Exercício</TableHead>
                     <TableHead className="text-center">Séries</TableHead>
-                    <TableHead className="text-center">Reps</TableHead>
-                    <TableHead className="text-center">Carga</TableHead>
-                    <TableHead className="text-center">PSE</TableHead>
-                    <TableHead className="text-right">IA</TableHead>
+                    <TableHead className="text-center">Reps/Tempo</TableHead>
+                    <TableHead className="text-center">% 1RM</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {exercises?.map((ex) => (
                     <TableRow key={ex.id}>
                       <TableCell className="text-[10px] font-medium">
-                        {ex.createdAt ? format(ex.createdAt.toDate(), 'dd/MM/yy', { locale: ptBR }) : '--'}
+                        {ex.created_at ? format(new Date(ex.created_at), 'dd/MM/yy', { locale: ptBR }) : '--'}
                       </TableCell>
                       <TableCell className="font-bold flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-primary/40" />
-                        <span className="text-xs">{ex.name}</span>
+                        <span className="text-xs">{ex.exercicios?.nome || 'Exercício'}</span>
                       </TableCell>
-                      <TableCell className="text-center text-xs">{ex.sets}</TableCell>
-                      <TableCell className="text-center text-xs">{ex.reps}</TableCell>
-                      <TableCell className="text-center font-semibold text-primary text-xs">{ex.weight} kg</TableCell>
-                      <TableCell className="text-center">
-                        <div className={`inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
-                          BORG_SCALE_COLORS[ex.pseExercise] || 'bg-muted'
-                        } ${ex.pseExercise >= 8 ? 'text-white' : 'text-foreground'}`}>
-                          {ex.pseExercise}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleGetAIInsight(ex)}
-                          disabled={insightLoading === ex.id}
-                          className="h-7 w-7 text-primary"
-                        >
-                          {insightLoading === ex.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <BrainCircuit className="h-3 w-3" />}
-                        </Button>
-                      </TableCell>
+                      <TableCell className="text-center text-xs">{ex.series}</TableCell>
+                      <TableCell className="text-center text-xs">{ex.reps_tempo}</TableCell>
+                      <TableCell className="text-center font-semibold text-primary text-xs">{ex.pct_1rm}%</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

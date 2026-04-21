@@ -24,41 +24,42 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
-  const { data: rawSessions, loading: loadingSessions } = useApi<any[]>(`/treinos/aluno/${studentId}`);
-  const { data: rawExercises, loading: loadingExercises } = useApi<any[]>(`/exercicios/aluno/${studentId}`);
+  const { data: programs, loading: loadingPrograms } = useApi<any[]>(`/programas/aluno/${studentId}`);
+  const activeProgramId = programs?.[0]?.id;
+
+  const { data: rawSessions, loading: loadingSessions } = useApi<any[]>(`/checkins_recuperacao/`);
+  const { data: rawExercises, loading: loadingExercises } = useApi<any[]>(
+    activeProgramId ? `/treinos/?programa_id=${activeProgramId}` : null
+  );
   const { data: assessments, loading: loadingAssessments } = useApi<any[]>(`/avaliacoes_antropo/aluno/${studentId}`);
 
-  // 1. Evolução PSE vs PSR (Controle Biopsicossocial)
+  // 1. Evolução PSR (Controle Biopsicossocial via Check-ins)
   const subjectiveData = useMemo(() => {
     if (!rawSessions) return [];
     return rawSessions
-      .filter(s => isValid(parseISO(s.date)))
+      .filter(s => s.aluno_id === studentId)
       .map(s => ({
-        date: format(parseISO(s.date), 'dd/MM'),
-        pse: s.pseSession || 0,
-        psr: s.recoveryPerception || 0,
+        date: format(new Date(s.created_at), 'dd/MM'),
+        pse: 0, // Não temos log de PSE ainda
+        psr: s.valor || 0,
       }))
       .slice(-15);
-  }, [rawSessions]);
+  }, [rawSessions, studentId]);
 
-  // 2. Evolução Mensal de Volume Total (Tonelagem)
+  // 2. Evolução Mensal de Volume Prescrito (Séries Totais)
   const monthlyVolumeData = useMemo(() => {
     if (!rawExercises) return [];
     const monthlyMap: Record<string, number> = {};
     
     rawExercises.forEach(ex => {
-      if (!ex.createdAt || !ex.createdAt.toDate) return;
-      const date = ex.createdAt.toDate();
+      if (!ex.created_at) return;
+      const date = new Date(ex.created_at);
       if (!isValid(date)) return;
       
       const monthKey = format(date, 'MMM/yy', { locale: ptBR });
+      const series = Number(ex.series) || 0;
       
-      const reps = Number(ex.reps?.toString().split(/[^0-9]/)[0]) || 0;
-      const weight = Number(ex.weight) || 0;
-      const sets = Number(ex.sets) || 0;
-      const volume = sets * reps * weight;
-      
-      monthlyMap[monthKey] = (monthlyMap[monthKey] || 0) + volume;
+      monthlyMap[monthKey] = (monthlyMap[monthKey] || 0) + series;
     });
 
     return Object.entries(monthlyMap).map(([month, volume]) => ({
@@ -86,19 +87,21 @@ export function StudentAnalytics({ studentId }: StudentAnalyticsProps) {
 
     return [
       { label: 'Peso (kg)', ...calcDiff(current.weight || 0, previous.weight || 0), invert: true },
-      { label: '% Gordura', ...calcDiff(Number(current.calculatedResults?.fatPerc) || 0, Number(previous.calculatedResults?.fatPerc) || 0), invert: true },
-      { label: 'VO2máx', ...calcDiff(Number(current.calculatedResults?.vo2Cooper) || 0, Number(previous.calculatedResults?.vo2Cooper) || 0), invert: false },
+      { label: '% Gordura', ...calcDiff(Number(current.gordura_atual) || 0, Number(previous.gordura_atual) || 0), invert: true },
+      { label: 'Massa Magra', ...calcDiff(Number(current.massa_magra) || 0, Number(previous.massa_magra) || 0), invert: false },
     ];
   }, [assessments]);
 
-  // 4. Intensidade Média
+  // 4. Intensidade Média (Proxy via PSR)
   const avgIntensity = useMemo(() => {
     if (!rawSessions || rawSessions.length === 0) return 0;
-    const total = rawSessions.reduce((acc, s) => acc + (s.pseSession || 0), 0);
-    return (total / rawSessions.length).toFixed(1);
-  }, [rawSessions]);
+    const items = rawSessions.filter(s => s.aluno_id === studentId);
+    if (items.length === 0) return 0;
+    const total = items.reduce((acc, s) => acc + (s.valor || 0), 0);
+    return (total / items.length).toFixed(1);
+  }, [rawSessions, studentId]);
 
-  if (loadingSessions || loadingExercises || loadingAssessments) {
+  if (loadingSessions || loadingExercises || loadingAssessments || loadingPrograms) {
     return (
       <div className="flex justify-center p-24">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

@@ -23,19 +23,21 @@ export function WorkoutCalendar() {
     setMounted(true)
   }, [])
 
-  const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>(user ? `/treinos/aluno/${user.id}` : null);
-  const { data: allExercises } = useApi<any[]>(user ? `/exercicios/aluno/${user.id}` : null);
+  const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>(user ? `/checkins_recuperacao/` : null);
+  const { data: programs } = useApi<any[]>(user ? `/programas/aluno/${user.id}` : null);
+  const activeProgramId = programs?.[0]?.id;
+  const { data: allExercises } = useApi<any[]>(activeProgramId ? `/treinos/?programa_id=${activeProgramId}` : null);
 
   const sessions = useMemo(() => {
     if (!rawSessions) return [];
-    return [...rawSessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...rawSessions].sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
   }, [rawSessions]);
 
   // Dias com treino para o calendário - Filtrando datas inválidas para evitar RangeError -2
   const workoutDays = useMemo(() => {
     if (!sessions) return [];
     return sessions
-      .map(s => new Date(s.date))
+      .map(s => new Date(s.created_at || s.date))
       .filter(d => isValid(d));
   }, [sessions]);
 

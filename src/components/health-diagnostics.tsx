@@ -33,14 +33,41 @@ export function HealthDiagnostics() {
     if (!user) return;
     setLoading(true);
     try {
-      await fetchApi('/health-data/', { 
+      // 1. Salvar Questionário (Percepção de Saúde, Sono, Hábitos)
+      await fetchApi('/diagnostico_questionarios/', { 
         method: 'POST', 
-        data: { ...healthData, userId: user.id } 
+        data: { 
+          aluno_id: user.id, // O Backend pode sobrescrever, mas enviamos por clareza
+          percepcao_saude: healthData.healthPerception,
+          qualidade_sono: healthData.sleep,
+          habitos_estilo_vida: `Álcool: ${healthData.alcohol} | Fumo: ${healthData.tobacco}`,
+          pontuacao_total: (healthData.healthPerception + healthData.sleep) // Simples soma
+        } 
       });
-      toast({ title: "Dados de saúde salvos!" });
+
+      // 2. Salvar Exames de Sangue (se houver dados)
+      if (healthData.redSeries || healthData.hormones || healthData.liverIndicators) {
+        await fetchApi('/diagnostico_exames/', {
+          method: 'POST',
+          data: {
+            aluno_id: user.id,
+            data_exame: new Date().toISOString().split('T')[0],
+            serie_vermelha: healthData.redSeries,
+            hormonios: healthData.hormones,
+            indicadores_hepaticos: healthData.liverIndicators,
+            observacoes: "Enviado via App"
+          }
+        });
+      }
+
+      toast({ title: "Dados de saúde sincronizados com o servidor!" });
     } catch (e) {
-      // Mock local update if route doesn't exist
-      toast({ title: "Dados de saúde salvos localmente!" });
+      console.error(e);
+      toast({ 
+        title: "Erro ao sincronizar", 
+        description: "Os dados foram salvos localmente, mas houve um erro no servidor.",
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }

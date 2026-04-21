@@ -40,7 +40,16 @@ export function Dashboard() {
   const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>(
     isAluno ? `/avaliacoes_antropo/aluno/${user.id}` : '/avaliacoes_antropo/'
   )
-  const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>('/treinos/')
+  
+  // Alunos precisam de um programa_id para listar treinos (regra de segurança v2)
+  const { data: programs, loading: isLoadingPrograms } = useApi<any[]>(isAluno ? `/programas/aluno/${user.id}` : null);
+  const activeProgramId = isAluno ? programs?.[0]?.id : null;
+
+  const { data: rawSessions, loading: isSessionsLoading } = useApi<any[]>(
+    isAluno 
+      ? (activeProgramId ? `/treinos/?programa_id=${activeProgramId}` : null)
+      : '/treinos/'
+  )
   const { data: rawExercises, loading: isExercisesLoading } = useApi<any[]>('/exercicios/')
 
   const stats = useMemo(() => {
@@ -105,7 +114,7 @@ export function Dashboard() {
       });
   }, [rawSessions, isClient]);
 
-  if (!isClient || isAssessmentsLoading || isSessionsLoading || isExercisesLoading) {
+  if (!isClient || isAssessmentsLoading || isSessionsLoading || isExercisesLoading || isLoadingPrograms) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
