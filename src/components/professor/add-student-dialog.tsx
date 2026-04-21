@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Link as LinkIcon, Copy, Check, UserPlus, UserCheck, Loader2, Mail } from 'lucide-react';
 
@@ -22,6 +23,8 @@ export function AddStudentDialog() {
   // Estados para Cadastro Manual
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
+  const [biotipo, setBiotipo] = useState('masculino');
+  const [birthDate, setBirthDate] = useState('');
 
   const inviteLink = typeof window !== 'undefined' 
     ? `${window.location.origin}/signup?role=student&invitedBy=${professor?.id}`
@@ -40,7 +43,7 @@ export function AddStudentDialog() {
 
   const handleManualRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!professor || !studentName || !studentEmail) return;
+    if (!professor || !studentName || !studentEmail || !birthDate) return;
 
     setLoading(true);
     try {
@@ -49,8 +52,8 @@ export function AddStudentDialog() {
         data: {
           nome: studentName,
           email: studentEmail.toLowerCase().trim(),
-          biotipo: 'masculino', // Default
-          data_nascimento: '1990-01-01', // Default
+          biotipo: biotipo,
+          data_nascimento: birthDate,
           professor_id: professor.id
         }
       });
@@ -143,6 +146,30 @@ export function AddStudentDialog() {
                   onChange={(e) => setStudentEmail(e.target.value)}
                   required
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Sexo / Biotipo</Label>
+                  <Select value={biotipo} onValueChange={setBiotipo}>
+                    <SelectTrigger className="h-11 rounded-xl">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="feminino">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nascimento</Label>
+                  <Input 
+                    type="date" 
+                    className="h-11 rounded-xl"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
               <div className="p-4 bg-accent/5 rounded-2xl border border-accent/10 flex items-start gap-3">
                 <Mail className="h-4 w-4 text-accent mt-0.5 shrink-0" />
