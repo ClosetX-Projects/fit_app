@@ -14,8 +14,9 @@ import { fetchApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from './icons';
-import { Loader2, LockKeyhole } from 'lucide-react';
+import { Loader2, LockKeyhole, Mail } from 'lucide-react';
 import { ResetPasswordForm } from './reset-password-form';
+import { supabase } from '@/lib/supabase';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -69,6 +70,26 @@ export function LoginForm() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/login`
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao entrar com Google',
+        description: error.message,
+      });
+      setLoading(false);
+    }
+  }
+
   if (isFirstAccess) {
     return <ResetPasswordForm onBackToLogin={handleBackToLogin} />;
   }
@@ -111,11 +132,32 @@ export function LoginForm() {
                 )}
               />
               <Button type="submit" className="w-full h-14 text-lg font-black rounded-full bg-primary" disabled={loading}>
-                {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LockKeyhole className="h-5 w-5 mr-2" />}
+                {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Mail className="h-5 w-5 mr-2" />}
                 Acessar com E-mail
               </Button>
             </form>
           </Form>
+
+          <div className="relative py-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-primary/10"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Ou continue com</span>
+            </div>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full h-14 text-lg font-bold rounded-full border-primary/20 hover:bg-primary/5" 
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            <svg className="mr-2 h-5 w-5" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+              <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+            </svg>
+            Entrar com Google
+          </Button>
           <div className="space-y-4">
             <p className="text-center text-sm text-muted-foreground">
               Novo por aqui?{' '}
