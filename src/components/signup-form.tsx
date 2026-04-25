@@ -125,7 +125,7 @@ function SignUpFormContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo: `${window.location.origin}`,
           queryParams: {
             prompt: 'select_account',
           },

@@ -116,9 +116,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await refreshProfile();
         } else {
           const token = localStorage.getItem('fitassist_token');
-          if (token) {
+          if (token && window.location.pathname !== '/login') {
             await refreshProfile();
           } else {
+            localStorage.removeItem('fitassist_token');
+            localStorage.removeItem('fitassist_user');
             setIsUserLoading(false);
           }
         }
