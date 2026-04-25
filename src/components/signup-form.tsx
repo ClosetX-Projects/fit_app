@@ -118,14 +118,18 @@ function SignUpFormContent() {
     }
     setLoading(true);
     try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('fitassist_token');
+      localStorage.removeItem('fitassist_user');
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}`,
+          redirectTo: `${window.location.origin}/login`,
           queryParams: {
-            prompt: 'select_account'
-          }
-        }
+            prompt: 'select_account',
+          },
+        },
       });
       if (error) throw error;
     } catch (error: any) {

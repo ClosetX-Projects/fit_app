@@ -89,21 +89,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
-        const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl();
-        const sessionFromUrl = urlData?.session ?? null;
+        let session = null;
 
-        if (urlError) {
-          console.warn('Erro ao processar callback de OAuth:', urlError);
+        if (typeof supabase.auth.getSessionFromUrl === 'function') {
+          const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl();
+          const sessionFromUrl = urlData?.session ?? null;
+
+          if (urlError) {
+            console.warn('Erro ao processar callback de OAuth:', urlError);
+          }
+
+          session = sessionFromUrl;
         }
 
-        if (sessionFromUrl) {
-          localStorage.setItem('fitassist_token', sessionFromUrl.access_token);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        session = session ?? currentSession;
+
+        if (session) {
+          localStorage.setItem('fitassist_token', session.access_token);
           await refreshProfile();
           window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
           return;
         }
-
-        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           localStorage.setItem('fitassist_token', session.access_token);
           await refreshProfile();
