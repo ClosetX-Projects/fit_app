@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { fetchApi } from '@/lib/api-client';
 import { useUser } from '@/contexts/auth-provider';
@@ -21,6 +22,8 @@ const signupFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
   password: z.string().min(8, { message: 'A senha deve ter pelo menos 8 caracteres.' }),
   userType: z.enum(['student', 'professor'], { required_error: 'Selecione o tipo de usuário.' }),
+  biotipo: z.enum(['masculino', 'feminino'], { required_error: 'Selecione o biotipo.' }),
+  birthDate: z.string().min(1, { message: 'Data de nascimento é obrigatória.' }).optional(),
 });
 
 type SignupFormValues = z.infer<typeof signupFormSchema>;
@@ -46,6 +49,8 @@ function SignUpFormContent() {
       email: '', 
       password: '', 
       userType: (roleParam === 'professor' ? 'professor' : 'student') as 'student' | 'professor',
+      biotipo: 'masculino',
+      birthDate: '',
     },
   });
 
@@ -68,12 +73,12 @@ function SignUpFormContent() {
         nome: values.name,
         email: normalizedEmail,
         senha: values.password,
-        biotipo: 'masculino', // Default provisório para evitar erro de API
+        biotipo: values.biotipo,
       };
 
       if (!isProf) {
         payload.professor_id = invitedBy;
-        payload.data_nascimento = '1990-01-01'; // Default provisório
+        payload.data_nascimento = values.birthDate;
       }
 
       // Registra o usuário no backend
@@ -181,7 +186,44 @@ function SignUpFormContent() {
                   )}
                 />
               </div>
-              
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={signupForm.control}
+                  name="biotipo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sexo / Biotipo</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="masculino">Masculino</SelectItem>
+                          <SelectItem value="feminino">Feminino</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signupForm.control}
+                  name="birthDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nascimento</FormLabel>
+                      <FormControl>
+                        <Input type="date" className="h-11 rounded-xl" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-3">
                 <div className="bg-primary/10 p-2 rounded-full">
                   {signupForm.watch('userType') === 'professor' ? (
