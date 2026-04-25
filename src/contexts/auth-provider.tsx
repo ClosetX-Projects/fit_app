@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fetchApi } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
@@ -31,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
+  const isSigningOutRef = useRef(false);
   const router = useRouter();
 
   const refreshProfile = async () => {
@@ -129,7 +130,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('fitassist_token', session.access_token);
         refreshProfile();
       } else if (event === 'SIGNED_OUT') {
-        logout();
+        if (!isSigningOutRef.current) {
+          localStorage.removeItem('fitassist_token');
+          localStorage.removeItem('fitassist_user');
+          setUser(null);
+          setIsUserLoading(false);
+          router.push('/login');
+        }
       }
     });
 
@@ -145,6 +152,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    if (isSigningOutRef.current) return;
+    isSigningOutRef.current = true;
+
     try {
       if (supabase) {
         await supabase.auth.signOut();
@@ -152,6 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Erro ao sair:', error);
     } finally {
+      isSigningOutRef.current = false;
       localStorage.removeItem('fitassist_token');
       localStorage.removeItem('fitassist_user');
       setUser(null);
