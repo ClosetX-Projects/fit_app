@@ -108,6 +108,10 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
   const assessment = assessments?.find((a: any) => a.id === selectedAssessmentId);
 
   useEffect(() => {
+    setSelectedAssessmentId(null);
+  }, [studentId]);
+
+  useEffect(() => {
     async function loadTestSession() {
       if (!selectedAssessmentId) {
         if (student) setFormData({ ...INITIAL_FORM_DATA, fullName: student.nome || '', gender: student.biotipo || 'male', birthDate: student.data_nascimento || '' });
@@ -122,9 +126,22 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
       }
 
       try {
-        const sessoes = await fetchApi(`/sessoes_bateria/?avaliacao_antropometrica_id=${selectedAssessmentId}`);
+        let sessoes = await fetchApi(`/sessoes_bateria/?aluno_id=${studentId}&avaliacao_antropometrica_id=${selectedAssessmentId}`);
+
+        if ((!sessoes || sessoes.length === 0) && studentId) {
+          const allStudentSessions = await fetchApi(`/sessoes_bateria/?aluno_id=${studentId}`);
+          sessoes = Array.isArray(allStudentSessions)
+            ? allStudentSessions.filter((s: any) => s.avaliacao_antropometrica_id === selectedAssessmentId)
+            : [];
+        }
+
         if (sessoes && sessoes.length > 0) {
-          const sessao_id = sessoes[sessoes.length - 1].id;
+          const latestSession = [...sessoes].sort((a: any, b: any) => {
+            const aDate = new Date(a.data_sessao || a.created_at || a.date || 0).getTime();
+            const bDate = new Date(b.data_sessao || b.created_at || b.date || 0).getTime();
+            return bDate - aDate;
+          })[0];
+          const sessao_id = latestSession?.id;
           
           const [nm, ae, pf] = await Promise.all([
             fetchApi(`/testes_neuromotor/?sessao_id=${sessao_id}`).catch(()=>[]),
