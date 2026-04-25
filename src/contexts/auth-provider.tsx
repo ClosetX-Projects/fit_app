@@ -33,9 +33,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isUserLoading, setIsUserLoading] = useState(true);
   const router = useRouter();
 
+  const isRefreshing = React.useRef(false);
+
   const refreshProfile = async () => {
+    if (isRefreshing.current) return;
+    isRefreshing.current = true;
+    
+    console.log('Iniciando refreshProfile...');
     try {
       const res = await fetchApi('/users/me');
+      console.log('Perfil recebido:', res);
       
       const userData: User = {
         id: res.user_id,
@@ -43,7 +50,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role: res.role,
         is_profile_complete: res.is_profile_complete,
         ...(res.profile || {}),
-        // Map backend professor_id to professor_responsavel_id for frontend compatibility
         professor_responsavel_id: res.profile?.professor_id || res.profile?.professor_responsavel_id
       };
 
@@ -51,37 +57,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('fitassist_user', JSON.stringify(userData));
 
       if (!userData.is_profile_complete) {
-        router.push('/complete-profile');
+        console.log('Perfil incompleto, redirecionando...');
+        if (window.location.pathname !== '/complete-profile') {
+          router.push('/complete-profile');
+        }
+      } else {
+        console.log('Perfil completo, indo para dashboard.');
+        if (window.location.pathname === '/login') {
+          router.push('/');
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
-      // Se falhar ao buscar o perfil (ex: token expirado ou inválido), desloga
-      logout();
+      // Só desloga se for um erro de autenticação explícito (401)
+      if (error instanceof Error && error.message.includes('401')) {
+        logout();
+      }
+    } finally {
+      isRefreshing.current = false;
+      setIsUserLoading(false);
     }
   };
 
   useEffect(() => {
     // 1. Verificar sessão atual do Supabase
     const initAuth = async () => {
+      console.log('Checando sessão inicial...');
       if (!supabase) {
+        console.warn('Supabase não inicializado.');
         setIsUserLoading(false);
         return;
       }
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        localStorage.setItem('fitassist_token', session.access_token);
-        await refreshProfile();
-      } else {
-        // Se não houver sessão do Supabase, tenta restaurar do localStorage (login legado)
-        const token = localStorage.getItem('fitassist_token');
-        if (token) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          console.log('Sessão encontrada no Supabase');
+          localStorage.setItem('fitassist_token', session.access_token);
           await refreshProfile();
         } else {
-          setIsUserLoading(false);
+          console.log('Nenhuma sessão no Supabase, checando localStorage...');
+          const token = localStorage.getItem('fitassist_token');
+          if (token) {
+            await refreshProfile();
+          }
         }
+      } catch (e) {
+        console.error('Erro durante initAuth:', e);
+      } finally {
+        setIsUserLoading(false);
       }
-      setIsUserLoading(false);
     };
 
     initAuth();

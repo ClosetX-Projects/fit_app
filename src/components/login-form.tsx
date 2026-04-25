@@ -43,6 +43,17 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   });
 
+  const { user } = useUser();
+  useEffect(() => {
+    if (user) {
+      if (!user.is_profile_complete) {
+        router.push('/complete-profile');
+      } else {
+        router.push('/');
+      }
+    }
+  }, [user, router]);
+
   async function onLoginSubmit(values: LoginFormValues) {
     setLoading(true);
     const normalizedEmail = values.email.toLowerCase().trim();
