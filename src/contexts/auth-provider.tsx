@@ -63,6 +63,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // 1. Verificar sessão atual do Supabase
     const initAuth = async () => {
+      if (!supabase) {
+        setIsUserLoading(false);
+        return;
+      }
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
@@ -83,6 +87,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
 
     // 2. Ouvir mudanças na autenticação do Supabase
+    if (!supabase) return;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         localStorage.setItem('fitassist_token', session.access_token);
@@ -106,7 +112,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     localStorage.removeItem('fitassist_token');
     localStorage.removeItem('fitassist_user');
     setUser(null);

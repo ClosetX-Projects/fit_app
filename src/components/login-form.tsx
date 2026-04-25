@@ -71,6 +71,14 @@ export function LoginForm() {
   }
 
   async function handleGoogleLogin() {
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de configuração',
+        description: 'O serviço de autenticação não foi configurado corretamente.',
+      });
+      return;
+    }
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
