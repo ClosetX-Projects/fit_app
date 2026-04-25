@@ -33,16 +33,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isUserLoading, setIsUserLoading] = useState(true);
   const router = useRouter();
 
-  const isRefreshing = React.useRef(false);
-
   const refreshProfile = async () => {
-    if (isRefreshing.current) return;
-    isRefreshing.current = true;
-    
-    console.log('Iniciando refreshProfile...');
     try {
       const res = await fetchApi('/users/me');
-      console.log('Perfil recebido:', res);
       
       const userData: User = {
         id: res.user_id,
@@ -56,72 +49,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       localStorage.setItem('fitassist_user', JSON.stringify(userData));
 
-      if (!userData.is_profile_complete) {
-        console.log('Perfil incompleto, redirecionando...');
-        if (window.location.pathname !== '/complete-profile') {
-          router.push('/complete-profile');
-        }
-      } else {
-        console.log('Perfil completo, indo para dashboard.');
-        if (window.location.pathname === '/login') {
-          router.push('/');
-        }
+      if (!userData.is_profile_complete && window.location.pathname !== '/complete-profile') {
+        router.push('/complete-profile');
       }
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
-      // Só desloga se for um erro de autenticação explícito (401)
-      if (error instanceof Error && error.message.includes('401')) {
-        logout();
-      }
+      logout();
     } finally {
-      isRefreshing.current = false;
       setIsUserLoading(false);
     }
   };
 
   useEffect(() => {
-    // 1. Verificar sessão atual do Supabase
     const initAuth = async () => {
-      console.log('Checando sessão inicial...');
       if (!supabase) {
-        console.warn('Supabase não inicializado.');
         setIsUserLoading(false);
         return;
       }
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
         if (session) {
-          console.log('Sessão encontrada no Supabase');
           localStorage.setItem('fitassist_token', session.access_token);
           await refreshProfile();
         } else {
-          console.log('Nenhuma sessão no Supabase, checando localStorage...');
           const token = localStorage.getItem('fitassist_token');
           if (token) {
             await refreshProfile();
+          } else {
+            setIsUserLoading(false);
           }
         }
       } catch (e) {
-        console.error('Erro durante initAuth:', e);
-      } finally {
         setIsUserLoading(false);
       }
     };
 
     initAuth();
 
-    // 2. Ouvir mudanças na autenticação do Supabase
     if (!supabase) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         localStorage.setItem('fitassist_token', session.access_token);
-        await refreshProfile();
+        refreshProfile();
       } else if (event === 'SIGNED_OUT') {
         logout();
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        localStorage.setItem('fitassist_token', session.access_token);
       }
     });
 
