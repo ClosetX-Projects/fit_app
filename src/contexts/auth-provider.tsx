@@ -49,16 +49,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       localStorage.setItem('fitassist_user', JSON.stringify(userData));
 
-      // Lógica de redirecionamento simplificada após login
-      if (res.role === 'professor') {
-        // Professor automático: vai direto para a Home
+      // Redireciona para a home após login, mantendo o fluxo simples
+      if (window.location.pathname === '/login' || window.location.pathname === '/complete-profile') {
+        router.push('/');
+      }
+    } catch (error) {
+      console.warn('Erro ao buscar perfil no backend:', error);
+
+      const { data: { user: supabaseUser }, error: supabaseUserError } = await supabase.auth.getUser();
+      if (supabaseUser && !supabaseUserError) {
+        const fallbackUser: User = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          role: null,
+          is_profile_complete: false,
+          nome: (supabaseUser.user_metadata as any)?.name || (supabaseUser.user_metadata as any)?.full_name,
+        };
+
+        setUser(fallbackUser);
+        localStorage.setItem('fitassist_user', JSON.stringify(fallbackUser));
+
         if (window.location.pathname === '/login' || window.location.pathname === '/complete-profile') {
           router.push('/');
         }
+      } else {
+        console.error('Não foi possível recuperar o usuário do Supabase após falha no backend.', supabaseUserError);
+        logout();
       }
-    } catch (error) {
-      console.error('Erro ao buscar perfil:', error);
-      logout();
     } finally {
       setIsUserLoading(false);
     }
