@@ -49,7 +49,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       localStorage.setItem('fitassist_user', JSON.stringify(userData));
 
-      if (!userData.is_profile_complete && window.location.pathname !== '/complete-profile') {
+      // Lógica de Redirecionamento baseada no Guia Técnico
+      const searchParams = new URLSearchParams(window.location.search);
+      const isInvited = !!searchParams.get('invitedBy');
+
+      if (isInvited) {
+        // Se há convite, ignora status do backend e força completar perfil de Aluno
+        if (window.location.pathname !== '/complete-profile') {
+          router.push(`/complete-profile${window.location.search}`);
+        }
+      } else if (res.role === 'professor') {
+        // Professor automático: vai direto para a Home
+        if (window.location.pathname === '/login' || window.location.pathname === '/complete-profile') {
+          router.push('/');
+        }
+      } else if (!res.is_profile_complete && window.location.pathname !== '/complete-profile') {
+        // Outros casos de perfil incompleto
         router.push('/complete-profile');
       }
     } catch (error) {
