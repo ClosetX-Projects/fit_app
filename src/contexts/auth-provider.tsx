@@ -49,23 +49,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       localStorage.setItem('fitassist_user', JSON.stringify(userData));
 
-      // Lógica de Redirecionamento baseada no Guia Técnico
-      const searchParams = new URLSearchParams(window.location.search);
-      const isInvited = !!searchParams.get('invitedBy');
-
-      if (isInvited) {
-        // Se há convite, ignora status do backend e força completar perfil de Aluno
-        if (window.location.pathname !== '/complete-profile') {
-          router.push(`/complete-profile${window.location.search}`);
-        }
-      } else if (res.role === 'professor') {
+      // Lógica de redirecionamento simplificada após login
+      if (res.role === 'professor') {
         // Professor automático: vai direto para a Home
         if (window.location.pathname === '/login' || window.location.pathname === '/complete-profile') {
           router.push('/');
         }
-      } else if (!res.is_profile_complete && window.location.pathname !== '/complete-profile') {
-        // Outros casos de perfil incompleto
-        router.push('/complete-profile');
       }
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
@@ -82,6 +71,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
+        const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl();
+        const sessionFromUrl = urlData?.session ?? null;
+
+        if (urlError) {
+          console.warn('Erro ao processar callback de OAuth:', urlError);
+        }
+
+        if (sessionFromUrl) {
+          localStorage.setItem('fitassist_token', sessionFromUrl.access_token);
+          await refreshProfile();
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           localStorage.setItem('fitassist_token', session.access_token);
@@ -95,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (e) {
+        console.error('Erro ao inicializar auth:', e);
         setIsUserLoading(false);
       }
     };
@@ -124,13 +128,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error('Erro ao sair:', error);
+    } finally {
+      localStorage.removeItem('fitassist_token');
+      localStorage.removeItem('fitassist_user');
+      setUser(null);
+      setIsUserLoading(false);
+      router.push('/login');
     }
-    localStorage.removeItem('fitassist_token');
-    localStorage.removeItem('fitassist_user');
-    setUser(null);
-    router.push('/login');
   };
 
   return (

@@ -46,11 +46,7 @@ export function LoginForm() {
   const { user } = useUser();
   useEffect(() => {
     if (user) {
-      if (!user.is_profile_complete) {
-        router.push('/complete-profile');
-      } else {
-        router.push('/');
-      }
+      router.push('/');
     }
   }, [user, router]);
 
@@ -95,7 +91,7 @@ export function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login${window.location.search}`
+          redirectTo: `${window.location.origin}/login`
         }
       });
       if (error) throw error;
