@@ -19,6 +19,7 @@ import { Loader2, Save, Activity, Scale, Ruler, ChevronRight, Calculator, Users,
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { calcularTMB, calcularPercentualGordura } from "@/lib/calculations"
 
 const assessmentSchema = z.object({
   studentId: z.string().min(1, "Selecione um aluno"),
@@ -193,12 +194,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
     }
   }, [watched.birthDate, isClient])
 
-  const protocol = useMemo(() => {
-    if (age === 0) return "..."
-    if (age < 18) return "Adolescente (Slaughter)"
-    if (age < 60) return "Adulto (Jackson & Pollock 7)"
-    return "Idoso (Petroski 1995)"
-  }, [age])
+  const protocol = "Jackson & Pollock 3 Dobras"
 
   const results = useMemo(() => {
     const { 
@@ -233,28 +229,26 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
     }
 
     let fatPerc = 0
-    const sum7 = Number(sub) + Number(tri) + Number(max) + Number(pec) + Number(abd) + Number(sup) + Number(t)
-    const sum4Idoso = Number(sub) + Number(tri) + Number(sup) + Number(mlg)
-
     if (age > 0) {
-      if (age < 18) {
-        if (gender === 'male') fatPerc = 0.735 * (Number(tri) + Number(mlg)) + 1.0
-        else fatPerc = 0.610 * (Number(tri) + Number(mlg)) + 5.1
-      } else if (age >= 60) {
-        let dc = 0
-        if (gender === 'male') {
-          dc = 1.10726863 - (0.00081201 * sum4Idoso) + (0.00000212 * (sum4Idoso ** 2)) - (0.00041761 * age)
-        } else {
-          dc = 1.02902361 - (0.00067159 * sum4Idoso) + (0.00000242 * (sum4Idoso ** 2)) - (0.0002073 * age) - (0.00056009 * w) + (0.00054649 * h)
+      fatPerc = calcularPercentualGordura(
+        gender === 'male' ? 'masculino' : 'feminino',
+        age,
+        {
+          subescapular: Number(sub),
+          tricipital: Number(tri),
+          peitoral: Number(pec),
+          suprailiaca: Number(sup),
+          coxa: Number(t)
         }
-        fatPerc = ((4.95 / dc) - 4.50) * 100
-      } else {
-        let dc = 0
-        if (gender === 'male') dc = 1.112 - (0.00043499 * sum7) + (0.00000055 * (sum7 ** 2)) - (0.00028826 * age)
-        else dc = 1.0970 - (0.00046971 * sum7) + (0.00000056 * (sum7 ** 2)) - (0.00012828 * age)
-        fatPerc = ((4.95 / dc) - 4.50) * 100
-      }
+      )
     }
+
+    const tmb = calcularTMB(
+      gender === 'male' ? 'masculino' : 'feminino',
+      Number(w),
+      Number(h),
+      age
+    )
 
     const finalFatPerc = Math.max(0, fatPerc)
     const fatMass = w * (finalFatPerc / 100)
@@ -278,6 +272,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
       fatClass,
       fatMass: fatMass.toFixed(1),
       leanMass: leanMass.toFixed(1),
+      tmb: tmb.toFixed(0),
       protocol,
       age
     }
@@ -541,7 +536,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
               </div>
             ) : (
               <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">IMC</p>
                     <p className="text-lg font-black text-primary">{results.imc}</p>
@@ -561,6 +556,11 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Massa Magra</p>
                     <p className="text-lg font-black">{results.leanMass} kg</p>
                     <p className="text-[8px] font-bold uppercase opacity-60">Peso Gordura: {results.fatMass}kg</p>
+                  </div>
+                  <div className="bg-primary/20 p-4 rounded-3xl text-center border border-primary/30">
+                    <p className="text-[9px] font-black uppercase text-primary tracking-widest mb-1">Taxa Metabólica (TMB)</p>
+                    <p className="text-lg font-black">{results.tmb} kcal</p>
+                    <p className="text-[8px] font-bold uppercase text-primary">Gasto calórico basal</p>
                   </div>
                 </div>
 
