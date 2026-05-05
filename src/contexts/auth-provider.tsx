@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fetchApi } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
@@ -31,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
+  const isSigningOutRef = useRef(false);
   const router = useRouter();
 
   const refreshProfile = async () => {
@@ -49,27 +50,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       localStorage.setItem('fitassist_user', JSON.stringify(userData));
 
-      // Lógica de Redirecionamento baseada no Guia Técnico
-      const searchParams = new URLSearchParams(window.location.search);
-      const isInvited = !!searchParams.get('invitedBy');
+      // Redireciona para a home após login, mantendo o fluxo simples
+      if (window.location.pathname === '/login' || window.location.pathname === '/complete-profile') {
+        router.push('/');
+      }
+    } catch (error) {
+      console.warn('Erro ao buscar perfil no backend:', error);
 
-      if (isInvited) {
-        // Se há convite, ignora status do backend e força completar perfil de Aluno
-        if (window.location.pathname !== '/complete-profile') {
-          router.push(`/complete-profile${window.location.search}`);
-        }
-      } else if (res.role === 'professor') {
-        // Professor automático: vai direto para a Home
+      const { data: { user: supabaseUser }, error: supabaseUserError } = await supabase.auth.getUser();
+      if (supabaseUser && !supabaseUserError) {
+        const fallbackUser: User = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          role: null,
+          is_profile_complete: false,
+          nome: (supabaseUser.user_metadata as any)?.name || (supabaseUser.user_metadata as any)?.full_name,
+        };
+
+        setUser(fallbackUser);
+        localStorage.setItem('fitassist_user', JSON.stringify(fallbackUser));
+
         if (window.location.pathname === '/login' || window.location.pathname === '/complete-profile') {
           router.push('/');
         }
-      } else if (!res.is_profile_complete && window.location.pathname !== '/complete-profile') {
-        // Outros casos de perfil incompleto
-        router.push('/complete-profile');
+      } else {
+        console.error('Não foi possível recuperar o usuário do Supabase após falha no backend.', supabaseUserError);
+        logout();
       }
-    } catch (error) {
-      console.error('Erro ao buscar perfil:', error);
-      logout();
     } finally {
       setIsUserLoading(false);
     }
@@ -82,19 +89,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        let session = null;
+
+        if (typeof supabase.auth.getSessionFromUrl === 'function') {
+          const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl();
+          const sessionFromUrl = urlData?.session ?? null;
+
+          if (urlError) {
+            console.warn('Erro ao processar callback de OAuth:', urlError);
+          }
+
+          session = sessionFromUrl;
+        }
+
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        session = session ?? currentSession;
+
+        if (session) {
+          localStorage.setItem('fitassist_token', session.access_token);
+          await refreshProfile();
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+          return;
+        }
         if (session) {
           localStorage.setItem('fitassist_token', session.access_token);
           await refreshProfile();
         } else {
           const token = localStorage.getItem('fitassist_token');
-          if (token) {
+          if (token && window.location.pathname !== '/login') {
             await refreshProfile();
           } else {
+            localStorage.removeItem('fitassist_token');
+            localStorage.removeItem('fitassist_user');
             setIsUserLoading(false);
           }
         }
       } catch (e) {
+        console.error('Erro ao inicializar auth:', e);
         setIsUserLoading(false);
       }
     };
@@ -108,7 +139,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('fitassist_token', session.access_token);
         refreshProfile();
       } else if (event === 'SIGNED_OUT') {
-        logout();
+        if (!isSigningOutRef.current) {
+          localStorage.removeItem('fitassist_token');
+          localStorage.removeItem('fitassist_user');
+          setUser(null);
+          setIsUserLoading(false);
+          router.push('/login');
+        }
       }
     });
 
@@ -124,13 +161,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+    if (isSigningOutRef.current) return;
+    isSigningOutRef.current = true;
+
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error('Erro ao sair:', error);
+    } finally {
+      isSigningOutRef.current = false;
+      localStorage.removeItem('fitassist_token');
+      localStorage.removeItem('fitassist_user');
+      setUser(null);
+      setIsUserLoading(false);
+      router.push('/login');
     }
-    localStorage.removeItem('fitassist_token');
-    localStorage.removeItem('fitassist_user');
-    setUser(null);
-    router.push('/login');
   };
 
   return (

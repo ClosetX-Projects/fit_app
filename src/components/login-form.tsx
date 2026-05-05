@@ -46,11 +46,7 @@ export function LoginForm() {
   const { user } = useUser();
   useEffect(() => {
     if (user) {
-      if (!user.is_profile_complete) {
-        router.push('/complete-profile');
-      } else {
-        router.push('/');
-      }
+      router.push('/');
     }
   }, [user, router]);
 
@@ -92,11 +88,18 @@ export function LoginForm() {
     }
     setLoading(true);
     try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('fitassist_token');
+      localStorage.removeItem('fitassist_user');
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login${window.location.search}`
-        }
+          redirectTo: `${window.location.origin}`,
+          queryParams: {
+            prompt: 'select_account',
+          },
+        },
       });
       if (error) throw error;
     } catch (error: any) {
