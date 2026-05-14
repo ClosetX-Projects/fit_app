@@ -270,7 +270,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-2 bg-muted p-1 rounded-xl">
                   <button onClick={() => setAerobicType('continuo')} className={cn("py-2 rounded-lg text-[10px] font-black uppercase transition-all", aerobicType === 'continuo' ? 'bg-background shadow text-primary' : 'opacity-50')}>Contínuo</button>
-                  <button onClick={() => setAerobicType('hiit')} className={cn("py-2 rounded-lg text-[10px] font-black uppercase transition-all", aerobicType === 'hiit' ? 'bg-background shadow text-primary' : 'opacity-50')}>HIIT</button>
+                  <button onClick={() => setAerobicType('hiit')} className={cn("py-2 rounded-lg text-[10px] font-black uppercase transition-all", aerobicType === 'hiit' ? 'bg-background shadow text-primary' : 'opacity-50')}>Intervalado</button>
                 </div>
 
                 {aerobicType === 'continuo' ? (
@@ -300,7 +300,7 @@ export function TrainingManager({ studentId }: TrainingManagerProps) {
                       <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Pausa (s)</Label><Input type="number" value={hiitRestTime} onChange={e => setHiitEffortRestTime(e.target.value)} /></div>
                     </div>
                     <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Vel. Recuperação</Label><Input type="number" step="0.1" value={hiitRestSpeed} onChange={e => setHiitRestSpeed(e.target.value)} /></div>
-                    <Button onClick={() => handleAddAerobic('hiit')} className="w-full bg-accent text-accent-foreground font-black">Prescrever HIIT</Button>
+                    <Button onClick={() => handleAddAerobic('hiit')} className="w-full bg-accent text-accent-foreground font-black">Prescrever Intervalado</Button>
                   </div>
                 )}
               </div>

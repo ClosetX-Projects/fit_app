@@ -16,6 +16,7 @@ export interface User {
   data_nascimento?: string;
   idade?: number;
   faixa_etaria?: string;
+  released_tests?: string[];
 }
 
 interface AuthContextType {
@@ -44,7 +45,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role: res.role,
         is_profile_complete: res.is_profile_complete,
         ...(res.profile || {}),
-        professor_responsavel_id: res.profile?.professor_id || res.profile?.professor_responsavel_id
+        professor_responsavel_id: res.profile?.professor_id || res.profile?.professor_responsavel_id,
+        released_tests: Array.isArray(res.profile?.released_tests) ? res.profile.released_tests : undefined
       };
 
       setUser(userData);

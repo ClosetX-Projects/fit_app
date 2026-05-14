@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/auth-provider';
 import { useApi } from '@/hooks/use-api';
 import { fetchApi } from '@/lib/api-client';
@@ -28,13 +29,14 @@ interface ExerciseLog {
 }
 
 const INTENTION_QUESTIONS = [
-  { id: 'muscWeek', label: 'Eu vou tentar realizar exercício de musculação ao menos 3x na próxima semana.' },
-  { id: 'muscMonth', label: 'Eu vou tentar realizar exercício de musculação ao menos 3x no próximo mês.' },
-  { id: 'aeroWeek', label: 'Eu vou tentar realizar exercício aeróbico ao menos 3x na próxima semana.' },
-  { id: 'aeroMonth', label: 'Eu vou tentar realizar exercício aeróbico ao menos 3x no próximo mês.' },
+  { id: 'muscWeek', label: '1) Em qual extensão essa afirmação é verdadeira para você? Eu vou tentar realizar exercício de musculação ao menos 3x na próxima semana.' },
+  { id: 'muscMonth', label: '2) Em qual extensão essa afirmação é verdadeira para você? Eu vou tentar realizar exercício de musculação ao menos 3x no próximo mês.' },
+  { id: 'aeroWeek', label: '3) Em qual extensão essa afirmação é verdadeira para você? Eu vou tentar realizar exercício aeróbico ao menos 3x na próxima semana.' },
+  { id: 'aeroMonth', label: '4) Em qual extensão essa afirmação é verdadeira para você? Eu vou tentar realizar exercício aeróbico ao menos 3x no próximo mês.' },
 ];
 
 export function WorkoutSessionForm() {
+  const router = useRouter();
   const { user } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,7 @@ export function WorkoutSessionForm() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showPleasureDialog, setShowPleasureDialog] = useState(false);
+  const [showRepeatDialog, setShowRepeatDialog] = useState(false);
   const [showMedicalCheck, setShowMedicalCheck] = useState(false);
   const [medicalMoment, setMedicalMoment] = useState<'start' | 'mid' | 'end'>('start');
 
@@ -119,6 +122,20 @@ export function WorkoutSessionForm() {
       if (isDiabetic && !glycemiaPost) return false;
     }
     return true;
+  };
+
+  const handleRepeat = () => {
+    setShowRepeatDialog(false);
+    setIsStarted(false);
+    setPsrAnswered(false);
+    setStartTime(null);
+    setPaStart({ sys: '', dia: '' }); setPaMid({ sys: '', dia: '' }); setPaEnd({ sys: '', dia: '' });
+    setGlycemiaPre(''); setGlycemiaPost('');
+  };
+
+  const handleFinishComplete = () => {
+    setShowRepeatDialog(false);
+    router.push('/');
   };
 
   const handleConfirmRecovery = () => {
@@ -217,12 +234,8 @@ export function WorkoutSessionForm() {
       }));
 
       toast({ title: "Treino Finalizado!", description: `Carga Interna: ${internalLoad} AU | Gasto: ${finalKcal} kcal.` });
-      setIsStarted(false);
-      setPsrAnswered(false);
-      setStartTime(null);
       setShowPleasureDialog(false);
-      setPaStart({ sys: '', dia: '' }); setPaMid({ sys: '', dia: '' }); setPaEnd({ sys: '', dia: '' });
-      setGlycemiaPre(''); setGlycemiaPost('');
+      setShowRepeatDialog(true);
     } finally {
       setLoading(false);
     }
@@ -604,25 +617,28 @@ export function WorkoutSessionForm() {
               </div>
               
               {/* Intenção de Repetir (Questionário Likert 1-7) */}
-              <div className="space-y-8 pt-8 border-t">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="space-y-6 pt-8 border-t">
+                <div className="flex items-center gap-2 mb-2">
                   <ClipboardCheck className="h-5 w-5 text-primary" />
                   <h4 className="text-sm font-black uppercase text-primary tracking-widest text-left">Intenção de Prática</h4>
                 </div>
+                <p className="text-xs text-muted-foreground leading-relaxed text-left">
+                  Abaixo você encontrará 4 questões relacionadas à sua intenção ao exercício realizado. Assinale na escala abaixo de cada afirmativa o quanto ela descreve sua situação pessoal. Não há respostas certas ou erradas, mas o importante é você marcar com sinceridade.
+                </p>
                 
                 <div className="grid gap-8">
                   {INTENTION_QUESTIONS.map((q) => (
                     <div key={q.id} className="space-y-4 bg-muted/30 p-5 rounded-[2rem] border border-primary/5">
                       <p className="text-[11px] font-bold text-left leading-relaxed text-foreground uppercase tracking-tight">{q.label}</p>
                       <div className="flex items-center gap-4">
-                        <span className="text-[8px] font-black uppercase text-muted-foreground w-12 text-center leading-none">Falso</span>
+                        <span className="text-[9px] font-black uppercase text-muted-foreground w-20 text-center leading-tight">Definitivamente<br/>Falso</span>
                         <Slider 
                           value={[intentionAnswers[q.id]]} 
                           onValueChange={v => setIntentionAnswers(p => ({...p, [q.id]: v[0]}))} 
                           min={1} max={7} step={1} 
                           className="flex-1"
                         />
-                        <span className="text-[8px] font-black uppercase text-primary w-12 text-center leading-none">Verdade</span>
+                        <span className="text-[9px] font-black uppercase text-primary w-20 text-center leading-tight">Definitivamente<br/>Verdadeiro</span>
                       </div>
                       <div className="flex justify-center">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-lg font-black text-primary border-2 border-primary/20">
@@ -639,6 +655,23 @@ export function WorkoutSessionForm() {
               </Button>
             </div>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRepeatDialog} onOpenChange={setShowRepeatDialog}>
+        <DialogContent className="sm:max-w-md rounded-[2rem] p-8 text-center border-primary/20">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase text-primary tracking-tighter">Treino Finalizado com Sucesso!</DialogTitle>
+            <DialogDescription className="text-sm font-bold mt-2">Deseja iniciar um novo treino agora ou ir para a tela inicial?</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-6">
+            <Button onClick={handleRepeat} className="w-full h-14 rounded-full font-black bg-primary/10 text-primary hover:bg-primary/20">
+              <RefreshCw className="mr-2 h-5 w-5" /> Fazer outro treino
+            </Button>
+            <Button onClick={handleFinishComplete} className="w-full h-14 rounded-full font-black bg-primary text-white shadow-xl hover:scale-[1.02] transition-transform">
+              <CheckCircle2 className="mr-2 h-5 w-5" /> Concluir e ir para Início
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

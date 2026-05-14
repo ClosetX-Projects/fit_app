@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Beaker, Brain, Heart, Moon, Loader2, Save } from 'lucide-react';
@@ -20,10 +21,11 @@ export function HealthDiagnostics() {
 
   const [healthData, setHealthData] = useState({
     healthPerception: 5,
-    qualityOfLife: 5,
     sleep: 5,
-    alcohol: '',
-    tobacco: '',
+    drinksAlcohol: 'no',
+    alcoholFrequency: '',
+    smokes: 'no',
+    cigarettesPerDay: '',
     redSeries: '',
     hormones: '',
     liverIndicators: ''
@@ -37,11 +39,15 @@ export function HealthDiagnostics() {
       await fetchApi('/diagnostico_questionarios/', { 
         method: 'POST', 
         data: { 
-          aluno_id: user.id, // O Backend pode sobrescrever, mas enviamos por clareza
+          aluno_id: user.id,
           percepcao_saude: healthData.healthPerception,
           qualidade_sono: healthData.sleep,
-          habitos_estilo_vida: `Álcool: ${healthData.alcohol} | Fumo: ${healthData.tobacco}`,
-          pontuacao_total: (healthData.healthPerception + healthData.sleep) // Simples soma
+          fuma: healthData.smokes === 'yes',
+          cigarros_dia: healthData.smokes === 'yes' ? Number(healthData.cigarettesPerDay) : 0,
+          consome_alcool: healthData.drinksAlcohol === 'yes',
+          frequencia_alcool: healthData.drinksAlcohol === 'yes' ? healthData.alcoholFrequency : '',
+          habitos_estilo_vida: `Fuma: ${healthData.smokes === 'yes' ? `Sim (${healthData.cigarettesPerDay} cigarros/dia)` : 'Não'}; Consome álcool: ${healthData.drinksAlcohol === 'yes' ? `Sim (${healthData.alcoholFrequency})` : 'Não'}`,
+          pontuacao_total: (healthData.healthPerception + healthData.sleep)
         } 
       });
 
@@ -73,6 +79,8 @@ export function HealthDiagnostics() {
     }
   };
 
+  const isProfessor = user?.role === 'professor';
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
@@ -86,9 +94,9 @@ export function HealthDiagnostics() {
       </div>
 
       <Tabs defaultValue="questionnaires" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-muted rounded-2xl mb-8">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 h-auto p-1 bg-muted rounded-2xl mb-8">
           <TabsTrigger value="questionnaires" className="rounded-xl py-2"><Brain className="h-4 w-4 mr-2" /> Questionários</TabsTrigger>
-          <TabsTrigger value="blood" className="rounded-xl py-2"><Beaker className="h-4 w-4 mr-2" /> Exames de Sangue</TabsTrigger>
+          {isProfessor && <TabsTrigger value="blood" className="rounded-xl py-2"><Beaker className="h-4 w-4 mr-2" /> Exames de Sangue</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="questionnaires" className="space-y-6">
@@ -110,32 +118,66 @@ export function HealthDiagnostics() {
           </div>
           <Card className="rounded-3xl">
             <CardHeader><CardTitle className="text-sm">Hábitos e Estilo de Vida</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2"><Label>Consumo de Álcool</Label><Textarea value={healthData.alcohol} onChange={e => setHealthData(p => ({...p, alcohol: e.target.value}))} placeholder="Frequência e tipo..." /></div>
-              <div className="space-y-2"><Label>Tabagismo</Label><Textarea value={healthData.tobacco} onChange={e => setHealthData(p => ({...p, tobacco: e.target.value}))} placeholder="Cigarros por dia, tempo de hábito..." /></div>
+            <CardContent className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Fuma?</Label>
+                  <RadioGroup value={healthData.smokes} onValueChange={(value) => setHealthData(p => ({...p, smokes: value}))} className="grid grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 rounded-2xl border border-primary/20 px-4 py-3 cursor-pointer">
+                      <RadioGroupItem value="yes" />
+                      <span>Sim</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-2xl border border-primary/20 px-4 py-3 cursor-pointer">
+                      <RadioGroupItem value="no" />
+                      <span>Não</span>
+                    </label>
+                  </RadioGroup>
+                  {healthData.smokes === 'yes' && (
+                    <Input type="number" min="0" placeholder="Cigarros por dia" value={healthData.cigarettesPerDay} onChange={e => setHealthData(p => ({...p, cigarettesPerDay: e.target.value}))} />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Consome álcool?</Label>
+                  <RadioGroup value={healthData.drinksAlcohol} onValueChange={(value) => setHealthData(p => ({...p, drinksAlcohol: value}))} className="grid grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 rounded-2xl border border-primary/20 px-4 py-3 cursor-pointer">
+                      <RadioGroupItem value="yes" />
+                      <span>Sim</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-2xl border border-primary/20 px-4 py-3 cursor-pointer">
+                      <RadioGroupItem value="no" />
+                      <span>Não</span>
+                    </label>
+                  </RadioGroup>
+                  {healthData.drinksAlcohol === 'yes' && (
+                    <Input placeholder="Frequência" value={healthData.alcoholFrequency} onChange={e => setHealthData(p => ({...p, alcoholFrequency: e.target.value}))} />
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="blood" className="space-y-6">
-          <Card className="rounded-3xl border-primary/20">
-            <CardHeader><CardTitle className="flex items-center gap-2"><Beaker className="h-5 w-5 text-primary" /> Indicadores Bioquímicos</CardTitle></CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label className="font-bold">Série Vermelha (Hemoglobina, Hematócrito...)</Label>
-                <Textarea className="min-h-[100px]" value={healthData.redSeries} onChange={e => setHealthData(p => ({...p, redSeries: e.target.value}))} placeholder="Insira os valores mais importantes..." />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">Hormônios (Testosterona, TSH, Cortisol...)</Label>
-                <Textarea className="min-h-[100px]" value={healthData.hormones} onChange={e => setHealthData(p => ({...p, hormones: e.target.value}))} />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">Indicadores Hepáticos (TGO, TGP, Gama-GT...)</Label>
-                <Textarea className="min-h-[100px]" value={healthData.liverIndicators} onChange={e => setHealthData(p => ({...p, liverIndicators: e.target.value}))} />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {isProfessor && (
+          <TabsContent value="blood" className="space-y-6">
+            <Card className="rounded-3xl border-primary/20">
+              <CardHeader><CardTitle className="flex items-center gap-2"><Beaker className="h-5 w-5 text-primary" /> Indicadores Bioquímicos</CardTitle></CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="font-bold">Série Vermelha (Hemoglobina, Hematócrito...)</Label>
+                  <Textarea className="min-h-[100px]" value={healthData.redSeries} onChange={e => setHealthData(p => ({...p, redSeries: e.target.value}))} placeholder="Insira os valores mais importantes..." />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold">Hormônios (Testosterona, TSH, Cortisol...)</Label>
+                  <Textarea className="min-h-[100px]" value={healthData.hormones} onChange={e => setHealthData(p => ({...p, hormones: e.target.value}))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold">Indicadores Hepáticos (TGO, TGP, Gama-GT...)</Label>
+                  <Textarea className="min-h-[100px]" value={healthData.liverIndicators} onChange={e => setHealthData(p => ({...p, liverIndicators: e.target.value}))} />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

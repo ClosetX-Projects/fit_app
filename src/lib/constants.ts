@@ -106,7 +106,7 @@ export const TRAINING_METHODS = [
   "GVT",
   "Rest-Pause",
   "Contínuo Aeróbio",
-  "HIIT"
+  "Intervalado"
 ];
 
 export const PROGRESSION_TYPES = [

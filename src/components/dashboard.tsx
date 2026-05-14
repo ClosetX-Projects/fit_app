@@ -38,7 +38,8 @@ export function Dashboard() {
 
   const isAluno = user?.role === 'aluno';
   const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>(
-    isAluno ? `/avaliacoes_antropo/aluno/${user.id}` : '/avaliacoes_antropo/'
+    isAluno ? `/avaliacoes_antropo/aluno/${user.id}` : '/avaliacoes_antropo/',
+    { revalidateOnMount: true }
   )
   
   // Alunos precisam de um programa_id para listar treinos (regra de segurança v2)
@@ -122,7 +123,8 @@ export function Dashboard() {
     )
   }
 
-  const currentWeight = assessments?.[assessments.length - 1]?.weight || 0
+  const latestAssessment = assessments?.[assessments.length - 1];
+  const currentWeight = Number(latestAssessment?.weight ?? latestAssessment?.peso_corporal_kg ?? latestAssessment?.peso_corporal ?? 0)
 
   return (
     <div className="space-y-6">

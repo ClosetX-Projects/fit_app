@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 
 const TEST_PROTOCOLS = [
   { id: '10rm', name: 'Teste de 10RM', icon: Dumbbell, desc: 'Predição de força máxima dinâmica.', instruction: 'Realize o máximo de repetições com uma carga submáxima.' },
-  { id: 'cooper', name: 'Cooper 12 Min', icon: Activity, desc: 'Estimativa de VO2máx por distância.', instruction: 'Corra a maior distância possível em 12 minutos.' },
+  { id: 'cooper', name: 'Cooper 12 Min', icon: Activity, desc: 'Estimativa de VO2máx por distância.', instruction: 'Corra ou ande a maior distância possível em 12 minutos e registre a distância percorrida.' },
   { id: 'bruce', name: 'Teste de Bruce', icon: Timer, desc: 'Capacidade aeróbia em esteira.', instruction: 'Protocolo de rampa com incrementos de inclinação e velocidade.' },
   { id: 'wells', name: 'Banco de Wells', icon: Ruler, desc: 'Flexibilidade de cadeia posterior.', instruction: 'Alcançar a maior distância possível no banco de madeira.' },
 ];
@@ -47,7 +47,9 @@ export function StudentTestsView() {
     setActiveTest(null);
   };
 
-  const selectedProtocol = TEST_PROTOCOLS.find(t => t.id === activeTest);
+  const releasedTests = user?.released_tests || [];
+  const visibleProtocols = TEST_PROTOCOLS.filter((test) => releasedTests.includes(test.id));
+  const selectedProtocol = visibleProtocols.find(t => t.id === activeTest);
 
   if (activeTest && selectedProtocol) {
     const Icon = selectedProtocol.icon;
@@ -78,9 +80,16 @@ export function StudentTestsView() {
           </CardHeader>
           <CardContent className="space-y-6">
             {activeTest === '10rm' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Carga (kg)</Label><Input type="number" onChange={e => setTestData({...testData, weight: e.target.value})} /></div>
-                <div className="space-y-2"><Label>Reps Realizadas</Label><Input type="number" onChange={e => setTestData({...testData, reps: e.target.value})} /></div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Exercício Testado</Label>
+                  <Input type="text" placeholder="Ex: Supino Reto" onChange={e => setTestData({...testData, exercise: e.target.value})} />
+                  <p className="text-sm text-muted-foreground">{selectedProtocol.instruction}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Carga (kg)</Label><Input type="number" onChange={e => setTestData({...testData, weight: e.target.value})} /></div>
+                  <div className="space-y-2"><Label>Reps Realizadas</Label><Input type="number" onChange={e => setTestData({...testData, reps: e.target.value})} /></div>
+                </div>
               </div>
             )}
             {activeTest === 'cooper' && (
@@ -110,7 +119,7 @@ export function StudentTestsView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {TEST_PROTOCOLS.map((test) => {
+        {visibleProtocols.length > 0 ? visibleProtocols.map((test) => {
           const Icon = test.icon;
           return (
             <Card key={test.id} onClick={() => setActiveTest(test.id)} className="nubank-card cursor-pointer group flex items-center gap-6 p-8 hover:border-primary">
@@ -124,7 +133,12 @@ export function StudentTestsView() {
               <ChevronRight className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-all" />
             </Card>
           );
-        })}
+        }) : (
+          <div className="col-span-1 md:col-span-2 rounded-[2rem] border border-dashed border-secondary/30 bg-secondary/5 p-10 text-center">
+            <h3 className="text-lg font-black uppercase text-primary">Aguardando Liberação</h3>
+            <p className="mt-3 text-sm text-muted-foreground">Os testes estarão visíveis aqui assim que seu personal liberar o acesso.</p>
+          </div>
+        )}
       </div>
 
       <div className="p-10 rounded-[3rem] bg-accent/5 border-2 border-dashed border-accent/20 text-center">
