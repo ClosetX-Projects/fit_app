@@ -18,6 +18,8 @@ import { Loader2, LockKeyhole, Mail } from 'lucide-react';
 import { ResetPasswordForm } from './reset-password-form';
 import { supabase } from '@/lib/supabase';
 
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
@@ -27,6 +29,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<'professor' | 'aluno'>('professor');
   const { toast } = useToast();
   const { login } = useUser();
   const router = useRouter();
@@ -34,7 +37,6 @@ export function LoginForm() {
   const isFirstAccess = searchParams.get('primeiroacesso') === 'true';
 
   const handleBackToLogin = () => {
-    // Remove o parâmetro ?primeiroacesso=true da URL
     router.push('/login');
   };
   
@@ -53,8 +55,10 @@ export function LoginForm() {
   async function onLoginSubmit(values: LoginFormValues) {
     setLoading(true);
     const normalizedEmail = values.email.toLowerCase().trim();
+    const endpoint = role === 'professor' ? '/users/login/professor' : '/users/login/aluno';
+    
     try {
-      const res = await fetchApi('/users/login', {
+      const res = await fetchApi(endpoint, {
         method: 'POST',
         data: {
           email: normalizedEmail,
@@ -64,7 +68,7 @@ export function LoginForm() {
       
       login(res.access_token, res.user);
 
-      toast({ title: 'Acesso liberado!', description: 'Bem-vindo ao seu painel.' });
+      toast({ title: 'Acesso liberado!', description: `Bem-vindo, ${res.user.nome}!` });
       router.push('/');
     } catch (error: any) {
       toast({
@@ -118,13 +122,34 @@ export function LoginForm() {
 
   return (
     <div className="w-full max-w-md animate-in fade-in duration-500">
-      <Card className="border-primary/20 shadow-2xl">
-        <CardHeader className="items-center text-center">
-          <Logo className="mb-6 scale-125" />
-          <CardTitle className="text-3xl font-black text-primary">Entrar</CardTitle>
-          <CardDescription>Acesse sua plataforma FitAssist</CardDescription>
+      <Card className="border-primary/20 shadow-2xl overflow-hidden rounded-[2.5rem]">
+        <div className="bg-primary/5 p-1 border-b border-primary/10">
+          <Tabs value={role} onValueChange={(v) => setRole(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-transparent h-14">
+              <TabsTrigger 
+                value="professor" 
+                className="rounded-2xl data-[state=active]:bg-primary data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest transition-all"
+              >
+                Sou Professor
+              </TabsTrigger>
+              <TabsTrigger 
+                value="aluno" 
+                className="rounded-2xl data-[state=active]:bg-primary data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest transition-all"
+              >
+                Sou Aluno
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <CardHeader className="items-center text-center pt-8">
+          <Logo className="mb-4 scale-110" />
+          <CardTitle className="text-3xl font-black text-primary uppercase italic tracking-tighter">Entrar</CardTitle>
+          <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+            Acesse sua área de {role}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pb-10 px-8">
           <Form {...loginForm}>
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
               <FormField
@@ -132,9 +157,9 @@ export function LoginForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-mail</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest opacity-70">E-mail</FormLabel>
                     <FormControl>
-                      <Input placeholder="seu@email.com" autoComplete="email" className="h-12 rounded-xl" {...field} />
+                      <Input placeholder="seu@email.com" autoComplete="email" className="h-14 rounded-2xl bg-secondary/20 border-none px-6 font-medium" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
