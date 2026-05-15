@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from './icons';
 import { Loader2, Lock, UserRound, GraduationCap } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: 'O nome é obrigatório.' }),
