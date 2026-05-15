@@ -37,7 +37,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshProfile = async () => {
     try {
-      const res = await fetchApi('/users/me');
+      const inviteId = localStorage.getItem('pending_invite_professor_id');
+      const url = inviteId ? `/users/me?invite_professor_id=${inviteId}` : '/users/me';
+      
+      const res = await fetchApi(url);
+      
+      // Se tiver sucesso e havia um convite pendente, removemos do storage
+      if (inviteId) {
+        localStorage.removeItem('pending_invite_professor_id');
+      }
       
       const userData: User = {
         id: res.user_id,
