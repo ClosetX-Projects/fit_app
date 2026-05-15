@@ -123,6 +123,11 @@ function SignUpFormContent() {
       localStorage.removeItem('fitassist_token');
       localStorage.removeItem('fitassist_user');
 
+      // Se for um convite de aluno, salvamos para o AuthProvider usar depois do login
+      if (isStudentInvite && invitedBy) {
+        localStorage.setItem('pending_invite_professor_id', invitedBy);
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
