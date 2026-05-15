@@ -136,5 +136,12 @@ export function getBloodPressureClassification(sbp: number, dbp: number) {
     return { label: "PA Normal", color: "bg-green-500", textColor: "text-white" };
   }
 
-  return { label: "Não Classificado", color: "bg-muted", textColor: "text-muted-foreground" };
-}
+
+export const TEST_PROTOCOLS = [
+  { id: '10rm', name: 'Teste de 10RM' },
+  { id: 'cooper', name: 'Cooper 12 Min' },
+  { id: 'bruce', name: 'Teste de Bruce' },
+  { id: 'wells', name: 'Banco de Wells' },
+  { id: 'yoyo', name: 'Yo-Yo Test' },
+  { id: 'tug', name: 'TUG (Idoso)' },
+];

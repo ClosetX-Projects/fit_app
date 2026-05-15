@@ -12,12 +12,19 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 
-const TEST_PROTOCOLS = [
-  { id: '10rm', name: 'Teste de 10RM', icon: Dumbbell, desc: 'Predição de força máxima dinâmica.', instruction: 'Realize o máximo de repetições com uma carga submáxima.' },
-  { id: 'cooper', name: 'Cooper 12 Min', icon: Activity, desc: 'Estimativa de VO2máx por distância.', instruction: 'Corra ou ande a maior distância possível em 12 minutos e registre a distância percorrida.' },
-  { id: 'bruce', name: 'Teste de Bruce', icon: Timer, desc: 'Capacidade aeróbia em esteira.', instruction: 'Protocolo de rampa com incrementos de inclinação e velocidade.' },
-  { id: 'wells', name: 'Banco de Wells', icon: Ruler, desc: 'Flexibilidade de cadeia posterior.', instruction: 'Alcançar a maior distância possível no banco de madeira.' },
-];
+import { TEST_PROTOCOLS as BASE_PROTOCOLS } from '@/lib/constants';
+
+const TEST_PROTOCOLS = BASE_PROTOCOLS.map(p => {
+  const meta: any = {
+    '10rm': { icon: Dumbbell, desc: 'Predição de força máxima dinâmica.', instruction: 'Realize o máximo de repetições com uma carga submáxima.' },
+    'cooper': { icon: Activity, desc: 'Estimativa de VO2máx por distância.', instruction: 'Corra ou ande a maior distância possível em 12 minutos.' },
+    'bruce': { icon: Timer, desc: 'Capacidade aeróbia em esteira.', instruction: 'Protocolo de rampa com incrementos de inclinação e velocidade.' },
+    'wells': { icon: Ruler, desc: 'Flexibilidade de cadeia posterior.', instruction: 'Alcançar a maior distância possível no banco de madeira.' },
+    'yoyo': { icon: Activity, desc: 'Teste de vai-e-vem incremental.', instruction: 'Corra entre dois pontos seguindo o sinal sonoro.' },
+    'tug': { icon: Zap, desc: 'Mobilidade e equilíbrio dinâmico.', instruction: 'Levante da cadeira, ande 2.44m, volte e sente.' },
+  };
+  return { ...p, ...(meta[p.id] || { icon: Activity, desc: '', instruction: '' }) };
+});
 
 export function StudentTestsView() {
   const { user } = useUser();
@@ -47,8 +54,8 @@ export function StudentTestsView() {
     setActiveTest(null);
   };
 
-  const releasedTests = user?.released_tests || [];
-  const visibleProtocols = TEST_PROTOCOLS.filter((test) => releasedTests.includes(test.id));
+  const testes_liberados = user?.testes_liberados || [];
+  const visibleProtocols = TEST_PROTOCOLS.filter((test) => testes_liberados.includes(test.id));
   const selectedProtocol = visibleProtocols.find(t => t.id === activeTest);
 
   if (activeTest && selectedProtocol) {
