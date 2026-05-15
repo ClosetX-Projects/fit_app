@@ -99,8 +99,8 @@ export function WorkoutSessionForm() {
       prescribedExercises.forEach(ex => {
         const adjustedWeight = ex.weight ? Math.round(ex.weight * loadAdjustmentFactor) : 0;
         initialLogs[ex.id] = { 
-          sets: ex.sets || 0, 
-          reps: ex.reps || '', 
+          sets: ex.series || 0, 
+          reps: ex.reps_tempo || '', 
           weight: adjustedWeight, 
           pse: 7 
         };
@@ -224,7 +224,7 @@ export function WorkoutSessionForm() {
           data: {
             userId: user.id,
             workoutSessionId: createdSessionId,
-            name: prescribedEx?.name || 'Exercício',
+            name: prescribedEx?.exercicios?.nome || prescribedEx?.nome || 'Exercício',
             sets: Number(log.sets),
             reps: log.reps,
             weight: Number(log.weight),
@@ -324,7 +324,7 @@ export function WorkoutSessionForm() {
                 <SelectValue placeholder="Escolha um programa..." />
               </SelectTrigger>
               <SelectContent>
-                {programs?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                {programs?.map(p => <SelectItem key={p.id} value={p.id}>{p.nome || p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -462,10 +462,10 @@ export function WorkoutSessionForm() {
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row justify-between gap-6">
                 <div className="flex-1">
-                  <p className="font-black text-xl text-primary">{ex.name}</p>
+                  <p className="font-black text-xl text-primary">{ex.exercicios?.nome || ex.nome || 'Exercício'}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Séries: {ex.sets}</span>
-                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Reps: {ex.reps}</span>
+                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Séries: {ex.series}</span>
+                    <span className="text-[10px] uppercase font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Reps: {ex.reps_tempo}</span>
                     {ex.weight && (
                       <span className="text-[10px] uppercase font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                         Carga Original: {ex.weight}kg
