@@ -195,18 +195,18 @@ export function WorkoutSessionForm() {
       const finalKcal = Math.round(Math.max(0, kcal));
 
       const sessionData = {
-        userId: user.id,
-        trainingProgramId: selectedProgramId,
-        date: new Date().toISOString(),
-        recoveryPerception: recovery,
-        pleasureScale: pleasure,
-        pseSession: sessionPse,
-        internalLoad: internalLoad,
-        intentionToRepeat: intentionAnswers,
-        duration: durationMin,
-        caloriesBurned: finalKcal,
-        loadAdjustmentFactor,
-        medical: {
+        aluno_id: user.id,
+        programa_id: selectedProgramId,
+        data_sessao: new Date().toISOString(),
+        percepcao_recuperacao: recovery,
+        escala_feeling: pleasure,
+        pse_sessao: sessionPse,
+        carga_interna: internalLoad,
+        intencao_repetir: intentionAnswers,
+        duracao_min: durationMin,
+        calorias_estimadas: finalKcal,
+        fator_ajuste_carga: loadAdjustmentFactor,
+        dados_medicos: {
           isHypertensive,
           isDiabetic,
           pa: { start: paStart, mid: paMid, end: paEnd },
@@ -214,21 +214,21 @@ export function WorkoutSessionForm() {
         }
       };
 
-      const sessionRes = await fetchApi('/treinos/', { method: 'POST', data: sessionData });
-      const createdSessionId = sessionRes.id || Math.random().toString();
+      const sessionRes = await fetchApi('/sessoes_treino/', { method: 'POST', data: sessionData });
+      const createdSessionId = sessionRes.id;
 
       await Promise.all(Object.entries(exerciseLogs).map(async ([exId, log]) => {
         const prescribedEx = prescribedExercises?.find((p: any) => p.id === exId);
-        await fetchApi('/exercicios/', {
+        await fetchApi('/logs_exercicios/', {
           method: 'POST',
           data: {
-            userId: user.id,
-            workoutSessionId: createdSessionId,
-            name: prescribedEx?.exercicios?.nome || prescribedEx?.nome || 'Exercício',
-            sets: Number(log.sets),
-            reps: log.reps,
-            weight: Number(log.weight),
-            pseExercise: log.pse,
+            aluno_id: user.id,
+            sessao_id: createdSessionId,
+            exercicio_nome: prescribedEx?.exercicios?.nome || prescribedEx?.nome || 'Exercício',
+            series_realizadas: Number(log.sets),
+            repeticoes_realizadas: String(log.reps),
+            peso_kg: Number(log.weight),
+            pse_exercicio: log.pse,
           }
         });
       }));
