@@ -11,19 +11,19 @@ import { StudentOnboarding } from './student-onboarding';
 import { StudentTestsView } from './student-tests-view';
 import { useUser } from '@/contexts/auth-provider';
 import { useApi } from '@/hooks/use-api';
-import { LayoutGrid, ClipboardPen, BrainCircuit, HeartPulse, ClipboardCheck, Calendar as CalendarIcon, Loader2, Zap } from 'lucide-react';
+import { LayoutGrid, ClipboardPen, BrainCircuit, HeartPulse, ClipboardCheck, Calendar as CalendarIcon, Loader2, Zap, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function StudentView() {
   const { user } = useUser();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('log-workout');
 
   const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>('/avaliacoes_antropo/');
 
   const navItems = [
-    { id: 'dashboard', label: 'Início', icon: LayoutGrid },
+    { id: 'log-workout', label: 'Meus Treinos', icon: LayoutGrid },
     { id: 'calendar', label: 'Calendário', icon: CalendarIcon },
-    { id: 'log-workout', label: 'Treinar', icon: ClipboardPen },
+    { id: 'dashboard', label: 'Evolução', icon: TrendingUp },
     { id: 'tests', label: 'Testes', icon: Zap },
     { id: 'assessment', label: 'Avaliação', icon: ClipboardCheck },
     { id: 'health', label: 'Saúde', icon: HeartPulse },

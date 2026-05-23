@@ -257,12 +257,43 @@ export function WorkoutSessionForm() {
   const currentPA = getCurrentPAMetrics();
   const bpClassification = getBloodPressureClassification(Number(currentPA.sys), Number(currentPA.dia));
 
-  if (!psrAnswered && !isStarted) {
+  if (!selectedProgramId && !isStarted) {
     return (
       <Card className="rounded-[3rem] border-primary/20 bg-background p-8 md:p-12 max-w-2xl mx-auto shadow-2xl animate-in zoom-in-95 duration-500">
         <CardHeader className="p-0 text-center mb-10">
           <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <Battery className="h-10 w-10 text-primary" />
+            <Activity className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="text-3xl font-black text-primary uppercase tracking-tighter">Seu Treino de Hoje</CardTitle>
+          <CardDescription className="text-base font-medium">Qual treino você vai executar hoje?</CardDescription>
+        </CardHeader>
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
+              <SelectTrigger className="h-16 rounded-2xl shadow-sm border-primary/20 bg-background text-lg font-bold">
+                <SelectValue placeholder="Escolha um programa..." />
+              </SelectTrigger>
+              <SelectContent>
+                {programs?.map(p => <SelectItem key={p.id} value={p.id}>{p.nome || p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (selectedProgramId && !psrAnswered && !isStarted) {
+    return (
+      <Card className="rounded-[3rem] border-primary/20 bg-background p-8 md:p-12 max-w-2xl mx-auto shadow-2xl animate-in zoom-in-95 duration-500">
+        <CardHeader className="p-0 text-center mb-10">
+          <div className="flex justify-between items-center w-full mb-6 relative">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedProgramId('')} className="absolute left-0">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Battery className="h-10 w-10 text-primary" />
+            </div>
           </div>
           <CardTitle className="text-3xl font-black text-primary uppercase tracking-tighter">Prontuário Pré-Treino</CardTitle>
           <CardDescription className="text-base font-medium">Como está sua recuperação para a sessão de hoje?</CardDescription>
@@ -300,7 +331,7 @@ export function WorkoutSessionForm() {
     );
   }
 
-  if (!isStarted) {
+  if (selectedProgramId && psrAnswered && !isStarted) {
     return (
       <Card className="rounded-[3rem] border-primary/20 bg-primary/5 p-8 max-w-2xl mx-auto shadow-xl">
         <CardHeader className="p-0 mb-8">
@@ -317,18 +348,6 @@ export function WorkoutSessionForm() {
         </CardHeader>
         
         <div className="space-y-8">
-          <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase text-primary tracking-widest">Selecione seu Treino</Label>
-            <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
-              <SelectTrigger className="h-16 rounded-2xl shadow-sm border-primary/20 bg-background text-lg font-bold">
-                <SelectValue placeholder="Escolha um programa..." />
-              </SelectTrigger>
-              <SelectContent>
-                {programs?.map(p => <SelectItem key={p.id} value={p.id}>{p.nome || p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
           {(isHypertensive || isDiabetic) && (
             <Alert className="bg-destructive/5 border-destructive/20 rounded-2xl">
               <ShieldAlert className="h-4 w-4 text-destructive" />
