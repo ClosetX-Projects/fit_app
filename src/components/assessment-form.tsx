@@ -547,10 +547,9 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                     <p className="text-lg font-black">{results.rcq}</p>
                     <p className="text-[8px] font-bold uppercase text-primary">{results.rcqRisk}</p>
                   </div>
-                  <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20">
-                    <p className="text-[9px] font-black uppercase text-accent-foreground tracking-widest mb-1">% Gordura</p>
+                  <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20 flex flex-col justify-center min-h-[90px]">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">% Gordura</p>
                     <p className="text-lg font-black">{results.fatPerc}%</p>
-                    <p className="text-[8px] font-bold uppercase text-accent-foreground">{results.fatClass}</p>
                   </div>
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Massa Corporal</p>
