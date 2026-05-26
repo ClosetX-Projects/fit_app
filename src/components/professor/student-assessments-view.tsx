@@ -600,6 +600,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
               method: 'POST',
               data: {
                 aluno_id: studentId,
+                professor_id: user?.id,
                 data_avaliacao: new Date().toISOString(),
                 peso_corporal_kg: 0, estatura_cm: 0,
                 imc: 0, rcq: 0, percentual_gordura: 0, massa_magra_kg: 0, peso_gordura_kg: 0,

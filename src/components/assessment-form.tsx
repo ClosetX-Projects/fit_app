@@ -323,6 +323,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
       const apiPayload = {
         aluno_id: targetUserId,
+        professor_id: isProfessor ? user.id : (user.professor_responsavel_id || user.professor_id),
         data_avaliacao: new Date().toISOString(),
         peso_corporal_kg: values.weight,
         estatura_cm: values.height,
