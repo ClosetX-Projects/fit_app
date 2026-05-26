@@ -114,6 +114,8 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
   const isProfessor = user?.role === 'professor';
   const { data: students } = useApi<any[]>(isProfessor ? `/users/alunos` : null);
+  const { data: studentProfile } = useApi<any>(!isProfessor && user ? `/users/alunos/${user.id}` : null);
+  const { data: professors } = useApi<any[]>(!isProfessor ? `/users/professores` : null);
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
@@ -321,9 +323,14 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
         targetUserId = res?.id || targetUserId;
       }
 
+      const fallbackProfessorId = professors?.[0]?.id || null;
+      const resolvedProfessorId = isProfessor 
+        ? user.id 
+        : (studentProfile?.professor_id || studentProfile?.professor_responsavel_id || user.professor_responsavel_id || user.professor_id || fallbackProfessorId);
+
       const apiPayload = {
         aluno_id: targetUserId,
-        professor_id: isProfessor ? user.id : (user.professor_responsavel_id || user.professor_id),
+        professor_id: resolvedProfessorId,
         data_avaliacao: new Date().toISOString(),
         peso_corporal_kg: values.weight,
         estatura_cm: values.height,
