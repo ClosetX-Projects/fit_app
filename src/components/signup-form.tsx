@@ -89,7 +89,8 @@ function SignUpFormContent() {
       });
 
       // Se der sucesso, faz o login para obter o token e entrar na plataforma
-      const loginRes = await fetchApi('/users/login', {
+      const loginEndpoint = isProf ? '/users/login/professor' : '/users/login/aluno';
+      const loginRes = await fetchApi(loginEndpoint, {
         method: 'POST',
         data: {
           email: normalizedEmail,

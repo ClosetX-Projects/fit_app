@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { fetchApi } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
@@ -144,7 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (!supabase) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       if (event === 'SIGNED_IN' && session) {
         localStorage.setItem('fitassist_token', session.access_token);
         refreshProfile();

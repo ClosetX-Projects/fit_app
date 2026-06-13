@@ -18,7 +18,9 @@ export function StudentView() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>('/avaliacoes_antropo/');
+  const { data: assessments, loading: isAssessmentsLoading } = useApi<any[]>(
+    user ? `/avaliacoes_antropo/aluno/${user.id}` : null
+  );
 
   const navItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutGrid },

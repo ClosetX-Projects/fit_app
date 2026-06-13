@@ -16,7 +16,9 @@ export function GoalRecommender() {
     const [goals, setGoals] = useState<string[]>([])
     const [error, setError] = useState<string | null>(null)
 
-    const { data: assessments } = useApi<any[]>('/avaliacoes_antropo/')
+    const { data: assessments } = useApi<any[]>(
+        user ? `/avaliacoes_antropo/aluno/${user.id}` : null
+    )
     const lastAssessment = assessments?.[assessments?.length - 1]
 
     const handleGenerateGoals = async () => {
@@ -35,25 +37,25 @@ export function GoalRecommender() {
                 name: String(user.nome || 'Usuário'),
                 age: 30, // Mocked for AI
                 gender: String(user.biotipo || 'Não informado'),
-                weight: Number(lastAssessment?.weight || 0),
-                height: Number(lastAssessment?.height || 0),
+                weight: Number(lastAssessment?.weight ?? lastAssessment?.peso_corporal_kg ?? 0),
+                height: Number(lastAssessment?.height ?? lastAssessment?.estatura_cm ?? 0),
                 email: String(user.email || ''),
                 whatsapp: ''
             },
             bodyComposition: {
-                weight: Number(lastAssessment?.weight || 0),
-                height: Number(lastAssessment?.height || 0),
+                weight: Number(lastAssessment?.weight ?? lastAssessment?.peso_corporal_kg ?? 0),
+                height: Number(lastAssessment?.height ?? lastAssessment?.estatura_cm ?? 0),
                 circumferences: {}, 
                 skinfolds: {},
             },
             bioimpedanceData: {
                 age: 30,
-                height: Number(lastAssessment?.height || 0),
+                height: Number(lastAssessment?.height ?? lastAssessment?.estatura_cm ?? 0),
                 gender: String(user.biotipo || ''),
                 totalBodyWater: 0,
                 protein: 0,
                 mineralContent: 0,
-                bodyFatMass: 0,
+                bodyFatMass: Number(lastAssessment?.peso_gordura_kg ?? 0),
             },
             strengthTestResults: {
                 vo2max: Number(lastAssessment?.vo2max || 0),
