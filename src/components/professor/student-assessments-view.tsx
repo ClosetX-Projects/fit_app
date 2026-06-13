@@ -44,57 +44,57 @@ interface StudentAssessmentsViewProps {
   onEditAntropometry?: (assessmentId: string) => void;
 }
 
-const INITIAL_FORM_DATA = {
+const INITIAL_FORM_DATA: any = {
   fullName: '',
   birthDate: '',
   gender: 'male',
-  weight: 0,
-  height: 0,
-  systolic: 0,
-  diastolic: 0,
-  waist: 0,
-  hip: 0,
-  neck: 0,
-  shoulder: 0,
-  chest: 0,
-  armContractedR: 0,
-  armContractedL: 0,
-  thighR: 0,
-  thighL: 0,
-  legR: 0,
-  legL: 0,
-  subscapular: 0,
-  triceps: 0,
-  biceps: 0,
-  midAxillary: 0,
-  pectoral: 0,
-  suprailiac: 0,
-  abdominal: 0,
-  thigh: 0,
-  midLeg: 0,
+  weight: '',
+  height: '',
+  systolic: '',
+  diastolic: '',
+  waist: '',
+  hip: '',
+  neck: '',
+  shoulder: '',
+  chest: '',
+  armContractedR: '',
+  armContractedL: '',
+  thighR: '',
+  thighL: '',
+  legR: '',
+  legL: '',
+  subscapular: '',
+  triceps: '',
+  biceps: '',
+  midAxillary: '',
+  pectoral: '',
+  suprailiac: '',
+  abdominal: '',
+  thigh: '',
+  midLeg: '',
   // Neuromotor
   tenRmExercise: 'Supino Reto',
-  tenRmWeight: 0,
-  tenRmReps: 0,
+  tenRmWeight: '',
+  tenRmReps: '',
   // Aeróbico
-  cooperDistance: 0,
-  yoYoDistance: 0,
-  bruceTime: 0,
-  conconiSpeed: 0,
-  conconiHR: 0,
+  cooperDistance: '',
+  yoYoDistance: '',
+  bruceTime: '',
+  conconiSpeed: '',
+  conconiHR: '',
   // Performance
-  verticalJump: 0,
-  horizontalJump: 0,
-  pushUpReps: 0,
-  sitUpReps: 0,
-  wellsDistance: 0, // Flexibilidade Geral
+  verticalJump: '',
+  horizontalJump: '',
+  pushUpReps: '',
+  sitUpReps: '',
+  wellsDistance: '', // Flexibilidade Geral
   // SFT Idoso (Exclusivo 60+)
-  chairStandReps: 0,
-  armCurlReps: 0,
-  sixMinWalkDist: 0,
-  chairSitAndReach: 0,
-  backScratch: 0,
-  tugTime: 0,
+  chairStandReps: '',
+  armCurlReps: '',
+  sixMinWalkDist: '',
+  chairSitAndReach: '',
+  backScratch: '',
+  tugTime: '',
 };
 
 export function StudentAssessmentsView({ studentId, onEditAntropometry }: StudentAssessmentsViewProps) {
@@ -195,18 +195,24 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
       systolic, diastolic 
     } = formData;
     
-    const imc = h > 0 ? (w / ((h / 100) ** 2)) : 0;
+    const imc = Number(h) > 0 ? (Number(w) / ((Number(h) / 100) ** 2)) : 0;
     
-    const oneRm = tenRmReps > 0 ? (tenRmWeight / (1.0278 - (0.0278 * tenRmReps))) : 0;
-    const oneRmTable = [95, 90, 85, 80, 75, 70, 60, 50].map(p => ({ perc: p, val: (oneRm * (p / 100)).toFixed(1) }));
+    const wNum = Number(tenRmWeight) || 0;
+    const rNum = Number(tenRmReps) || 0;
+    const oneRm = rNum > 0 ? (wNum / (1.0278 - (0.0278 * rNum))) : 0;
+    const oneRmTable = [100, 95, 90, 85, 80, 75, 70, 60, 50].map(p => ({ perc: p, val: (oneRm * (p / 100)).toFixed(1) }));
 
-    const vo2Cooper = cooperDistance > 0 ? (cooperDistance - 504.9) / 44.73 : 0;
-    const vo2YoYo = yoYoDistance > 0 ? (yoYoDistance * 0.0084) + 36.4 : 0;
+    const cDist = Number(cooperDistance) || 0;
+    const yDist = Number(yoYoDistance) || 0;
+    const bTime = Number(bruceTime) || 0;
+
+    const vo2Cooper = cDist > 0 ? (cDist - 504.9) / 44.73 : 0;
+    const vo2YoYo = yDist > 0 ? (yDist * 0.0084) + 36.4 : 0;
     let vo2Bruce = 0;
-    if (bruceTime > 0) {
+    if (bTime > 0) {
       vo2Bruce = gender === 'male' 
-        ? (14.8 - (1.379 * bruceTime) + (0.451 * Math.pow(bruceTime, 2)) - (0.012 * Math.pow(bruceTime, 3))) 
-        : (4.38 * bruceTime - 3.9);
+        ? (14.8 - (1.379 * bTime) + (0.451 * Math.pow(bTime, 2)) - (0.012 * Math.pow(bTime, 3))) 
+        : (4.38 * bTime - 3.9);
     }
 
     const iafg = isElderly ? getIAFG(gender, age, {
@@ -384,11 +390,11 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase">Carga Utilizada (kg)</Label>
-                      <Input type="number" value={formData.tenRmWeight} onChange={e => setFormData({...formData, tenRmWeight: Number(e.target.value)})} className="h-12 rounded-xl text-lg font-black" />
+                      <Input type="number" value={formData.tenRmWeight} onChange={e => setFormData({...formData, tenRmWeight: e.target.value})} className="h-12 rounded-xl text-lg font-black" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase">Repetições (Max 10)</Label>
-                      <Input type="number" value={formData.tenRmReps} onChange={e => setFormData({...formData, tenRmReps: Number(e.target.value)})} className="h-12 rounded-xl text-lg font-black" />
+                      <Input type="number" value={formData.tenRmReps} onChange={e => setFormData({...formData, tenRmReps: e.target.value})} className="h-12 rounded-xl text-lg font-black" />
                     </div>
                   </div>
                 </div>
@@ -412,43 +418,48 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
           <TabsContent value="aerobico" className="space-y-8 animate-in fade-in slide-in-from-top-2">
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Cooper */}
-              <Card className="rounded-[2rem] p-6 border-primary/10 hover:border-primary transition-colors group">
+              <Card className={cn("rounded-[2rem] p-6 border transition-colors group relative", age < 40 ? "border-primary shadow-md shadow-primary/10" : "border-primary/10")}>
+                {age < 40 && <Badge className="absolute -top-3 right-4 bg-primary text-[8px] font-black uppercase">⭐ Sugerido pela idade</Badge>}
                 <div className="flex justify-between items-start mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><Timer className="h-5 w-5" /></div>
-                  <Badge variant="outline" className="text-[8px] font-black uppercase">Cooper 12'</Badge>
+                  <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-all", age < 40 ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")}><Timer className="h-5 w-5" /></div>
+                  <Badge variant="outline" className={cn("text-[8px] font-black uppercase", age < 40 ? "border-primary text-primary" : "")}>Cooper 12'</Badge>
                 </div>
                 <h5 className="font-black text-sm uppercase mb-4">Distância Percorrida</h5>
                 <div className="relative">
-                  <Input type="number" value={formData.cooperDistance} onChange={e => setFormData({...formData, cooperDistance: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
+                  <Input type="number" value={formData.cooperDistance} onChange={e => setFormData({...formData, cooperDistance: e.target.value})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">metros</span>
                 </div>
                 <p className="text-[9px] text-muted-foreground font-bold mt-4 uppercase">VO2: <span className="text-primary">{results.vo2Cooper}</span></p>
               </Card>
 
               {/* Yo-Yo */}
-              <Card className="rounded-[2rem] p-6 border-primary/10 hover:border-primary transition-colors group">
+              <Card className={cn("rounded-[2rem] p-6 border transition-colors group relative", age >= 20 && age <= 40 ? "border-primary shadow-md shadow-primary/10" : "border-primary/10")}>
+                {(age >= 20 && age <= 40) && <Badge className="absolute -top-3 right-4 bg-primary text-[8px] font-black uppercase">⭐ Sugerido pela idade</Badge>}
                 <div className="flex justify-between items-start mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><Activity className="h-5 w-5" /></div>
-                  <Badge variant="outline" className="text-[8px] font-black uppercase">Yo-Yo Test</Badge>
+                  <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-all", age >= 20 && age <= 40 ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")}><Activity className="h-5 w-5" /></div>
+                  <Badge variant="outline" className={cn("text-[8px] font-black uppercase", age >= 20 && age <= 40 ? "border-primary text-primary" : "")}>Yo-Yo Test</Badge>
                 </div>
                 <h5 className="font-black text-sm uppercase mb-4">Distância Final</h5>
                 <div className="relative">
-                  <Input type="number" value={formData.yoYoDistance} onChange={e => setFormData({...formData, yoYoDistance: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
+                  <Input type="number" value={formData.yoYoDistance} onChange={e => setFormData({...formData, yoYoDistance: e.target.value})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">metros</span>
                 </div>
+                <p className="text-[9px] text-muted-foreground font-bold mt-4 uppercase">VO2: <span className="text-primary">{results.vo2YoYo}</span></p>
               </Card>
 
               {/* Bruce */}
-              <Card className="rounded-[2rem] p-6 border-primary/10 hover:border-primary transition-colors group">
+              <Card className={cn("rounded-[2rem] p-6 border transition-colors group relative", age > 40 ? "border-primary shadow-md shadow-primary/10" : "border-primary/10")}>
+                {age > 40 && <Badge className="absolute -top-3 right-4 bg-primary text-[8px] font-black uppercase">⭐ Sugerido (Clínico)</Badge>}
                 <div className="flex justify-between items-start mb-6">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all"><Stethoscope className="h-5 w-5" /></div>
-                  <Badge variant="outline" className="text-[8px] font-black uppercase">Bruce (Clínico)</Badge>
+                  <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-all", age > 40 ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")}><Stethoscope className="h-5 w-5" /></div>
+                  <Badge variant="outline" className={cn("text-[8px] font-black uppercase", age > 40 ? "border-primary text-primary" : "")}>Bruce (Clínico)</Badge>
                 </div>
                 <h5 className="font-black text-sm uppercase mb-4">Tempo em Rampa</h5>
                 <div className="relative">
-                  <Input type="number" step="0.1" value={formData.bruceTime} onChange={e => setFormData({...formData, bruceTime: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
+                  <Input type="number" step="0.1" value={formData.bruceTime} onChange={e => setFormData({...formData, bruceTime: e.target.value})} className="h-14 rounded-2xl text-2xl font-black pl-4 pr-12" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">min</span>
                 </div>
+                <p className="text-[9px] text-muted-foreground font-bold mt-4 uppercase">VO2: <span className="text-primary">{results.vo2Bruce}</span></p>
               </Card>
 
               {/* Conconi */}
@@ -458,9 +469,9 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
                   <Badge variant="outline" className="text-[8px] font-black uppercase border-accent/30 text-accent-foreground">Limiar Conconi</Badge>
                 </div>
                 <h5 className="font-black text-sm uppercase mb-2">Velocidade Limiar</h5>
-                <Input type="number" step="0.1" value={formData.conconiSpeed} onChange={e => setFormData({...formData, conconiSpeed: Number(e.target.value)})} className="h-10 rounded-xl font-bold mb-4" />
+                <Input type="number" step="0.1" value={formData.conconiSpeed} onChange={e => setFormData({...formData, conconiSpeed: e.target.value})} className="h-10 rounded-xl font-bold mb-4" />
                 <h5 className="font-black text-sm uppercase mb-2">FC no Limiar</h5>
-                <Input type="number" value={formData.conconiHR} onChange={e => setFormData({...formData, conconiHR: Number(e.target.value)})} className="h-10 rounded-xl font-bold" />
+                <Input type="number" value={formData.conconiHR} onChange={e => setFormData({...formData, conconiHR: e.target.value})} className="h-10 rounded-xl font-bold" />
               </Card>
             </div>
           </TabsContent>
@@ -491,7 +502,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
                       <Label className="text-[10px] font-black uppercase tracking-widest">{test.label}</Label>
                     </div>
                     <div className="relative">
-                      <Input type="number" step="0.1" value={formData[test.id]} onChange={e => setFormData({...formData, [test.id]: Number(e.target.value)})} className="h-12 rounded-xl text-lg font-black pr-12" />
+                      <Input type="number" step="0.1" value={formData[test.id]} onChange={e => setFormData({...formData, [test.id]: e.target.value})} className="h-12 rounded-xl text-lg font-black pr-12" />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase opacity-40">{test.unit}</span>
                     </div>
                     <p className="text-[9px] text-muted-foreground mt-2 font-bold uppercase">{test.desc}</p>
@@ -509,11 +520,11 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Impulsão Vertical (cm)</Label>
-                    <Input type="number" value={formData.verticalJump} onChange={e => setFormData({...formData, verticalJump: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
+                    <Input type="number" value={formData.verticalJump} onChange={e => setFormData({...formData, verticalJump: e.target.value})} className="h-12 rounded-xl font-black" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Impulsão Horizontal (cm)</Label>
-                    <Input type="number" value={formData.horizontalJump} onChange={e => setFormData({...formData, horizontalJump: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
+                    <Input type="number" value={formData.horizontalJump} onChange={e => setFormData({...formData, horizontalJump: e.target.value})} className="h-12 rounded-xl font-black" />
                   </div>
                 </div>
               </section>
@@ -523,11 +534,11 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Abdominais (1 min)</Label>
-                    <Input type="number" value={formData.sitUpReps} onChange={e => setFormData({...formData, sitUpReps: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
+                    <Input type="number" value={formData.sitUpReps} onChange={e => setFormData({...formData, sitUpReps: e.target.value})} className="h-12 rounded-xl font-black" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Flexões de Braço</Label>
-                    <Input type="number" value={formData.pushUpReps} onChange={e => setFormData({...formData, pushUpReps: Number(e.target.value)})} className="h-12 rounded-xl font-black" />
+                    <Input type="number" value={formData.pushUpReps} onChange={e => setFormData({...formData, pushUpReps: e.target.value})} className="h-12 rounded-xl font-black" />
                   </div>
                 </div>
               </section>
@@ -537,7 +548,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
                 <Card className="p-6 border-accent/20 bg-accent/5 rounded-[2rem]">
                   <Label className="text-[10px] font-black uppercase mb-4 block">Banco de Wells</Label>
                   <div className="relative">
-                    <Input type="number" step="0.1" value={formData.wellsDistance} onChange={e => setFormData({...formData, wellsDistance: Number(e.target.value)})} className="h-14 rounded-2xl text-2xl font-black pr-12" />
+                    <Input type="number" step="0.1" value={formData.wellsDistance} onChange={e => setFormData({...formData, wellsDistance: e.target.value})} className="h-14 rounded-2xl text-2xl font-black pr-12" />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase opacity-40">cm</span>
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-4 font-bold uppercase leading-relaxed">Avalia flexibilidade de cadeia posterior (lombar e isquiotibiais).</p>
@@ -589,6 +600,7 @@ export function StudentAssessmentsView({ studentId, onEditAntropometry }: Studen
               method: 'POST',
               data: {
                 aluno_id: studentId,
+                professor_id: user?.id,
                 data_avaliacao: new Date().toISOString(),
                 peso_corporal_kg: 0, estatura_cm: 0,
                 imc: 0, rcq: 0, percentual_gordura: 0, massa_magra_kg: 0, peso_gordura_kg: 0,

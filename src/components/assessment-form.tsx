@@ -114,6 +114,8 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
   const isProfessor = user?.role === 'professor';
   const { data: students } = useApi<any[]>(isProfessor ? `/users/alunos` : null);
+  const { data: studentProfile } = useApi<any>(!isProfessor && user ? `/users/alunos/${user.id}` : null);
+  const { data: professors } = useApi<any[]>(!isProfessor ? `/users/professores` : null);
 
   const form = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema),
@@ -321,13 +323,19 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
         targetUserId = res?.id || targetUserId;
       }
 
+      const fallbackProfessorId = professors?.[0]?.id || null;
+      const resolvedProfessorId = isProfessor 
+        ? user.id 
+        : (studentProfile?.professor_id || studentProfile?.professor_responsavel_id || user.professor_responsavel_id || user.professor_id || fallbackProfessorId);
+
       const apiPayload = {
         aluno_id: targetUserId,
+        professor_id: resolvedProfessorId,
         data_avaliacao: new Date().toISOString(),
         peso_corporal_kg: values.weight,
         estatura_cm: values.height,
-        imc: results.imc || 0,
-        rcq: results.rcq || 0,
+        imc: Number(results.imc) || 0,
+        rcq: Number(results.rcq) || 0,
         risco_rcq: results.rcqRisk || '',
         percentual_gordura: Number(results.fatPerc) || 0,
         massa_magra_kg: Number(results.leanMass) || 0,
@@ -547,15 +555,14 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                     <p className="text-lg font-black">{results.rcq}</p>
                     <p className="text-[8px] font-bold uppercase text-primary">{results.rcqRisk}</p>
                   </div>
-                  <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20">
-                    <p className="text-[9px] font-black uppercase text-accent-foreground tracking-widest mb-1">% Gordura</p>
+                  <div className="bg-accent/10 p-4 rounded-3xl text-center border border-accent/20 flex flex-col justify-center min-h-[90px]">
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">% Gordura</p>
                     <p className="text-lg font-black">{results.fatPerc}%</p>
-                    <p className="text-[8px] font-bold uppercase text-accent-foreground">{results.fatClass}</p>
                   </div>
                   <div className="bg-muted/50 p-4 rounded-3xl text-center border">
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Massa Magra</p>
-                    <p className="text-lg font-black">{results.leanMass} kg</p>
-                    <p className="text-[8px] font-bold uppercase opacity-60">Peso Gordura: {results.fatMass}kg</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Massa Corporal</p>
+                    <p className="text-lg font-black">{watched.weight || 0} kg</p>
+                    <p className="text-[8px] font-bold uppercase opacity-60">Magra: {results.leanMass}kg | Gord.: {results.fatMass}kg</p>
                   </div>
                   <div className="bg-primary/20 p-4 rounded-3xl text-center border border-primary/30">
                     <p className="text-[9px] font-black uppercase text-primary tracking-widest mb-1">Taxa Metabólica (TMB)</p>

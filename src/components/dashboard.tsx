@@ -142,7 +142,7 @@ export function Dashboard() {
         
         <Card className="nubank-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-0 mb-2">
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Queima Mensal</CardTitle>
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gasto Calórico Mensal</CardTitle>
             <Flame className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent className="p-0">

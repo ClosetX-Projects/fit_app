@@ -6,6 +6,8 @@ import { fetchApi } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +45,11 @@ export function StudentDetails({ studentId, onBack, defaultTab = 'assessments', 
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [isUpdatingTests, setIsUpdatingTests] = useState(false);
 
+  // States para edição de campos
+  const [editField, setEditField] = useState<'restrictions' | 'anamnesis' | 'goals' | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSavingField, setIsSavingField] = useState(false);
+
   useEffect(() => {
     if (student?.testes_liberados) {
       setSelectedTests(student.testes_liberados);
@@ -71,6 +78,24 @@ export function StudentDetails({ studentId, onBack, defaultTab = 'assessments', 
     }
   };
 
+  const handleUpdateField = async () => {
+    if (!editField) return;
+    setIsSavingField(true);
+    try {
+      await fetchApi(`/users/alunos/${studentId}`, {
+        method: 'PUT',
+        data: { [editField]: editValue }
+      });
+      toast({ title: "Informação atualizada!" });
+      setEditField(null);
+      mutateStudent();
+    } catch (error) {
+      toast({ variant: 'destructive', title: "Erro ao atualizar." });
+    } finally {
+      setIsSavingField(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -91,33 +116,74 @@ export function StudentDetails({ studentId, onBack, defaultTab = 'assessments', 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-         <Card className="rounded-3xl bg-destructive/5 border-destructive/20 shadow-sm">
-            <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
-               <ShieldAlert className="h-4 w-4 text-destructive" />
-               <p className="text-[10px] font-black uppercase text-destructive tracking-widest">Restrições</p>
-            </CardHeader>
-            <CardContent className="p-4 pt-1">
-               <p className="text-sm font-bold text-foreground/80">{student?.restrictions || "Nenhuma informada."}</p>
-            </CardContent>
-         </Card>
-         <Card className="rounded-3xl bg-primary/5 border-primary/20 shadow-sm">
-            <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
-               <Heart className="h-4 w-4 text-primary" />
-               <p className="text-[10px] font-black uppercase text-primary tracking-widest">Anamnese</p>
-            </CardHeader>
-            <CardContent className="p-4 pt-1">
-               <p className="text-sm font-bold text-foreground/80">{student?.anamnesis || "Não preenchida."}</p>
-            </CardContent>
-         </Card>
-         <Card className="rounded-3xl bg-accent/5 border-accent/20 shadow-sm">
-            <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
-               <Target className="h-4 w-4 text-accent" />
-               <p className="text-[10px] font-black uppercase text-accent tracking-widest">Objetivos</p>
-            </CardHeader>
-            <CardContent className="p-4 pt-1">
-               <p className="text-sm font-bold text-foreground/80">{student?.goals || "Geral"}</p>
-            </CardContent>
-         </Card>
+         <Dialog open={editField === 'restrictions'} onOpenChange={(open) => { if (open) { setEditValue(student?.restrictions || ''); setEditField('restrictions'); } else { setEditField(null); } }}>
+           <DialogTrigger asChild>
+             <Card className="rounded-3xl bg-destructive/5 border-destructive/20 shadow-sm cursor-pointer hover:bg-destructive/10 transition-colors">
+                <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
+                   <ShieldAlert className="h-4 w-4 text-destructive" />
+                   <p className="text-[10px] font-black uppercase text-destructive tracking-widest">Restrições</p>
+                </CardHeader>
+                <CardContent className="p-4 pt-1">
+                   <p className="text-sm font-bold text-foreground/80 line-clamp-2">{student?.restrictions || "Nenhuma informada."}</p>
+                </CardContent>
+             </Card>
+           </DialogTrigger>
+           <DialogContent className="rounded-[2rem] border-destructive/20 bg-background sm:max-w-md">
+             <DialogHeader>
+               <DialogTitle className="text-xl font-black text-destructive uppercase flex items-center gap-2"><ShieldAlert className="h-5 w-5"/> Editar Restrições</DialogTitle>
+             </DialogHeader>
+             <Textarea value={editValue} onChange={e => setEditValue(e.target.value)} className="min-h-[150px] rounded-xl font-bold" placeholder="Digite as restrições médicas ou físicas do aluno..." />
+             <Button onClick={handleUpdateField} disabled={isSavingField} className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-full font-black mt-4 h-12">
+               {isSavingField ? <Loader2 className="animate-spin mr-2" /> : "SALVAR RESTRIÇÕES"}
+             </Button>
+           </DialogContent>
+         </Dialog>
+
+         <Dialog open={editField === 'anamnesis'} onOpenChange={(open) => { if (open) { setEditValue(student?.anamnesis || ''); setEditField('anamnesis'); } else { setEditField(null); } }}>
+           <DialogTrigger asChild>
+             <Card className="rounded-3xl bg-primary/5 border-primary/20 shadow-sm cursor-pointer hover:bg-primary/10 transition-colors">
+                <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
+                   <Heart className="h-4 w-4 text-primary" />
+                   <p className="text-[10px] font-black uppercase text-primary tracking-widest">Anamnese</p>
+                </CardHeader>
+                <CardContent className="p-4 pt-1">
+                   <p className="text-sm font-bold text-foreground/80 line-clamp-2">{student?.anamnesis || "Não preenchida."}</p>
+                </CardContent>
+             </Card>
+           </DialogTrigger>
+           <DialogContent className="rounded-[2rem] border-primary/20 bg-background sm:max-w-md">
+             <DialogHeader>
+               <DialogTitle className="text-xl font-black text-primary uppercase flex items-center gap-2"><Heart className="h-5 w-5"/> Editar Anamnese</DialogTitle>
+             </DialogHeader>
+             <Textarea value={editValue} onChange={e => setEditValue(e.target.value)} className="min-h-[150px] rounded-xl font-bold" placeholder="Informações do questionário de prontidão ou histórico..." />
+             <Button onClick={handleUpdateField} disabled={isSavingField} className="w-full bg-primary text-primary-foreground rounded-full font-black mt-4 h-12">
+               {isSavingField ? <Loader2 className="animate-spin mr-2" /> : "SALVAR ANAMNESE"}
+             </Button>
+           </DialogContent>
+         </Dialog>
+
+         <Dialog open={editField === 'goals'} onOpenChange={(open) => { if (open) { setEditValue(student?.goals || ''); setEditField('goals'); } else { setEditField(null); } }}>
+           <DialogTrigger asChild>
+             <Card className="rounded-3xl bg-accent/5 border-accent/20 shadow-sm cursor-pointer hover:bg-accent/10 transition-colors">
+                <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
+                   <Target className="h-4 w-4 text-accent" />
+                   <p className="text-[10px] font-black uppercase text-accent tracking-widest">Objetivos</p>
+                </CardHeader>
+                <CardContent className="p-4 pt-1">
+                   <p className="text-sm font-bold text-foreground/80 line-clamp-2">{student?.goals || "Geral"}</p>
+                </CardContent>
+             </Card>
+           </DialogTrigger>
+           <DialogContent className="rounded-[2rem] border-accent/20 bg-background sm:max-w-md">
+             <DialogHeader>
+               <DialogTitle className="text-xl font-black text-accent uppercase flex items-center gap-2"><Target className="h-5 w-5"/> Editar Objetivos</DialogTitle>
+             </DialogHeader>
+             <Textarea value={editValue} onChange={e => setEditValue(e.target.value)} className="min-h-[150px] rounded-xl font-bold" placeholder="Quais são os principais objetivos do aluno?" />
+             <Button onClick={handleUpdateField} disabled={isSavingField} className="w-full bg-accent text-accent-foreground rounded-full font-black mt-4 h-12">
+               {isSavingField ? <Loader2 className="animate-spin mr-2" /> : "SALVAR OBJETIVOS"}
+             </Button>
+           </DialogContent>
+         </Dialog>
 
          {/* Controle de Testes para o Aluno */}
          <Card className="rounded-3xl border-primary/20 bg-background shadow-md lg:row-span-1">
