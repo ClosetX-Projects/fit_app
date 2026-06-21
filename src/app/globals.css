@@ -4,48 +4,48 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 209 27% 24%; /* Navy */
+    --background: 220 60% 98%;
+    --foreground: 226 34% 22%;
     --card: 0 0% 100%;
-    --card-foreground: 209 27% 24%;
+    --card-foreground: 226 34% 22%;
     --popover: 0 0% 100%;
-    --popover-foreground: 209 27% 24%;
-    --primary: 330 35% 18%; /* Dark Purple */
+    --popover-foreground: 226 34% 22%;
+    --primary: 262 58% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 129 23% 79%; /* Sage Green */
-    --secondary-foreground: 330 35% 18%;
-    --muted: 129 23% 90%; /* Lighter Sage */
-    --muted-foreground: 209 20% 40%;
-    --accent: 38 100% 68%; /* Yellow/Orange */
-    --accent-foreground: 330 35% 18%;
+    --secondary: 198 82% 90%;
+    --secondary-foreground: 226 48% 30%;
+    --muted: 222 56% 95%;
+    --muted-foreground: 224 16% 45%;
+    --accent: 187 68% 72%;
+    --accent-foreground: 226 48% 24%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 209 15% 90%;
-    --input: 209 15% 90%;
-    --ring: 330 35% 18%;
+    --border: 226 42% 90%;
+    --input: 226 42% 90%;
+    --ring: 262 58% 62%;
     --radius: 1.25rem;
   }
  
   .dark {
-    --background: 330 35% 5%; /* Very dark purple */
-    --foreground: 129 23% 95%;
-    --card: 330 35% 7%;
-    --card-foreground: 129 23% 95%;
-    --popover: 330 35% 5%;
-    --popover-foreground: 129 23% 95%;
-    --primary: 38 100% 68%; /* Yellow is primary in dark mode for contrast */
-    --primary-foreground: 330 35% 5%;
-    --secondary: 129 23% 20%;
-    --secondary-foreground: 129 23% 79%;
-    --muted: 330 35% 12%;
-    --muted-foreground: 129 10% 65%;
-    --accent: 129 23% 79%; /* Sage as accent */
-    --accent-foreground: 330 35% 5%;
+    --background: 226 34% 10%;
+    --foreground: 220 60% 96%;
+    --card: 226 32% 13%;
+    --card-foreground: 220 60% 96%;
+    --popover: 226 32% 13%;
+    --popover-foreground: 220 60% 96%;
+    --primary: 263 70% 74%;
+    --primary-foreground: 226 34% 10%;
+    --secondary: 205 54% 24%;
+    --secondary-foreground: 198 82% 90%;
+    --muted: 226 24% 18%;
+    --muted-foreground: 220 22% 72%;
+    --accent: 187 68% 64%;
+    --accent-foreground: 226 34% 10%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 129 23% 98%;
-    --border: 330 30% 18%;
-    --input: 330 30% 18%;
-    --ring: 38 100% 68%;
+    --destructive-foreground: 220 60% 96%;
+    --border: 226 24% 22%;
+    --input: 226 24% 22%;
+    --ring: 263 70% 74%;
   }
 }
  
@@ -55,6 +55,10 @@
   }
   body {
     @apply bg-background text-foreground font-body;
+    background:
+      radial-gradient(circle at top left, hsl(262 76% 94% / 0.65), transparent 32rem),
+      radial-gradient(circle at top right, hsl(198 82% 90% / 0.75), transparent 28rem),
+      hsl(var(--background));
   }
 }
 

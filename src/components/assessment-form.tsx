@@ -19,7 +19,13 @@ import { Loader2, Save, Activity, Scale, Ruler, ChevronRight, Calculator, Users,
 import { format, differenceInYears } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import { calcularTMB, calcularPercentualGordura } from "@/lib/calculations"
+import {
+  BODY_FAT_PROTOCOLS,
+  BodyFatProtocol,
+  calcularTMB,
+  calcularPercentualGordura,
+  normalizeBodyFatProtocol,
+} from "@/lib/calculations"
 
 const assessmentSchema = z.object({
   studentId: z.string().min(1, "Selecione um aluno"),
@@ -107,6 +113,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   const [step, setStep] = useState(initialAssessmentId ? 2 : 1)
   const [selectedId, setSelectedId] = useState<string | null>(initialAssessmentId || null)
   const [isClient, setIsClient] = useState(false)
+  const [selectedProtocol, setSelectedProtocol] = useState<BodyFatProtocol>("jackson_pollock_3_homens")
 
   useEffect(() => {
     setIsClient(true)
@@ -127,6 +134,14 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
   const watched = form.watch()
   const isNewStudent = watched.studentId === "new_student";
+  const studentSex = watched.gender === 'male' ? 'masculino' : 'feminino';
+  const currentProtocol = useMemo(
+    () => normalizeBodyFatProtocol(selectedProtocol || (user as any)?.config_protocolo_dobras, studentSex),
+    [selectedProtocol, studentSex, user]
+  );
+  const protocolMeta = BODY_FAT_PROTOCOLS.find((item) => item.id === currentProtocol);
+  const visibleProtocolOptions = BODY_FAT_PROTOCOLS.filter((item) => item.sex === 'ambos' || item.sex === studentSex);
+  const requiredFields = new Set(protocolMeta?.requiredFields || []);
 
   const targetId = isProfessor ? watched.studentId : user?.id;
   const { data: history, loading: isHistoryLoading, mutate: mutateHistory } = useApi<any[]>(targetId && targetId !== 'new_student' ? `/avaliacoes_antropo/aluno/${targetId}` : null);
@@ -186,6 +201,11 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
       }
     }
   }, [selectedId, history, form])
+
+  useEffect(() => {
+    if (!isProfessor) return;
+    setSelectedProtocol(normalizeBodyFatProtocol((user as any)?.config_protocolo_dobras, studentSex));
+  }, [isProfessor, studentSex, user]);
   
   const age = useMemo(() => {
     if (!isClient || !watched.birthDate) return 0
@@ -196,7 +216,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
     }
   }, [watched.birthDate, isClient])
 
-  const protocol = "Jackson & Pollock 3 Dobras"
+  const protocol = protocolMeta?.label || "Protocolo de gordura"
 
   const results = useMemo(() => {
     const { 
@@ -232,17 +252,32 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
 
     let fatPerc = 0
     if (age > 0) {
-      fatPerc = calcularPercentualGordura(
-        gender === 'male' ? 'masculino' : 'feminino',
-        age,
-        {
-          subescapular: Number(sub),
-          tricipital: Number(tri),
-          peitoral: Number(pec),
-          suprailiaca: Number(sup),
-          coxa: Number(t)
-        }
-      )
+      if (currentProtocol === 'tran_weltman_mulheres_brancas') {
+        const densidade = 1.168297 - (0.002824 * Number(abd)) + (0.0000122098 * Number(abd) ** 2) - (0.000733128 * Number(hip)) + (0.000510477 * Number(h)) - (0.000216161 * age);
+        fatPerc = ((4.95 / densidade) - 4.5) * 100;
+      } else if (currentProtocol === 'tran_weltman_homens_brancos') {
+        fatPerc = -47.371817 + (0.57914807 * Number(abd)) + (0.25189114 * Number(hip)) + (0.21366088 * Number(waist)) - (0.35595404 * Number(w));
+      } else if (currentProtocol === 'tran_weltman_mulheres_obesas') {
+        fatPerc = (0.11077 * Number(abd)) - (0.17666 * Number(h)) + (0.14354 * Number(w)) + 51.033;
+      } else if (currentProtocol === 'tran_weltman_homens_obesos') {
+        fatPerc = (0.31457 * Number(abd)) - (0.10969 * Number(w)) + 10.834;
+      } else {
+        fatPerc = calcularPercentualGordura(
+          gender === 'male' ? 'masculino' : 'feminino',
+          age,
+          {
+            subescapular: Number(sub),
+            tricipital: Number(tri),
+            peitoral: Number(pec),
+            suprailiaca: Number(sup),
+            coxa: Number(t),
+            abdominal: Number(abd),
+            axilarMedia: Number(max),
+            pernaMedial: Number(mlg)
+          },
+          currentProtocol
+        )
+      }
     }
 
     const tmb = calcularTMB(
@@ -252,7 +287,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
       age
     )
 
-    const finalFatPerc = Math.max(0, fatPerc)
+    const finalFatPerc = Number.isFinite(fatPerc) ? Math.max(0, fatPerc) : 0
     const fatMass = w * (finalFatPerc / 100)
     const leanMass = w - fatMass
 
@@ -278,7 +313,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
       protocol,
       age
     }
-  }, [watched, age, protocol])
+  }, [watched, age, protocol, currentProtocol])
 
   const handleNewRecord = () => {
     setSelectedId(null)
@@ -367,6 +402,13 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
         dobra_perna_medial_mm: values.midLeg,
       };
 
+      if (isProfessor && selectedProtocol !== (user as any)?.config_protocolo_dobras) {
+        await fetchApi(`/users/professores/${user.id}`, {
+          method: 'PUT',
+          data: { config_protocolo_dobras: selectedProtocol }
+        });
+      }
+
       await fetchApi(selectedId ? `/avaliacoes_antropo/${selectedId}` : '/avaliacoes_antropo/', {
         method: selectedId ? 'PUT' : 'POST',
         data: apiPayload
@@ -383,6 +425,55 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
   }
 
   if (!isClient) return null
+
+  if (!isProfessor) {
+    return (
+      <div className="max-w-5xl mx-auto pb-24 px-4 space-y-6">
+        <Card className="border-primary/20 shadow-xl rounded-3xl overflow-hidden">
+          <CardHeader className="bg-primary/5 border-b">
+            <CardTitle className="text-xl font-black text-primary uppercase">Avaliação Antropométrica</CardTitle>
+            <CardDescription>Histórico de composição corporal registrado pelo seu professor.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isHistoryLoading ? (
+              <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>
+            ) : history && history.length > 0 ? (
+              <div className="divide-y">
+                {history.map((item) => (
+                  <div key={item.id} className="p-5 grid gap-4 md:grid-cols-5">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">Data</p>
+                      <p className="text-sm font-bold">{format(new Date(item.data_avaliacao || new Date().toISOString()), "dd/MM/yyyy")}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">IMC</p>
+                      <p className="text-sm font-bold">{item.imc ?? "--"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">% Gordura</p>
+                      <p className="text-sm font-bold">{item.percentual_gordura ?? "--"}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">Massa Magra</p>
+                      <p className="text-sm font-bold">{item.massa_magra_kg ?? "--"} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">Massa Gorda</p>
+                      <p className="text-sm font-bold">{item.peso_gordura_kg ?? "--"} kg</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-10 text-center text-xs font-bold uppercase text-muted-foreground">
+                Nenhuma avaliação registrada ainda.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-24 px-4">
@@ -446,8 +537,22 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
               <CardDescription>{selectedId ? "Editando registro histórico." : "Gerenciamento técnico de composição corporal e riscos à saúde."}</CardDescription>
             </div>
             {step === 2 && isProfessor && (
-              <div className="bg-primary/10 text-primary px-4 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-primary/20 flex items-center gap-2">
-                <Info className="h-3 w-3" /> Protocolo: {results.protocol}
+              <div className="min-w-[280px] space-y-2">
+                <Label className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                  <Info className="h-3 w-3" /> Protocolo de gordura
+                </Label>
+                <Select value={currentProtocol} onValueChange={(value) => setSelectedProtocol(value as BodyFatProtocol)}>
+                  <SelectTrigger className="h-11 rounded-xl bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visibleProtocolOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label} ({item.age} anos)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -616,7 +721,7 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                         { id: "armContractedL", label: "Br. Contr. E" },
                         { id: "forearmR", label: "Ant.Braço D" },
                         { id: "forearmL", label: "Ant.Braço E" },
-                      ].map((f) => (
+                      ].filter((f) => requiredFields.has(f.id) || ["waist", "hip"].includes(f.id)).map((f) => (
                         <div key={f.id} className="space-y-1">
                           <Label className="text-[10px] font-black uppercase text-muted-foreground">{f.label} (cm)</Label>
                           <Input type="number" step="0.1" {...form.register(f.id as any)} className="h-10 rounded-xl" />
@@ -637,12 +742,17 @@ export function AssessmentForm({ initialStudentId, initialAssessmentId }: Assess
                         { id: "suprailiac", label: "Supra-ilíaca" },
                         { id: "thigh", label: "Coxa" },
                         { id: "midLeg", label: "Perna Medial" },
-                      ].map((d) => (
+                      ].filter((d) => requiredFields.has(d.id)).map((d) => (
                         <div key={d.id} className="space-y-1">
                           <Label className="text-[10px] font-black uppercase text-primary">{d.label} (mm)</Label>
                           <Input type="number" step="0.1" {...form.register(d.id as any)} className="h-10 rounded-xl border-primary/20" />
                         </div>
                       ))}
+                      {!["subscapular", "triceps", "biceps", "midAxillary", "pectoral", "abdominal", "suprailiac", "thigh", "midLeg"].some((field) => requiredFields.has(field)) && (
+                        <div className="col-span-full rounded-2xl border border-dashed p-6 text-center text-xs font-bold uppercase text-muted-foreground">
+                          Este protocolo usa circunferências, não dobras cutâneas.
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                 </Tabs>

@@ -13,11 +13,16 @@ export interface User {
   is_profile_complete: boolean;
   nome?: string;
   biotipo?: string;
+  professor_id?: string;
   professor_responsavel_id?: string;
   data_nascimento?: string;
   idade?: number;
   faixa_etaria?: string;
   testes_liberados?: string[];
+  config_protocolo_dobras?: string;
+  config_teste_vo2?: string;
+  config_teste_forca?: string;
+  config_testes_liberados?: string[];
 }
 
 interface AuthContextType {
