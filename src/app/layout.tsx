@@ -3,11 +3,18 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-provider';
+import { PwaRegister } from '@/components/pwa-register';
 
 export const metadata: Metadata = {
   title: 'FitAssist AI',
-  description: 'Seu companheiro de fitness com IA.',
+  description: 'Acompanhamento de saúde, treinos e avaliações físicas.',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/logo.png', sizes: '512x512', type: 'image/png' }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -22,8 +29,7 @@ export const viewport: Viewport = {
   themeColor: '#8b6adf',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -41,6 +47,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="font-body antialiased selection:bg-primary selection:text-primary-foreground">
+        <PwaRegister />
         <AuthProvider>
           {children}
           <Toaster />

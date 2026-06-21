@@ -61,8 +61,8 @@ export function StudentView() {
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-8rem)]">
-      <div className="flex-1 pb-24 md:pb-0">
+    <div className="flex flex-col min-h-[calc(100svh-8rem)]">
+      <div className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'calendar' && <WorkoutCalendar />}
         {activeTab === 'log-workout' && <WorkoutSessionForm />}
@@ -73,7 +73,7 @@ export function StudentView() {
       </div>
 
       {/* Barra de Navegação Mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t flex justify-around items-center h-16 px-1 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-t flex justify-around items-center h-[calc(4rem+env(safe-area-inset-bottom))] px-1 pb-safe md:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;

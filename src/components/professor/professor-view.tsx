@@ -167,7 +167,7 @@ export function ProfessorView() {
       {content}
 
       {/* Barra de Navegação Mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-t flex justify-around items-center h-16 px-1 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-t flex justify-around items-center h-[calc(4rem+env(safe-area-inset-bottom))] px-1 pb-safe md:hidden">
         {[
           { id: 'assessments', label: 'Início', icon: ClipboardCheck },
           { id: 'students', label: 'Alunos', icon: Users },

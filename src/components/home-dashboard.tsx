@@ -7,7 +7,6 @@ import { Logo } from '@/components/icons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { User as UserIcon, LogOut, Loader2, Copy, Check } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -18,7 +17,6 @@ export function HomeDashboard() {
   const { user, isUserLoading, logout } = useUser();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const userAvatarPlaceholder = PlaceHolderImages.find((img) => img.id === 'user-avatar');
 
   const isProfessor = user?.role === 'professor';
 
@@ -46,55 +44,54 @@ export function HomeDashboard() {
     );
   }
 
-  // O Backend ainda não envia foto, então usamos o placeholder
-  const currentPhotoUrl = userAvatarPlaceholder?.imageUrl;
+  const currentPhotoUrl = user?.avatar_url || '';
+  const roleLabel = isProfessor ? 'Professor' : 'Aluno';
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background selection:bg-primary/30">
-      {/* Header Adaptativo */}
-      <header className={cn(
-        "sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-md md:px-8",
-        !isProfessor && "md:h-20" // Header maior para alunos no desktop
-      )}>
-        <Logo className={cn(!isProfessor && "md:scale-110 origin-left")} />
-        
-        <div className="ml-auto flex items-center gap-2 md:gap-4">
-          <div className="hidden md:flex flex-col items-end mr-2">
-            <p className="text-sm font-semibold leading-none mb-1">{user?.nome}</p>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                {isProfessor ? 'Professor' : 'Aluno'}
-              </span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1"
-                onClick={handleCopyId}
-              >
-                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                ID: {user?.id?.substring(0, 6)}
-              </Button>
+      <header className="sticky top-0 z-40 border-b bg-background/90 px-3 py-3 backdrop-blur-md md:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3 md:gap-5">
+            <Logo className="hidden shrink-0 sm:flex" />
+
+            <div className="flex min-w-0 items-center gap-3 rounded-3xl border border-primary/10 bg-card/90 px-3 py-2 shadow-sm md:px-4">
+              <Avatar className="h-12 w-12 shrink-0 border-2 border-primary/20 md:h-14 md:w-14">
+                <AvatarImage src={currentPhotoUrl} />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  <UserIcon className="h-6 w-6" />
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="min-w-0">
+                <p className="truncate text-base font-black leading-tight text-foreground md:text-lg">{user?.nome || 'Perfil'}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                    {roleLabel}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden h-6 px-2 text-[10px] font-bold text-muted-foreground hover:text-primary md:inline-flex"
+                    onClick={handleCopyId}
+                  >
+                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    ID {user?.id?.substring(0, 6)}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <NotificationsDropdown />
-          
-          <Avatar className="h-9 w-9 border-2 border-primary/20">
-            <AvatarImage src={currentPhotoUrl} />
-            <AvatarFallback className="bg-primary/10 text-primary">
-              <UserIcon className="h-5 w-5" />
-            </AvatarFallback>
-          </Avatar>
-
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1 md:gap-2">
+            <NotificationsDropdown />
             <EditProfileDialog profile={user} />
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="outline"
               onClick={handleSignOut}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="h-11 rounded-full border-destructive/20 px-3 font-black text-destructive hover:bg-destructive/10 md:px-5"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sair</span>
             </Button>
           </div>
         </div>

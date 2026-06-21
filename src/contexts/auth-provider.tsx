@@ -13,6 +13,7 @@ export interface User {
   is_profile_complete: boolean;
   nome?: string;
   biotipo?: string;
+  avatar_url?: string;
   professor_id?: string;
   professor_responsavel_id?: string;
   data_nascimento?: string;
